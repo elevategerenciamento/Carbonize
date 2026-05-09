@@ -58,7 +58,12 @@ body {
     gap: 12px;
 }
 
-.logo-icon { font-size: 24px; color: var(--primary); }
+.brand-logo-img {
+    height: 32px;
+    width: auto;
+    filter: drop-shadow(0 0 8px rgba(204, 9, 47, 0.4));
+}
+
 .brand { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
 .unit { font-size: 10px; color: var(--text-dim); text-transform: uppercase; display: block; margin-top: -4px; }
 
