@@ -227,12 +227,12 @@
                         <table class="modern-table">
                             <thead>
                                 <tr>
-                                    <th>ROMANEIO</th>
-                                    <th>HORÁRIO</th>
+                                    <th>Nº IDENT.</th>
+                                    <th>DATA/HORA</th>
+                                    <th>TIPO</th>
                                     <th>VEÍCULO</th>
                                     <th>MOTORISTA</th>
-                                    <th>METRAGEM</th>
-                                    <th>PESO (KG)</th>
+                                    <th>M³ / KG</th>
                                     <th>DESTINO</th>
                                 </tr>
                             </thead>
@@ -488,18 +488,36 @@
 
     <div id="modal-load" class="modal-overlay">
         <div class="modal-glass">
-            <div class="modal-header"><h3>Registrar Romaneio</h3><button class="close-btn" onclick="hideModal('load')">✕</button></div>
+            <div class="modal-header"><h3>Registrar Romaneio de Saída</h3><button class="close-btn" onclick="hideModal('load')">✕</button></div>
             <form id="form-load">
                 <div class="form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-field">
+                        <label>Nº Identificador</label>
+                        <input type="text" name="identificador" id="load-id-auto" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Tipo de Carvão</label>
+                        <select name="tipo_carvao">
+                            <option value="Eucalipto">Eucalipto</option>
+                            <option value="Cerrado">Cerrado</option>
+                            <option value="Mistura">Mistura</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-field"><label>Data</label><input type="date" name="data_carga" id="load-date-manual" required></div>
+                    <div class="form-field"><label>Hora</label><input type="time" name="hora_carga" id="load-time-manual" required></div>
+                </div>
+                <div class="form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="form-field"><label>Placa do Veículo</label><input type="text" name="placa" placeholder="ABC-1234" required></div>
-                    <div class="form-field"><label>Motorista</label><input type="text" name="motorista" required></div>
+                    <div class="form-field"><label>Motorista</label><input type="text" name="motorista" placeholder="Nome completo" required></div>
                 </div>
                 <div class="form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="form-field"><label>Metragem (m³)</label><input type="number" step="0.01" name="metragem" value="0"></div>
                     <div class="form-field"><label>Peso Líquido (kg)</label><input type="number" name="peso" value="0"></div>
                 </div>
-                <div class="form-field"><label>Destino do Carregamento</label><input type="text" name="destino" required></div>
-                <button type="submit" class="btn-save">Gerar Romaneio de Saída</button>
+                <div class="form-field"><label>Destino do Carregamento</label><input type="text" name="destino" placeholder="Nome da empresa/usina" required></div>
+                <button type="submit" class="btn-save">Emitir Romaneio</button>
             </form>
         </div>
     </div>

@@ -118,6 +118,18 @@ function showModal(type, data = null) {
             document.getElementById('form-kiln').reset();
         }
     }
+
+    if (type === 'load') {
+        // Gerar número de série diferente (ex: 10000 + random)
+        const nextId = 10000 + Math.floor(Math.random() * 90000);
+        const elId = document.getElementById('load-id-auto');
+        if (elId) elId.value = nextId;
+
+        const elDate = document.getElementById('load-date-manual');
+        const elTime = document.getElementById('load-time-manual');
+        if (elDate) elDate.value = new Date().toISOString().split('T')[0];
+        if (elTime) elTime.value = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
 }
 
 function hideModal(type) {
@@ -257,7 +269,18 @@ function renderLoadsTable() {
     if (!list) return;
     const today = new Date().toLocaleDateString('pt-BR');
     const todayLoads = loads.filter(l => l.data === today).reverse();
-    list.innerHTML = todayLoads.map(l => `<tr><td>#${l.id}</td><td>${l.hora}</td><td><strong>${l.placa}</strong></td><td>${l.motorista}</td><td>${l.metragem} m³</td><td>${Number(l.peso).toLocaleString()}</td><td>${l.destino}</td></tr>`).join('');
+    list.innerHTML = todayLoads.map(l => `
+        <tr>
+            <td><strong>#${l.id}</strong></td>
+            <td>${l.data} <br> <small>${l.hora}</small></td>
+            <td><span class="status-badge success">${l.tipo || 'Eucalipto'}</span></td>
+            <td><strong>${l.placa}</strong></td>
+            <td>${l.motorista}</td>
+            <td>${l.metragem} m³ <br> ${Number(l.peso).toLocaleString()} kg</td>
+            <td>${l.destino}</td>
+        </tr>
+    `).join('');
+    
     const elCount = document.getElementById('loads-count-summary');
     const elKg = document.getElementById('loads-total-kg');
     if (elCount) elCount.innerText = `${todayLoads.length} CARGAS`;
@@ -285,7 +308,6 @@ function renderStock() {
     const movements = [...history.map(h => ({ type: 'entry', label: `Produção Forno ${h.modelo}`, amount: (Number(h.carbonizando || 0) * 1.5).toFixed(1) + ' t', date: h.data, ts: h.timestamp })), ...loads.map(l => ({ type: 'exit', label: `Venda Romaneio #${l.id}`, amount: (Number(l.peso || 0) / 1000).toFixed(1) + ' t', date: l.data, ts: new Date(l.data.split('/').reverse().join('-')).getTime() }))].sort((a, b) => b.ts - a.ts);
     const filterType = document.getElementById('stock-filter-type')?.value || 'all';
     list.innerHTML = movements.filter(m => filterType === 'all' || m.type === filterType).slice(0, 10).map(m => `<div class="stock-item ${m.type}"><div class="type-icon"><i data-lucide="${m.type === 'entry' ? 'plus-circle' : 'minus-circle'}"></i></div><div class="info"><h6>${m.label}</h6><span>${m.date}</span></div><div class="amount">${m.type === 'entry' ? '+' : '-'}${m.amount}</div></div>`).join('');
-    if (window.lucide) window.lucide.createIcons();
 }
 
 function setupFilters() {
@@ -358,7 +380,19 @@ function processForm(id, fd) {
             maintenance.push({ forno: `${entry.praca}`, problema: fd.get('obs'), data: entry.data, resolved: false, timestamp: Date.now() });
         }
     }
-    if (id === 'load') loads.push({ id: 1000 + loads.length + 1, data: new Date().toLocaleDateString('pt-BR'), hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), placa: fd.get('placa').toUpperCase(), motorista: fd.get('motorista'), metragem: fd.get('metragem'), peso: fd.get('peso'), destino: fd.get('destino') });
+    if (id === 'load') {
+        loads.push({ 
+            id: fd.get('identificador'), 
+            data: fd.get('data_carga') ? new Date(fd.get('data_carga')).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR'), 
+            hora: fd.get('hora_carga'),
+            placa: fd.get('placa').toUpperCase(), 
+            motorista: fd.get('motorista'), 
+            tipo: fd.get('tipo_carvao'),
+            metragem: fd.get('metragem'), 
+            peso: fd.get('peso'), 
+            destino: fd.get('destino') 
+        });
+    }
     if (id === 'maintenance') {
         const target = fd.get('kiln_target').split(' — ');
         maintenance.push({ data: fd.get('repair_date'), forno: target[0], servico: fd.get('issue_type'), custo: fd.get('cost'), notes: fd.get('maint_notes'), resolved: true, timestamp: Date.now() });
@@ -402,7 +436,7 @@ function generateReport(type, print = false) {
         doc.setTextColor(255, 255, 255); doc.setFontSize(14); doc.text("CARBONIZE - GESTÃO INDUSTRIAL", 14, 10);
         doc.setTextColor(0, 0, 0); doc.setFontSize(18); doc.text("Relatório de " + type.toUpperCase(), 14, 30);
         let tableData = []; let columns = [];
-        if (type === 'loads') { columns = ["ID", "Data", "Placa", "Peso (kg)"]; tableData = filterData(loads).map(l => [l.id, l.data, l.placa, l.peso]); }
+        if (type === 'loads') { columns = ["ID", "Data", "Hora", "Tipo", "Placa", "Peso (kg)"]; tableData = filterData(loads).map(l => [l.id, l.data, l.hora, l.tipo, l.placa, l.peso]); }
         else if (type === 'pracas') { columns = ["Data", "Unidade", "V/C/C/E", "Obs"]; tableData = filterData(history).map(h => [h.data, h.praca, `${h.vazios}/${h.cheios}/${h.carbonizando}/${h.esfriando}`, h.obs]); }
         doc.autoTable({ startY: 50, head: [columns], body: tableData, theme: 'grid', headStyles: { fillColor: [204, 9, 47] } });
         if (print) window.open(doc.output('bloburl'), '_blank'); else doc.save(`carbonize_${type}.pdf`);
