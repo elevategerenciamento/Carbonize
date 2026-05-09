@@ -91,7 +91,7 @@ function switchTab(tab) {
 function toggleMobileMenu() {
     const mobileNav = document.getElementById('mobile-nav');
     if (!mobileNav) return;
-    mobileNav.classList.toggle('show');
+    mobileNav.style.display = (mobileNav.style.display === 'flex') ? 'none' : 'flex';
 }
 
 function showModal(type, data = null) {
