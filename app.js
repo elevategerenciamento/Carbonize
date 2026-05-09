@@ -1,3 +1,5 @@
+console.log("Carbonize: app.js carregando...");
+
 // State Management
 let kilns = JSON.parse(localStorage.getItem('carboniza_kilns')) || [];
 let loads = JSON.parse(localStorage.getItem('carboniza_loads')) || [];
@@ -12,15 +14,17 @@ let loadsChart = null;
 const TOAST_DURATION = 2000;
 const PRIMARY_COLOR = '#cc092f'; // Bradesco Red
 
-// Expose functions to window
+// Expose functions to window IMMEDIATELY (Critical for modules)
 window.switchTab = switchTab;
 window.showModal = showModal;
 window.hideModal = hideModal;
 window.toggleMobileMenu = toggleMobileMenu;
 window.generateReport = generateReport;
+window.resolveMaint = resolveMaint;
 
 // Initialize
 function init() {
+    console.log("Carbonize: Inicializando sistema...");
     try {
         if (kilns.length === 0) {
             kilns = [
@@ -34,11 +38,13 @@ function init() {
         renderAll();
         setupForms();
         setInterval(updateDateTime, 60000);
+        console.log("Carbonize: Sistema pronto.");
     } catch (e) {
-        console.error("Erro na inicialização:", e);
+        console.error("Carbonize: Erro na inicialização:", e);
     }
 }
 
+// Handling load
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
@@ -64,6 +70,7 @@ function updateDateTime() {
 
 // Navigation Logic
 function switchTab(tab) {
+    console.log("Carbonize: Trocando para aba", tab);
     const sections = document.querySelectorAll('.content-section');
     const navLinks = document.querySelectorAll('.nav-link');
 
@@ -71,7 +78,11 @@ function switchTab(tab) {
     navLinks.forEach(n => n.classList.remove('active'));
 
     const activeSection = document.getElementById(`section-${tab}`);
-    if (activeSection) activeSection.style.display = 'block';
+    if (activeSection) {
+        activeSection.style.display = 'block';
+    } else {
+        console.warn("Carbonize: Seção não encontrada:", tab);
+    }
 
     navLinks.forEach(n => {
         const attr = n.getAttribute('onclick') || "";
@@ -114,10 +125,9 @@ function renderAll() {
         renderStock();
         updateMaintBadge();
         
-        // Re-initialize Lucide icons for any newly added content
         if (window.lucide) window.lucide.createIcons();
     } catch (e) {
-        console.error("Erro ao renderizar:", e);
+        console.error("Carbonize: Erro ao renderizar:", e);
     }
 }
 
@@ -373,7 +383,6 @@ function resolveMaint(ts) {
     maintenance = maintenance.map(m => m.timestamp.toString() === ts ? { ...m, resolved: true } : m);
     saveAll();
 }
-window.resolveMaint = resolveMaint;
 
 function saveAll() {
     localStorage.setItem('carboniza_kilns', JSON.stringify(kilns));

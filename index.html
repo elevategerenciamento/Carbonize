@@ -452,14 +452,24 @@
 
     <div id="toast">Operação realizada com sucesso!</div>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
     <script>
         // Initialize Lucide Icons after DOM load
         document.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) {
                 window.lucide.createIcons();
             }
+            console.log("Carbonize: Lucide Initialized");
         });
+        
+        // Fallback robust navigation
+        window.safeSwitch = function(tab) {
+            if (typeof window.switchTab === 'function') {
+                window.switchTab(tab);
+            } else {
+                console.error("switchTab not ready yet");
+            }
+        };
     </script>
 </body>
 </html>
