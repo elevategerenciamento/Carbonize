@@ -137,9 +137,13 @@
 
                 <div class="pracas-container" style="display: grid; grid-template-columns: 350px 1fr; gap: 32px;">
                     <!-- Coluna 1: Lista de Ativos -->
-                    <div class="glass">
+                    <div class="glass" style="max-height: 700px; display: flex; flex-direction: column;">
                         <h4 class="card-title mb-20">Ativos Cadastrados</h4>
-                        <div id="kilns-list-assets" class="assets-list">
+                        <div class="search-box mb-16">
+                            <i data-lucide="search"></i>
+                            <input type="text" id="asset-search" placeholder="Procurar forno..." oninput="renderKilnAssets()">
+                        </div>
+                        <div id="kilns-list-assets" class="assets-list" style="flex: 1; overflow-y: auto; padding-right: 8px;">
                             <!-- Populated by JS -->
                         </div>
                     </div>
@@ -161,19 +165,9 @@
                                 </div>
                             </div>
                             
-                            <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                                <div class="form-field">
-                                    <label>Selecionar Unidade</label>
-                                    <select name="praca_select" id="daily-praca-select" required></select>
-                                </div>
-                                <div class="form-field">
-                                    <label>Modelo</label>
-                                    <select name="modelo_select" id="daily-modelo-select">
-                                        <option value="Forno Menor">Forno Menor</option>
-                                        <option value="Forno JG">Forno JG</option>
-                                        <option value="Circular 5m">Circular 5m</option>
-                                    </select>
-                                </div>
+                            <div class="form-field">
+                                <label>Selecionar Forno / Unidade</label>
+                                <select name="praca_select" id="daily-praca-select" required></select>
                             </div>
 
                             <div class="form-field-4">
@@ -474,12 +468,20 @@
     <!-- MODALS -->
     <div id="modal-kiln" class="modal-overlay">
         <div class="modal-glass">
-            <div class="modal-header"><h3>Novo Ativo de Produção</h3><button class="close-btn" onclick="hideModal('kiln')">✕</button></div>
+            <div class="modal-header"><h3 id="kiln-modal-title">Novo Ativo de Produção</h3><button class="close-btn" onclick="hideModal('kiln')">✕</button></div>
             <form id="form-kiln">
-                <div class="form-field"><label>Identificação / Unidade</label><input type="text" name="praca" placeholder="Ex: Sul 01" required></div>
-                <div class="form-field"><label>Modelo do Forno</label><input type="text" name="modelo" placeholder="Ex: JG ou Circular" required></div>
-                <div class="form-field"><label>Operador Responsável</label><input type="text" name="responsavel" value="Operador Padrão"></div>
-                <button type="submit" class="btn-save">Cadastrar Forno</button>
+                <input type="hidden" name="kiln_index" id="kiln-edit-index" value="">
+                <div class="form-field"><label>Identificação / Unidade</label><input type="text" name="praca" id="kiln-modal-praca" placeholder="Ex: Sul 01" required></div>
+                <div class="form-field">
+                    <label>Modelo do Forno</label>
+                    <select name="modelo" id="kiln-modal-modelo">
+                        <option value="Forno Menor">Forno Menor</option>
+                        <option value="Forno JG">Forno JG</option>
+                        <option value="Circular 5m">Circular 5m</option>
+                    </select>
+                </div>
+                <div class="form-field"><label>Operador Responsável</label><input type="text" name="responsavel" id="kiln-modal-resp" value="Operador Padrão"></div>
+                <button type="submit" class="btn-save" id="kiln-modal-btn">Cadastrar Forno</button>
             </form>
         </div>
     </div>

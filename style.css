@@ -544,6 +544,58 @@ input:focus, select:focus { outline: none; border-color: var(--primary); box-sha
 .asset-card .details h6 { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 2px; }
 .asset-card .details span { font-size: 12px; color: var(--text-dim); }
 
+.asset-card .actions { 
+    margin-left: auto; 
+    display: flex; 
+    gap: 8px; 
+    opacity: 0; 
+    transition: 0.2s;
+}
+
+.asset-card:hover .actions { opacity: 1; }
+
+.asset-card .actions button {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.asset-card .actions button:hover { color: #fff; border-color: var(--text-dim); }
+.asset-card .actions button.delete:hover { color: var(--primary); border-color: var(--primary); }
+
+.search-box {
+    position: relative;
+    width: 100%;
+}
+
+.search-box i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--text-dim);
+}
+
+.search-box input {
+    width: 100%;
+    padding: 12px 12px 12px 40px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 14px;
+}
+.search-box input:focus { border-color: var(--primary); }
+
+.mb-16 { margin-bottom: 16px; }
 .mt-32 { margin-top: 32px; }
 .mt-20 { margin-top: 20px; }
 .mb-20 { margin-bottom: 20px; }
