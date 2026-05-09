@@ -35,6 +35,11 @@ function init() {
             saveAll();
         }
         updateDateTime();
+        
+        // Set default date for kiln daily entry
+        const dailyDateInput = document.getElementById('daily-date');
+        if (dailyDateInput) dailyDateInput.value = new Date().toISOString().split('T')[0];
+
         renderAll();
         setupForms();
         setupFilters();
@@ -216,12 +221,14 @@ function updateSelectors() {
 function renderKilnHistory() {
     const list = document.getElementById('kiln-history-list');
     if (!list) return;
-    list.innerHTML = history.slice(-5).reverse().map(h => `
+    list.innerHTML = history.slice(-10).reverse().map(h => `
         <tr>
+            <td>${h.data}</td>
             <td>${h.praca}</td>
+            <td>${h.responsavel || 'Operador'}</td>
             <td>${h.modelo}</td>
-            <td><span class="status-badge success">Ciclo Ativo</span></td>
-            <td><small>${h.obs || 'Nenhuma ocorrência registrada'}</small></td>
+            <td><strong>${h.vazios}/${h.cheios}/${h.carbonizando}/${h.esfriando}</strong></td>
+            <td><small>${h.obs || '-'}</small></td>
         </tr>
     `).join('');
 }
@@ -389,9 +396,21 @@ function setupForms() {
 function processForm(id, fd) {
     if (id === 'kiln') kilns.push({ praca: fd.get('praca'), responsavel: fd.get('responsavel'), modelo: fd.get('modelo') });
     if (id === 'kiln-daily') {
-        const entry = { timestamp: Date.now(), data: new Date().toLocaleDateString('pt-BR'), praca: fd.get('praca_select'), modelo: fd.get('modelo_select'), vazios: fd.get('vazios'), cheios: fd.get('cheios'), carbonizando: fd.get('carbonizando'), esfriando: fd.get('esfriando'), obs: fd.get('obs') };
+        const entryDate = fd.get('data_lancamento') ? new Date(fd.get('data_lancamento')).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+        const entry = { 
+            timestamp: Date.now(), 
+            data: entryDate, 
+            responsavel: fd.get('responsavel'),
+            praca: fd.get('praca_select'), 
+            modelo: fd.get('modelo_select'), 
+            vazios: fd.get('vazios'), 
+            cheios: fd.get('cheios'), 
+            carbonizando: fd.get('carbonizando'), 
+            esfriando: fd.get('esfriando'), 
+            obs: fd.get('obs') 
+        };
         history.push(entry);
-        if ((fd.get('obs') || "").toLowerCase().includes('problema')) {
+        if ((fd.get('obs') || "").toLowerCase().includes('problema') || (fd.get('obs') || "").toLowerCase().includes('manutenção')) {
             maintenance.push({ praca: entry.praca, forno: entry.modelo, problema: fd.get('obs'), resolved: false, timestamp: Date.now() });
         }
     }

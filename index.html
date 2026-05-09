@@ -140,17 +140,29 @@
                     <div class="glass">
                         <h4 class="card-title">Lançamento de Ciclo</h4>
                         <form id="form-kiln-daily" class="mt-20">
-                            <div class="form-field">
-                                <label>Identificação do Forno</label>
-                                <select name="praca_select" id="daily-praca-select" required></select>
+                            <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-field">
+                                    <label>Data do Lançamento</label>
+                                    <input type="date" name="data_lancamento" id="daily-date" required>
+                                </div>
+                                <div class="form-field">
+                                    <label>Responsável / Operador</label>
+                                    <input type="text" name="responsavel" placeholder="Nome do responsável" required>
+                                </div>
                             </div>
-                            <div class="form-field">
-                                <label>Especificação / Modelo</label>
-                                <select name="modelo_select" id="daily-modelo-select">
-                                    <option value="Forno Menor">Forno Menor</option>
-                                    <option value="Forno JG">Forno JG</option>
-                                    <option value="Circular 5m">Circular 5m</option>
-                                </select>
+                            <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-field">
+                                    <label>Identificação (Praça/Unidade)</label>
+                                    <select name="praca_select" id="daily-praca-select" required></select>
+                                </div>
+                                <div class="form-field">
+                                    <label>Modelo do Forno</label>
+                                    <select name="modelo_select" id="daily-modelo-select">
+                                        <option value="Forno Menor">Forno Menor</option>
+                                        <option value="Forno JG">Forno JG</option>
+                                        <option value="Circular 5m">Circular 5m</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="form-field-4">
                                 <div class="sub-field"><label>Vazios</label><input type="number" name="vazios" value="0"></div>
@@ -159,8 +171,8 @@
                                 <div class="sub-field"><label>Esfria</label><input type="number" name="esfriando" value="0"></div>
                             </div>
                             <div class="form-field">
-                                <label>Notas Técnicas</label>
-                                <textarea name="obs" rows="3" placeholder="Relate avarias ou observações do ciclo..."></textarea>
+                                <label>Obs / Manutenção</label>
+                                <textarea name="obs" rows="3" placeholder="Ex: Forno 04 com rachadura..."></textarea>
                             </div>
                             <button type="submit" class="btn-save">Registrar Atualização</button>
                         </form>
@@ -178,10 +190,12 @@
                             <table class="modern-table">
                                 <thead>
                                     <tr>
+                                        <th>DATA</th>
                                         <th>UNIDADE</th>
+                                        <th>RESPONSÁVEL</th>
                                         <th>MODELO</th>
-                                        <th>STATUS</th>
-                                        <th>OBSERVAÇÃO</th>
+                                        <th>V/C/C/E</th>
+                                        <th>OBS / MANUT.</th>
                                     </tr>
                                 </thead>
                                 <tbody id="kiln-history-list"></tbody>
