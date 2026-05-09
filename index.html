@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Carbonize | Gestão de Alta Performance</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carboniza - Gestão Industrial Premium</title>
     <meta name="description" content="Sistema profissional de controle de produção de carvão vegetal.">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,7 +30,7 @@
                 <button class="nav-link active" onclick="switchTab('dashboard')"><i data-lucide="layout-dashboard"></i> Dashboard</button>
                 <button class="nav-link" onclick="switchTab('fornos')"><i data-lucide="container"></i> Fornos</button>
                 <button class="nav-link" onclick="switchTab('cargas')"><i data-lucide="truck"></i> Cargas</button>
-                <button class="nav-link" onclick="switchTab('manutencao')"><i data-lucide="wrench"></i> Manutenção <span class="badge-count" id="maint-count">0</span></button>
+                <button class="nav-link" onclick="switchTab('manutencao')"><i data-lucide="wrench"></i> Manutenção</button>
                 <button class="nav-link" onclick="switchTab('estoque')"><i data-lucide="database"></i> Estoque</button>
                 <button class="nav-link" onclick="switchTab('analise')"><i data-lucide="bar-chart-3"></i> Análise</button>
                 <button class="nav-link" onclick="switchTab('relatorios')"><i data-lucide="file-text"></i> Relatórios</button>
@@ -60,65 +60,61 @@
         <main class="main-content">
             <!-- SECTION: DASHBOARD -->
             <section id="section-dashboard" class="content-section">
-                <div class="header-action">
-                    <h2 class="page-title">Panorama Operacional</h2>
-                </div>
-
-                <div class="kpi-row">
-                    <div class="kpi-glass-card">
-                        <span class="kpi-label">Fornos em Operação</span>
-                        <div class="kpi-main">
-                            <h3 class="kpi-value" id="kpi-fornos-ativos">0</h3>
-                            <span class="kpi-trend positive">Estável</span>
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="container"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Fornos Ativos</span>
+                            <h2 class="kpi-value" id="kpi-fornos-ativos">0</h2>
                         </div>
-                        <div class="kpi-footer" id="kpi-fornos-total">de 0 cadastrados</div>
                     </div>
-                    <div class="kpi-glass-card">
-                        <span class="kpi-label">Despachos (Hoje)</span>
-                        <div class="kpi-main">
-                            <h3 class="kpi-value" id="kpi-cargas-hoje">0</h3>
-                            <span class="kpi-trend positive">+12%</span>
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="truck"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Cargas (Hoje)</span>
+                            <h2 class="kpi-value" id="kpi-cargas-hoje">0</h2>
                         </div>
-                        <div class="kpi-footer" id="kpi-kg-hoje">0 kg totalizados</div>
                     </div>
-                    <div class="kpi-glass-card">
-                        <span class="kpi-label">Rendimento Mensal</span>
-                        <div class="kpi-main">
-                            <h3 class="kpi-value" id="kpi-prod-mes">0 t</h3>
-                            <span class="kpi-trend">Meta: 160 t</span>
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="bar-chart"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Produção Mensal</span>
+                            <h2 class="kpi-value" id="kpi-prod-mes">0 t</h2>
                         </div>
-                        <div class="progress-bar-bg"><div class="progress-bar-fill" id="prod-progress" style="width: 0%;"></div></div>
+                        <div class="kpi-progress"><div class="progress-bar" id="prod-progress"></div></div>
                     </div>
-                    <div class="kpi-glass-card urgent">
-                        <span class="kpi-label">Alertas Técnicos</span>
-                        <div class="kpi-main">
-                            <h3 class="kpi-value" id="kpi-maint">0</h3>
-                            <span class="kpi-trend">Pendentes</span>
+                    <div class="kpi-card">
+                        <div class="kpi-icon text-primary"><i data-lucide="alert-circle"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Manutenções</span>
+                            <h2 class="kpi-value" id="kpi-maint">0</h2>
                         </div>
-                        <div class="kpi-footer">Manutenções aguardando ação</div>
                     </div>
                 </div>
 
                 <div class="dashboard-grid">
-                    <div class="grid-card">
+                    <div class="glass main-chart">
                         <div class="card-header">
-                            <h4>Monitoramento em Tempo Real</h4>
-                            <button class="btn-icon" onclick="switchTab('fornos')">Expandir Fornos <i data-lucide="chevron-right"></i></button>
+                            <h4>Monitoramento de Praças (V/C/C/E)</h4>
+                            <span class="badge">Real-time</span>
                         </div>
-                        <div id="dashboard-pracas-list" class="mini-grid-container"></div>
+                        <div id="dashboard-pracas-list" class="pracas-status-grid">
+                            <!-- Populated by JS -->
+                        </div>
                     </div>
-                    <div class="grid-card">
+
+                    <div class="glass side-list">
                         <div class="card-header">
-                            <h4>Fluxo de Saída Recente</h4>
-                            <button class="btn-primary" onclick="showModal('load')"><i data-lucide="plus"></i> Novo Romaneio</button>
+                            <h4>Últimos Romaneios</h4>
+                            <button class="btn-text" onclick="switchTab('cargas')">Ver todos</button>
                         </div>
                         <div class="table-wrapper">
-                            <table class="simple-table">
+                            <table class="modern-table">
                                 <thead>
                                     <tr>
-                                        <th>HORÁRIO</th>
+                                        <th>HORA</th>
                                         <th>VEÍCULO</th>
-                                        <th>PESO LÍQ.</th>
+                                        <th>PESO</th>
                                         <th>STATUS</th>
                                     </tr>
                                 </thead>
@@ -211,7 +207,7 @@
             <!-- SECTION: CARGAS -->
             <section id="section-cargas" class="content-section" style="display: none;">
                 <div class="header-action">
-                    <h2 class="page-title">Expedição e Logística</h2>
+                    <h2 class="page-title">Controle de Saídas</h2>
                     <button class="btn-primary" onclick="showModal('load')"><i data-lucide="truck"></i> Novo Romaneio</button>
                 </div>
 
@@ -279,14 +275,14 @@
                     </div>
                     <div class="glass">
                         <h4 class="card-title">Intervenções Pendentes</h4>
-                        <div class="table-wrapper mt-20">
+                        <div class="table-wrapper mt-16">
                             <table class="modern-table">
                                 <thead>
                                     <tr>
                                         <th>FORNO</th>
                                         <th>PROBLEMA</th>
-                                        <th>DATA REGISTRO</th>
-                                        <th>AÇÕES</th>
+                                        <th>DATA</th>
+                                        <th>AÇÃO</th>
                                     </tr>
                                 </thead>
                                 <tbody id="open-issues-list"></tbody>
@@ -296,7 +292,7 @@
                 </div>
             </section>
 
-            <!-- SECTION: ESTOQUE (Overhaul) -->
+            <!-- SECTION: ESTOQUE -->
             <section id="section-estoque" class="content-section" style="display: none;">
                 <div class="header-action">
                     <h2 class="page-title">Centro de Inventário</h2>
@@ -350,19 +346,13 @@
                 </div>
 
                 <div class="charts-grid">
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h4>Fluxo de Carbonização (t)</h4>
-                            <p>Desempenho por unidade de produção</p>
-                        </div>
-                        <div class="chart-container"><canvas id="prodChart"></canvas></div>
+                    <div class="glass chart-container">
+                        <h4 class="card-title">Tendência de Produção (t)</h4>
+                        <canvas id="prodChart"></canvas>
                     </div>
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h4>Frequência de Logística</h4>
-                            <p>Volume de romaneios por dia</p>
-                        </div>
-                        <div class="chart-container"><canvas id="loadsChart"></canvas></div>
+                    <div class="glass chart-container">
+                        <h4 class="card-title">Fluxo de Expedição (Cargas)</h4>
+                        <canvas id="loadsChart"></canvas>
                     </div>
                 </div>
 
@@ -385,79 +375,107 @@
                 </div>
             </section>
 
-            <!-- SECTION: RELATÓRIOS (Improved) -->
+            <!-- SECTION: RELATÓRIOS -->
             <section id="section-relatorios" class="content-section" style="display: none;">
                 <div class="header-action">
-                    <h2 class="page-title">Centro de Relatórios Especializados</h2>
+                    <h2 class="page-title">Centro de Relatórios e Inteligência</h2>
                 </div>
 
-                <div class="reports-grid">
-                    <div class="report-card">
-                        <div class="icon-box"><i data-lucide="truck"></i></div>
-                        <div class="info">
-                            <h5>Romaneio Consolidado</h5>
-                            <p>Exporta todas as cargas e detalhes logísticos.</p>
-                            <div class="report-filters mt-16">
-                                <div class="filter-row" style="display: flex; gap: 8px;">
-                                    <input type="date" id="report-loads-start" class="xs-input">
-                                    <input type="date" id="report-loads-end" class="xs-input">
+                <div class="reports-premium-grid">
+                    <!-- Card: Logística -->
+                    <div class="report-premium-card">
+                        <div class="card-glow"></div>
+                        <div class="card-content">
+                            <div class="report-header">
+                                <div class="report-icon"><i data-lucide="truck"></i></div>
+                                <div>
+                                    <h5>Logística & Saídas</h5>
+                                    <p>Histórico completo de romaneios e expedição.</p>
                                 </div>
                             </div>
-                        </div>
-                        <div class="actions">
-                            <button class="btn-primary" onclick="generateReport('loads')"><i data-lucide="download"></i> PDF</button>
-                            <button class="btn-outline" onclick="generateReport('loads', true)"><i data-lucide="printer"></i> Imprimir</button>
+                            <div class="report-body">
+                                <label>Filtrar Período:</label>
+                                <div class="filter-group">
+                                    <input type="date" id="report-loads-start">
+                                    <input type="date" id="report-loads-end">
+                                </div>
+                            </div>
+                            <div class="report-footer">
+                                <button class="btn-primary" onclick="generateReport('loads')"><i data-lucide="file-down"></i> Exportar PDF</button>
+                                <button class="btn-outline-sm" onclick="generateReport('loads', true)"><i data-lucide="printer"></i> Imprimir</button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="report-card">
-                        <div class="icon-box"><i data-lucide="container"></i></div>
-                        <div class="info">
-                            <h5>Status dos Fornos</h5>
-                            <p>Relatório técnico com o estado atual de cada forno.</p>
-                            <div class="report-filters mt-16">
-                                <div class="filter-row" style="display: flex; gap: 8px;">
-                                    <input type="date" id="report-pracas-start" class="xs-input">
-                                    <input type="date" id="report-pracas-end" class="xs-input">
+                    <!-- Card: Produção -->
+                    <div class="report-premium-card">
+                        <div class="card-glow"></div>
+                        <div class="card-content">
+                            <div class="report-header">
+                                <div class="report-icon"><i data-lucide="container"></i></div>
+                                <div>
+                                    <h5>Produção de Fornos</h5>
+                                    <p>Rendimento, ciclos e status das unidades.</p>
                                 </div>
                             </div>
-                        </div>
-                        <div class="actions">
-                            <button class="btn-primary" onclick="generateReport('pracas')"><i data-lucide="download"></i> PDF</button>
+                            <div class="report-body">
+                                <label>Filtrar Período:</label>
+                                <div class="filter-group">
+                                    <input type="date" id="report-pracas-start">
+                                    <input type="date" id="report-pracas-end">
+                                </div>
+                            </div>
+                            <div class="report-footer">
+                                <button class="btn-primary" onclick="generateReport('pracas')"><i data-lucide="file-down"></i> Exportar PDF</button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="report-card">
-                        <div class="icon-box"><i data-lucide="wrench"></i></div>
-                        <div class="info">
-                            <h5>Histórico de Manutenção</h5>
-                            <p>Lista completa de reparos e custos realizados.</p>
-                            <div class="report-filters mt-16">
-                                <div class="filter-row" style="display: flex; gap: 8px;">
-                                    <input type="date" id="report-maint-start" class="xs-input">
-                                    <input type="date" id="report-maint-end" class="xs-input">
+                    <!-- Card: Manutenção -->
+                    <div class="report-premium-card">
+                        <div class="card-glow"></div>
+                        <div class="card-content">
+                            <div class="report-header">
+                                <div class="report-icon"><i data-lucide="wrench"></i></div>
+                                <div>
+                                    <h5>Manutenção & Ativos</h5>
+                                    <p>Custos e histórico de intervenções técnicas.</p>
                                 </div>
                             </div>
-                        </div>
-                        <div class="actions">
-                            <button class="btn-primary" onclick="generateReport('maint')"><i data-lucide="download"></i> PDF</button>
+                            <div class="report-body">
+                                <label>Filtrar Período:</label>
+                                <div class="filter-group">
+                                    <input type="date" id="report-maint-start">
+                                    <input type="date" id="report-maint-end">
+                                </div>
+                            </div>
+                            <div class="report-footer">
+                                <button class="btn-primary" onclick="generateReport('maint')"><i data-lucide="file-down"></i> Exportar PDF</button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="report-card">
-                        <div class="icon-box"><i data-lucide="database"></i></div>
-                        <div class="info">
-                            <h5>Movimentação de Estoque</h5>
-                            <p>Resumo mensal de entradas e saídas de carvão.</p>
-                            <div class="report-filters mt-16">
-                                <div class="filter-row" style="display: flex; gap: 8px;">
-                                    <input type="date" id="report-stock-start" class="xs-input">
-                                    <input type="date" id="report-stock-end" class="xs-input">
+                    <!-- Card: Estoque -->
+                    <div class="report-premium-card">
+                        <div class="card-glow"></div>
+                        <div class="card-content">
+                            <div class="report-header">
+                                <div class="report-icon"><i data-lucide="database"></i></div>
+                                <div>
+                                    <h5>Inventário de Pátio</h5>
+                                    <p>Balanço de entradas, saídas e saldo atual.</p>
                                 </div>
                             </div>
-                        </div>
-                        <div class="actions">
-                            <button class="btn-primary" onclick="generateReport('stock')"><i data-lucide="download"></i> PDF</button>
+                            <div class="report-body">
+                                <label>Filtrar Período:</label>
+                                <div class="filter-group">
+                                    <input type="date" id="report-stock-start">
+                                    <input type="date" id="report-stock-end">
+                                </div>
+                            </div>
+                            <div class="report-footer">
+                                <button class="btn-primary" onclick="generateReport('stock')"><i data-lucide="file-down"></i> Exportar PDF</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -522,26 +540,8 @@
         </div>
     </div>
 
-    <div id="toast">Operação realizada com sucesso!</div>
+    <div id="toast" class="toast">Ação realizada com sucesso!</div>
 
-    <script type="module" src="app.js"></script>
-    <script>
-        // Initialize Lucide Icons after DOM load
-        document.addEventListener('DOMContentLoaded', () => {
-            if (window.lucide) {
-                window.lucide.createIcons();
-            }
-            console.log("Carbonize: Lucide Initialized");
-        });
-        
-        // Fallback robust navigation
-        window.safeSwitch = function(tab) {
-            if (typeof window.switchTab === 'function') {
-                window.switchTab(tab);
-            } else {
-                console.error("switchTab not ready yet");
-            }
-        };
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>

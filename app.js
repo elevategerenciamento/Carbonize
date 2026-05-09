@@ -147,7 +147,7 @@ function renderAll() {
         renderLoadsTable();
         renderMaintenance();
         renderStock();
-        updateMaintBadge();
+        
         if (window.lucide) window.lucide.createIcons();
     } catch (e) {
         console.error("Carbonize Render Error:", e);
@@ -313,17 +313,6 @@ function renderStock() {
 function setupFilters() {
     const stockFilter = document.getElementById('stock-filter-type');
     if (stockFilter) stockFilter.onchange = renderStock;
-}
-
-function updateMaintBadge() {
-    const count = maintenance.filter(m => !m.resolved).length;
-    const elCount = document.getElementById('maint-count');
-    const elAlertBadge = document.getElementById('maint-alert-badge');
-    if (elCount) elCount.innerText = count;
-    if (elAlertBadge) {
-        elAlertBadge.innerText = count > 0 ? `${count} PENDENTES` : "SISTEMA OK";
-        elAlertBadge.className = count > 0 ? "status-badge danger" : "status-badge success";
-    }
 }
 
 function renderCharts() {
