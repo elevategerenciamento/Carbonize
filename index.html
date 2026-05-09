@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carboniza - Gestão Industrial Premium</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Carbonize | Gestão de Alta Performance</title>
     <meta name="description" content="Sistema profissional de controle de produção de carvão vegetal.">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -60,6 +60,10 @@
         <main class="main-content">
             <!-- SECTION: DASHBOARD -->
             <section id="section-dashboard" class="content-section">
+                <div class="header-action">
+                    <h2 class="page-title">Panorama Operacional</h2>
+                </div>
+
                 <div class="kpi-grid">
                     <div class="kpi-card">
                         <div class="kpi-icon"><i data-lucide="container"></i></div>
@@ -93,28 +97,25 @@
                 </div>
 
                 <div class="dashboard-grid">
-                    <div class="glass main-chart">
+                    <div class="grid-card">
                         <div class="card-header">
-                            <h4>Monitoramento de Praças (V/C/C/E)</h4>
-                            <span class="badge">Real-time</span>
+                            <h4>Monitoramento em Tempo Real</h4>
+                            <button class="btn-icon" onclick="switchTab('fornos')">Expandir Fornos <i data-lucide="chevron-right"></i></button>
                         </div>
-                        <div id="dashboard-pracas-list" class="pracas-status-grid">
-                            <!-- Populated by JS -->
-                        </div>
+                        <div id="dashboard-pracas-list" class="mini-grid-container"></div>
                     </div>
-
-                    <div class="glass side-list">
+                    <div class="grid-card">
                         <div class="card-header">
-                            <h4>Últimos Romaneios</h4>
-                            <button class="btn-text" onclick="switchTab('cargas')">Ver todos</button>
+                            <h4>Fluxo de Saída Recente</h4>
+                            <button class="btn-primary" onclick="showModal('load')"><i data-lucide="plus"></i> Novo Romaneio</button>
                         </div>
                         <div class="table-wrapper">
-                            <table class="modern-table">
+                            <table class="simple-table">
                                 <thead>
                                     <tr>
-                                        <th>HORA</th>
+                                        <th>HORÁRIO</th>
                                         <th>VEÍCULO</th>
-                                        <th>PESO</th>
+                                        <th>PESO LÍQ.</th>
                                         <th>STATUS</th>
                                     </tr>
                                 </thead>
@@ -207,7 +208,7 @@
             <!-- SECTION: CARGAS -->
             <section id="section-cargas" class="content-section" style="display: none;">
                 <div class="header-action">
-                    <h2 class="page-title">Controle de Saídas</h2>
+                    <h2 class="page-title">Expedição e Logística</h2>
                     <button class="btn-primary" onclick="showModal('load')"><i data-lucide="truck"></i> Novo Romaneio</button>
                 </div>
 
@@ -275,14 +276,14 @@
                     </div>
                     <div class="glass">
                         <h4 class="card-title">Intervenções Pendentes</h4>
-                        <div class="table-wrapper mt-16">
+                        <div class="table-wrapper mt-20">
                             <table class="modern-table">
                                 <thead>
                                     <tr>
                                         <th>FORNO</th>
                                         <th>PROBLEMA</th>
-                                        <th>DATA</th>
-                                        <th>AÇÃO</th>
+                                        <th>DATA REGISTRO</th>
+                                        <th>AÇÕES</th>
                                     </tr>
                                 </thead>
                                 <tbody id="open-issues-list"></tbody>
@@ -292,7 +293,7 @@
                 </div>
             </section>
 
-            <!-- SECTION: ESTOQUE -->
+            <!-- SECTION: ESTOQUE (Overhaul) -->
             <section id="section-estoque" class="content-section" style="display: none;">
                 <div class="header-action">
                     <h2 class="page-title">Centro de Inventário</h2>
@@ -346,13 +347,19 @@
                 </div>
 
                 <div class="charts-grid">
-                    <div class="glass chart-container">
-                        <h4 class="card-title">Tendência de Produção (t)</h4>
-                        <canvas id="prodChart"></canvas>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h4>Fluxo de Carbonização (t)</h4>
+                            <p>Desempenho por unidade de produção</p>
+                        </div>
+                        <div class="chart-container"><canvas id="prodChart"></canvas></div>
                     </div>
-                    <div class="glass chart-container">
-                        <h4 class="card-title">Fluxo de Expedição (Cargas)</h4>
-                        <canvas id="loadsChart"></canvas>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h4>Frequência de Logística</h4>
+                            <p>Volume de romaneios por dia</p>
+                        </div>
+                        <div class="chart-container"><canvas id="loadsChart"></canvas></div>
                     </div>
                 </div>
 
@@ -540,8 +547,26 @@
         </div>
     </div>
 
-    <div id="toast" class="toast">Ação realizada com sucesso!</div>
+    <div id="toast">Operação realizada com sucesso!</div>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
+    <script>
+        // Initialize Lucide Icons after DOM load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+            console.log("Carbonize: Lucide Initialized");
+        });
+        
+        // Fallback robust navigation
+        window.safeSwitch = function(tab) {
+            if (typeof window.switchTab === 'function') {
+                window.switchTab(tab);
+            } else {
+                console.error("switchTab not ready yet");
+            }
+        };
+    </script>
 </body>
 </html>
