@@ -33,8 +33,9 @@ body {
     color: var(--text-primary);
     font-family: var(--font-main);
     line-height: 1.5;
-    overflow: hidden;
-    height: 100vh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
 }
 
 /* Layout Shell */
@@ -111,9 +112,9 @@ body {
 }
 
 .nav-item.active {
-    background: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color), #ff8c33);
     color: #fff;
-    box-shadow: 0 4px 12px var(--primary-glow);
+    box-shadow: 0 4px 15px var(--primary-glow);
 }
 
 .nav-icon {
@@ -137,6 +138,26 @@ body {
     display: flex;
     flex-direction: column;
     background: radial-gradient(circle at top right, #1a1410, #0d0d0d);
+    background-image: url('bg.png');
+    background-size: cover;
+    background-attachment: fixed;
+    position: relative;
+}
+
+.main-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(13, 13, 13, 0.85);
+    z-index: 0;
+}
+
+.main-content > * {
+    position: relative;
+    z-index: 1;
 }
 
 .top-bar {
@@ -428,11 +449,13 @@ body {
 
 /* Glass Cards and Forms */
 .glass-card {
-    background: rgba(26, 26, 26, 0.6);
+    background: rgba(30, 30, 30, 0.4);
     backdrop-filter: blur(20px);
-    border: 1px solid var(--border-color);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-lg);
     padding: 24px;
+    box-shadow: var(--shadow-md);
 }
 
 .card-title {
