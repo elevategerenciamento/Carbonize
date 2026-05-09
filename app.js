@@ -33,8 +33,8 @@ function updateDateTime() {
     if (!elDate || !elGreeting) return;
 
     const now = new Date();
-    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-    elDate.innerText = now.toLocaleDateString('pt-BR', options);
+    const options = { day: '2-digit', month: 'short', year: 'numeric' };
+    elDate.innerText = now.toLocaleDateString('pt-BR', options).replace('.', '');
     
     const hour = now.getHours();
     let greeting = "Boa noite";
@@ -44,32 +44,33 @@ function updateDateTime() {
     elGreeting.innerText = `${greeting}, Operador`;
 }
 
-// Tab Navigation
+// Navigation Logic
 function switchTab(tab) {
-    console.log("Switching to tab:", tab);
     const sections = document.querySelectorAll('.content-section');
-    const navItems = document.querySelectorAll('.nav-item');
+    const navLinks = document.querySelectorAll('.nav-link');
 
     sections.forEach(s => s.style.display = 'none');
-    navItems.forEach(n => n.classList.remove('active'));
+    navLinks.forEach(n => n.classList.remove('active'));
 
     const activeSection = document.getElementById(`section-${tab}`);
-    if (activeSection) {
-        activeSection.style.display = 'block';
-    }
+    if (activeSection) activeSection.style.display = 'block';
 
-    navItems.forEach(n => {
-        const btnText = n.innerText.toLowerCase();
-        // More robust matching for accented words
-        if (btnText.includes(tab) || 
-            (tab === 'pracas' && btnText.includes('praças')) ||
-            (tab === 'manutencao' && btnText.includes('manutenção')) ||
-            (tab === 'relatorios' && btnText.includes('relatórios'))) {
+    navLinks.forEach(n => {
+        if (n.getAttribute('onclick') && n.getAttribute('onclick').includes(tab)) {
             n.classList.add('active');
         }
     });
 
     renderAll();
+}
+
+function toggleMobileMenu() {
+    const mobileNav = document.getElementById('mobile-nav');
+    if (mobileNav.style.display === 'flex') {
+        mobileNav.style.display = 'none';
+    } else {
+        mobileNav.style.display = 'flex';
+    }
 }
 
 // Modal Logic
@@ -135,43 +136,36 @@ function updateKPIs() {
 
 function renderDashboard() {
     const pracasList = document.getElementById('dashboard-pracas-list');
-    if (!pracasList) return;
-    pracasList.innerHTML = '';
+    if (pracasList) {
+        pracasList.innerHTML = '';
+        const pracaGroups = {};
+        kilns.forEach(k => {
+            if (!pracaGroups[k.praca]) pracaGroups[k.praca] = { v: 0, c: 0, ca: 0, e: 0 };
+            const latest = history.filter(h => h.praca === k.praca).sort((a, b) => b.timestamp - a.timestamp)[0];
+            if (latest) {
+                pracaGroups[k.praca].v += Number(latest.vazios || 0);
+                pracaGroups[k.praca].c += Number(latest.cheios || 0);
+                pracaGroups[k.praca].ca += Number(latest.carbonizando || 0);
+                pracaGroups[k.praca].e += Number(latest.esfriando || 0);
+            }
+        });
 
-    const pracaGroups = {};
-    kilns.forEach(k => {
-        if (!pracaGroups[k.praca]) pracaGroups[k.praca] = { vazios: 0, cheios: 0, carbon: 0, esfria: 0, total: 0 };
-        const latest = history.filter(h => h.praca === k.praca).sort((a, b) => b.timestamp - a.timestamp)[0];
-        if (latest) {
-            pracaGroups[k.praca].vazios += Number(latest.vazios || 0);
-            pracaGroups[k.praca].cheios += Number(latest.cheios || 0);
-            pracaGroups[k.praca].carbon += Number(latest.carbonizando || 0);
-            pracaGroups[k.praca].esfria += Number(latest.esfriando || 0);
-        }
-        pracaGroups[k.praca].total++;
-    });
-
-    Object.keys(pracaGroups).forEach(pracaName => {
-        const group = pracaGroups[pracaName];
-        const card = document.createElement('div');
-        card.className = 'praca-mini-card';
-        card.innerHTML = `
-            <div class="praca-mini-header">
-                <div class="praca-mini-info">
-                    <h5>${pracaName}</h5>
-                    <span>Responsável: Ricardo</span>
+        Object.keys(pracaGroups).forEach(name => {
+            const g = pracaGroups[name];
+            const div = document.createElement('div');
+            div.className = 'praca-mini-box';
+            div.innerHTML = `
+                <h5>${name}</h5>
+                <div class="mini-indicators">
+                    <span class="ind-item">V: <b>${g.v}</b></span>
+                    <span class="ind-item">C: <b>${g.c}</b></span>
+                    <span class="ind-item">CA: <b>${g.ca}</b></span>
+                    <span class="ind-item">E: <b>${g.e}</b></span>
                 </div>
-                <span class="badge-status status-normal">Normal</span>
-            </div>
-            <div class="mini-stats-row">
-                <div class="mini-stat-item"><span class="val">${group.vazios}</span><span class="lbl">Vazios</span></div>
-                <div class="mini-stat-item"><span class="val">${group.cheios}</span><span class="lbl">Cheios</span></div>
-                <div class="mini-stat-item"><span class="val">${group.carbon}</span><span class="lbl">Carbon.</span></div>
-                <div class="mini-stat-item"><span class="val">${group.esfria}</span><span class="lbl">Esfria</span></div>
-            </div>
-        `;
-        pracasList.appendChild(card);
-    });
+            `;
+            pracasList.appendChild(div);
+        });
+    }
 
     const dashLoads = document.getElementById('dashboard-loads-list');
     if (dashLoads) {
@@ -179,10 +173,10 @@ function renderDashboard() {
         loads.slice(-5).reverse().forEach(l => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><a href="#" class="id-link">#${l.id}</a></td>
                 <td>${l.hora}</td>
                 <td>${l.placa}</td>
-                <td>${l.peso} kg</td>
+                <td>${Number(l.peso).toLocaleString()}</td>
+                <td><span class="status-badge success">Pronto</span></td>
             `;
             dashLoads.appendChild(tr);
         });
@@ -192,7 +186,6 @@ function renderDashboard() {
 function updateSelectors() {
     const dailyPraca = document.getElementById('daily-praca-select');
     const maintKiln = document.getElementById('maint-kiln-select');
-    
     const uniquePracas = [...new Set(kilns.map(k => k.praca))];
     
     if (dailyPraca) {
@@ -214,7 +207,6 @@ function renderKilnHistory() {
     history.slice(-10).reverse().forEach(h => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${h.data}</td>
             <td>${h.praca}</td>
             <td>${h.modelo}</td>
             <td>${h.carbonizando}</td>
@@ -256,12 +248,11 @@ function renderLoadsTable() {
     todayLoads.forEach(l => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><a href="#" class="id-link">#${l.id}</a></td>
-            <td>${l.data}</td>
+            <td>#${l.id}</td>
             <td>${l.hora}</td>
             <td>${l.placa}</td>
             <td>${l.motorista}</td>
-            <td><span class="badge-status status-normal">${l.tipo}</span></td>
+            <td>${l.tipo}</td>
             <td>${l.metragem} m³</td>
             <td>${Number(l.peso).toLocaleString()}</td>
             <td>${l.destino}</td>
@@ -270,43 +261,24 @@ function renderLoadsTable() {
     });
 
     const elCount = document.getElementById('loads-count-summary');
-    const elM3 = document.getElementById('loads-total-m3');
     const elKg = document.getElementById('loads-total-kg');
 
     if (elCount) elCount.innerText = `${todayLoads.length} cargas`;
-    if (elM3) elM3.innerText = `Total: ${todayLoads.reduce((s, l) => s + Number(l.metragem || 0), 0).toFixed(1)} m³`;
-    if (elKg) elKg.innerText = `Peso total: ${todayLoads.reduce((s, l) => s + Number(l.peso || 0), 0).toLocaleString()} kg`;
+    if (elKg) elKg.innerText = `${todayLoads.reduce((s, l) => s + Number(l.peso || 0), 0).toLocaleString()} kg`;
 }
 
 function renderMaintenance() {
     const openList = document.getElementById('open-issues-list');
-    const historyList = document.getElementById('maint-history-list');
-    
     if (openList) {
         openList.innerHTML = '';
         maintenance.filter(m => !m.resolved).forEach(m => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${m.praca}</td>
                 <td>${m.forno}</td>
                 <td>${m.problema}</td>
-                <td><span class="badge-status status-urgent">Aguardando</span></td>
+                <td>${new Date(m.timestamp).toLocaleDateString('pt-BR')}</td>
             `;
             openList.appendChild(tr);
-        });
-    }
-
-    if (historyList) {
-        historyList.innerHTML = '';
-        maintenance.filter(m => m.resolved).slice(-5).reverse().forEach(m => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${m.data}</td>
-                <td>${m.forno}</td>
-                <td>${m.servico}</td>
-                <td>R$ ${Number(m.custo || 0).toLocaleString('pt-BR')}</td>
-            `;
-            historyList.appendChild(tr);
         });
     }
 }
@@ -332,12 +304,8 @@ function updateMaintBadge() {
 
     if (elCount) elCount.innerText = count;
     if (elAlertBadge) {
-        if (count > 0) {
-            elAlertBadge.style.display = 'block';
-            elAlertBadge.innerText = `${count} fornos com problema`;
-        } else {
-            elAlertBadge.style.display = 'none';
-        }
+        elAlertBadge.innerText = count > 0 ? `${count} Pendências` : "Nenhuma pendência";
+        elAlertBadge.className = count > 0 ? "status-alert active" : "status-alert";
     }
 }
 
@@ -352,11 +320,7 @@ function setupForms() {
         fKiln.onsubmit = (e) => {
             e.preventDefault();
             const fd = new FormData(e.target);
-            kilns.push({
-                praca: fd.get('praca'),
-                responsavel: fd.get('responsavel'),
-                modelo: fd.get('modelo')
-            });
+            kilns.push({ praca: fd.get('praca'), responsavel: fd.get('responsavel'), modelo: fd.get('modelo') });
             saveAll();
             hideModal('kiln');
             showToast();
@@ -379,18 +343,10 @@ function setupForms() {
                 obs: fd.get('obs')
             };
             history.push(entry);
-            
             const obs = (fd.get('obs') || "").toLowerCase();
             if (obs.includes('rachadura') || obs.includes('problema')) {
-                maintenance.push({
-                    praca: entry.praca,
-                    forno: entry.modelo,
-                    problema: fd.get('obs'),
-                    resolved: false,
-                    timestamp: Date.now()
-                });
+                maintenance.push({ praca: entry.praca, forno: entry.modelo, problema: fd.get('obs'), resolved: false, timestamp: Date.now() });
             }
-            
             saveAll();
             e.target.reset();
             showToast();
@@ -403,12 +359,12 @@ function setupForms() {
             const fd = new FormData(e.target);
             const now = new Date();
             loads.push({
-                id: 10000 + loads.length + 1,
+                id: 1000 + loads.length + 1,
                 data: now.toLocaleDateString('pt-BR'),
                 hora: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
                 placa: (fd.get('placa') || "").toUpperCase(),
                 motorista: fd.get('motorista'),
-                tipo: fd.get('tipo'),
+                tipo: 'Eucalipto',
                 metragem: fd.get('metragem'),
                 peso: fd.get('peso'),
                 destino: fd.get('destino')
@@ -425,15 +381,7 @@ function setupForms() {
             const fd = new FormData(e.target);
             const targetVal = fd.get('kiln_target') || "";
             const target = targetVal.split(' — ');
-            maintenance.push({
-                data: fd.get('repair_date'),
-                praca: target[0] || "Desconhecido",
-                forno: target[1] || "Desconhecido",
-                servico: fd.get('issue_type'),
-                custo: fd.get('cost'),
-                resolved: true,
-                timestamp: Date.now()
-            });
+            maintenance.push({ data: fd.get('repair_date'), praca: target[0] || "Desconhecido", forno: target[1] || "Desconhecido", servico: fd.get('issue_type'), custo: fd.get('cost'), resolved: true, timestamp: Date.now() });
             saveAll();
             e.target.reset();
             showToast();
@@ -462,35 +410,20 @@ window.generateReport = function(type, print = false) {
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
         doc.setFontSize(20);
         doc.text("Carbonize - Relatório de " + type.toUpperCase(), 14, 22);
         doc.setFontSize(10);
         doc.text("Gerado em: " + new Date().toLocaleString(), 14, 30);
-
         let tableData = [];
         let columns = [];
-
         if (type === 'loads') {
             columns = ["ID", "Data", "Placa", "Motorista", "Peso (kg)"];
             tableData = loads.map(l => [l.id, l.data, l.placa, l.motorista, l.peso]);
         } else if (type === 'pracas') {
             columns = ["Data", "Praça", "Modelo", "Carbonizando", "Obs"];
             tableData = history.map(h => [h.data, h.praca, h.modelo, h.carbonizando, h.obs]);
-        } else {
-            // Default empty for other types
-            columns = ["Info"];
-            tableData = [["Relatório em desenvolvimento"]];
         }
-
-        doc.autoTable({
-            startY: 35,
-            head: [columns],
-            body: tableData,
-            theme: 'striped',
-            headStyles: { fillColor: [255, 107, 0] }
-        });
-
+        doc.autoTable({ startY: 35, head: [columns], body: tableData, theme: 'striped', headStyles: { fillColor: [255, 107, 0] } });
         if (print) {
             doc.autoPrint();
             window.open(doc.output('bloburl'), '_blank');
@@ -499,6 +432,5 @@ window.generateReport = function(type, print = false) {
         }
     } catch (e) {
         console.error("Erro ao gerar PDF:", e);
-        alert("Erro ao gerar PDF. Verifique se o navegador bloqueou pop-ups.");
     }
 }
