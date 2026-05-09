@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Carboniza - Controle de Fornos e Cargas</title>
+    <meta name="description" content="Sistema profissional de controle de produção de carvão vegetal.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Scripts for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">🔥</span>
+                <div class="logo-text">
+                    <span class="brand">Carbonize</span>
+                    <span class="unit">Fazenda São João</span>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-item active" onclick="switchTab('dashboard')">
+                    <span class="nav-icon">📊</span> Dashboard
+                </button>
+                <button class="nav-item" onclick="switchTab('praças')">
+                    <span class="nav-icon">🏗️</span> Praças
+                </button>
+                <button class="nav-item" onclick="switchTab('cargas')">
+                    <span class="nav-icon">🚛</span> Cargas
+                </button>
+                <button class="nav-item" onclick="switchTab('manutenção')">
+                    <span class="nav-icon">🛠️</span> Manutenção <span class="badge-alert" id="maint-count">0</span>
+                </button>
+                <button class="nav-item" onclick="switchTab('estoque')">
+                    <span class="nav-icon">📦</span> Estoque
+                </button>
+                <button class="nav-item" onclick="switchTab('relatórios')">
+                    <span class="nav-icon">📄</span> Relatórios
+                </button>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="welcome-text">
+                    <h2 id="greeting">Bom dia, Operador</h2>
+                    <p id="current-date">Sexta-feira, 08 de maio de 2026</p>
+                </div>
+                <div class="user-profile">
+                    <div class="avatar">👤</div>
+                </div>
+            </header>
+
+            <!-- SECTION: DASHBOARD -->
+            <section id="section-dashboard" class="content-section">
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background: rgba(255, 107, 0, 0.1); color: var(--primary-color);">🔥</div>
+                        <div class="kpi-info">
+                            <span class="kpi-label">Fornos Ativos</span>
+                            <h3 class="kpi-value" id="kpi-fornos-ativos">0</h3>
+                            <p class="kpi-sub" id="kpi-fornos-total">de 0 cadastrados</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background: rgba(0, 200, 83, 0.1); color: var(--success-color);">🚛</div>
+                        <div class="kpi-info">
+                            <span class="kpi-label">Cargas Hoje</span>
+                            <h3 class="kpi-value" id="kpi-cargas-hoje">0</h3>
+                            <p class="kpi-sub" id="kpi-kg-hoje">0 kg despachados</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background: rgba(33, 150, 243, 0.1); color: #2196f3);">📊</div>
+                        <div class="kpi-info">
+                            <span class="kpi-label">Produção/Mês</span>
+                            <h3 class="kpi-value" id="kpi-prod-mes">0 t</h3>
+                            <p class="kpi-sub" id="kpi-prod-meta">meta: 160 t</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background: rgba(255, 23, 68, 0.1); color: var(--error-color);">🛠️</div>
+                        <div class="kpi-info">
+                            <span class="kpi-label">Manutenções</span>
+                            <h3 class="kpi-value" id="kpi-maint">0</h3>
+                            <p class="kpi-sub">fornos parados</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert-banner" id="urgent-alert" style="display: none;">
+                    <span class="alert-icon">⚠️</span>
+                    <div class="alert-content">
+                        <strong id="alert-title">Forno 04 — rachadura relatada hoje (Sul 01)</strong>
+                        <p id="alert-desc">Obs registrada por Ricardo às 08:30</p>
+                    </div>
+                    <button class="btn-action" onclick="switchTab('manutenção')">Registrar reparo</button>
+                </div>
+
+                <div class="dashboard-secondary">
+                    <div class="dashboard-col">
+                        <h4 class="section-title">Praças hoje</h4>
+                        <div id="dashboard-pracas-list" class="pracas-mini-list">
+                            <!-- Mini praça cards -->
+                        </div>
+                    </div>
+                    <div class="dashboard-col">
+                        <div class="flex-between">
+                            <h4 class="section-title">Últimas cargas</h4>
+                            <button class="btn-text" onclick="showModal('load')">+ Nova carga</button>
+                        </div>
+                        <div class="table-container-mini">
+                            <table class="data-table-mini">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>HORA</th>
+                                        <th>PLACA</th>
+                                        <th>PESO</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-loads-list">
+                                    <!-- Mini loads rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: PRAÇAS -->
+            <section id="section-praças" class="content-section" style="display: none;">
+                <div class="flex-between mb-20">
+                    <div>
+                        <h2 class="section-heading">Controle de praças</h2>
+                        <p class="section-sub">Registro diário por praça e modelo de forno</p>
+                    </div>
+                    <button class="btn-primary-small" onclick="showModal('kiln')">Registrar hoje</button>
+                </div>
+
+                <div class="pracas-layout">
+                    <div class="pracas-form-container">
+                        <div class="glass-card">
+                            <h4 class="card-title">Lançamento do dia</h4>
+                            <form id="form-kiln-daily">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Praça</label>
+                                        <select name="praca_select" id="daily-praca-select" required>
+                                            <option value="">Selecione a praça</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Responsável</label>
+                                        <input type="text" name="responsavel" value="Ricardo" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Modelo do forno</label>
+                                    <select name="modelo_select" id="daily-modelo-select">
+                                        <option value="Forno Menor">Forno Menor</option>
+                                        <option value="Forno JG">Forno JG</option>
+                                        <option value="Circular 5m">Circular 5m</option>
+                                    </select>
+                                </div>
+                                <div class="form-grid-4">
+                                    <div class="form-group">
+                                        <label>Vazios</label>
+                                        <input type="number" name="vazios" value="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Cheios</label>
+                                        <input type="number" name="cheios" value="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Carbon.</label>
+                                        <input type="number" name="carbonizando" value="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Esfriando</label>
+                                        <input type="number" name="esfriando" value="0">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Obs / Manutenção</label>
+                                    <textarea name="obs" placeholder="Ex: Forno 04 com rachadura..."></textarea>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn-primary-filled">Salvar</button>
+                                    <button type="reset" class="btn-ghost">Limpar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="pracas-stats-container">
+                        <div class="stats-mini-grid">
+                            <div class="stat-box">
+                                <span class="stat-val" id="total-vazios">0</span>
+                                <span class="stat-lbl">Vazios</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-val" id="total-cheios">0</span>
+                                <span class="stat-lbl">Cheios</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-val" id="total-carbon">0</span>
+                                <span class="stat-lbl">Carbon.</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-val" id="total-esfria">0</span>
+                                <span class="stat-lbl">Esfriando</span>
+                            </div>
+                        </div>
+                        <div class="glass-card mt-20">
+                            <h4 class="card-title">Histórico de lançamentos</h4>
+                            <div class="table-container-scroll">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>DATA</th>
+                                            <th>PRAÇA</th>
+                                            <th>MODELO</th>
+                                            <th>CARBON.</th>
+                                            <th>OBS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="kiln-history-list">
+                                        <!-- History items -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: CARGAS -->
+            <section id="section-cargas" class="content-section" style="display: none;">
+                <div class="flex-between mb-20">
+                    <div>
+                        <h2 class="section-heading">Controle de cargas</h2>
+                        <p class="section-sub">Romaneio de saída de carvão</p>
+                    </div>
+                    <button class="btn-primary-small" onclick="showModal('load')">Nova carga</button>
+                </div>
+
+                <div class="glass-card mb-20">
+                    <h4 class="card-title">Cargas do dia — <span id="loads-today-date">25/04/2026</span></h4>
+                    <div class="table-container-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Nº ID</th>
+                                    <th>DATA</th>
+                                    <th>HORA</th>
+                                    <th>PLACA</th>
+                                    <th>MOTORISTA</th>
+                                    <th>TIPO</th>
+                                    <th>METRAGEM</th>
+                                    <th>PESO (KG)</th>
+                                    <th>DESTINO</th>
+                                </tr>
+                            </thead>
+                            <tbody id="loads-table-body">
+                                <!-- Loads items -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer">
+                        <span id="loads-count-summary">0 cargas</span>
+                        <span id="loads-total-m3">Total: 0 m³</span>
+                        <span id="loads-total-kg">Peso total: 0 kg</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: MANUTENÇÃO -->
+            <section id="section-manutenção" class="content-section" style="display: none;">
+                <div class="flex-between mb-20">
+                    <div>
+                        <h2 class="section-heading">Manutenção dos fornos</h2>
+                        <p class="section-sub">Histórico e alertas por forno</p>
+                    </div>
+                    <div class="badge-tag-urgent" id="maint-alert-badge" style="display: none;">0 fornos com problema</div>
+                </div>
+
+                <div class="maint-layout">
+                    <div class="maint-form-container">
+                        <div class="glass-card">
+                            <h4 class="card-title">Registrar manutenção</h4>
+                            <form id="form-maintenance">
+                                <div class="form-group">
+                                    <label>Forno (ou praça + forno)</label>
+                                    <select name="kiln_target" id="maint-kiln-select" required>
+                                        <option value="">Selecione o forno</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Tipo de problema</label>
+                                    <select name="issue_type">
+                                        <option value="Rachadura na parede">Rachadura na parede</option>
+                                        <option value="Troca de tampa">Troca de tampa</option>
+                                        <option value="Rejunte de base">Rejunte de base</option>
+                                        <option value="Limpeza de canais">Limpeza de canais</option>
+                                        <option value="Outros">Outros</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Data do reparo</label>
+                                        <input type="date" name="repair_date" id="maint-date">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Custo (R$)</label>
+                                        <input type="number" step="0.01" name="cost" value="0">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Responsável pelo reparo</label>
+                                    <input type="text" name="technician" placeholder="Nome ou empresa">
+                                </div>
+                                <div class="form-group">
+                                    <label>Próxima revisão</label>
+                                    <input type="date" name="next_review">
+                                </div>
+                                <div class="form-group">
+                                    <label>Descrição do serviço</label>
+                                    <textarea name="description" placeholder="O que foi feito..."></textarea>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn-primary-filled">Salvar</button>
+                                    <button type="reset" class="btn-ghost">Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="maint-list-container">
+                        <div class="glass-card">
+                            <h4 class="card-title">Problemas abertos</h4>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>PRAÇA</th>
+                                        <th>FORNO</th>
+                                        <th>PROBLEMA</th>
+                                        <th>STATUS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="open-issues-list">
+                                    <!-- Open issues -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="glass-card mt-20">
+                            <h4 class="card-title">Últimos reparos</h4>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>DATA</th>
+                                        <th>FORNO</th>
+                                        <th>SERVIÇO</th>
+                                        <th>CUSTO</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="maint-history-list">
+                                    <!-- Maint history -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: ESTOQUE -->
+            <section id="section-estoque" class="content-section" style="display: none;">
+                <h2 class="section-heading">Estoque de carvão</h2>
+                <p class="section-sub">Controle de entrada e saída de material</p>
+
+                <div class="kpi-grid mt-20">
+                    <div class="kpi-card">
+                        <div class="kpi-info">
+                            <span class="kpi-label">Saldo Atual</span>
+                            <h3 class="kpi-value" id="stock-balance">0 t</h3>
+                            <p class="kpi-sub">disponível no pátio</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-info">
+                            <span class="kpi-label">Entradas (Mês)</span>
+                            <h3 class="kpi-value" id="stock-in">0 t</h3>
+                            <p class="kpi-sub">produção acumulada</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-info">
+                            <span class="kpi-label">Saídas (Mês)</span>
+                            <h3 class="kpi-value" id="stock-out">0 t</h3>
+                            <p class="kpi-sub">carregamentos realizados</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: RELATÓRIOS -->
+            <section id="section-relatórios" class="content-section" style="display: none;">
+                <div class="flex-between mb-20">
+                    <div>
+                        <h2 class="section-heading">Relatórios</h2>
+                        <p class="section-sub">Gera PDF direto no navegador — sem internet extra</p>
+                    </div>
+                </div>
+
+                <div class="reports-list">
+                    <div class="report-item glass-card">
+                        <div class="report-icon">📋</div>
+                        <div class="report-info">
+                            <h4>Romaneio de cargas</h4>
+                            <p>Lista completa de cargas por período · por destino · por motorista</p>
+                        </div>
+                        <div class="report-actions">
+                            <button class="btn-outline" onclick="generateReport('loads')">📄 PDF</button>
+                            <button class="btn-outline" onclick="generateReport('loads', true)">🖨️ Imprimir</button>
+                        </div>
+                    </div>
+                    <div class="report-item glass-card">
+                        <div class="report-icon">🏗️</div>
+                        <div class="report-info">
+                            <h4>Controle de praças por período</h4>
+                            <p>Resumo diário de fornos por praça · vazios, cheios, carbonizando, esfriando</p>
+                        </div>
+                        <div class="report-actions">
+                            <button class="btn-outline" onclick="generateReport('pracas')">📄 PDF</button>
+                            <button class="btn-outline" onclick="generateReport('pracas', true)">🖨️ Imprimir</button>
+                        </div>
+                    </div>
+                    <div class="report-item glass-card">
+                        <div class="report-icon">🛠️</div>
+                        <div class="report-info">
+                            <h4>Histórico de manutenção</h4>
+                            <p>Por forno · custos acumulados · próximas revisões</p>
+                        </div>
+                        <div class="report-actions">
+                            <button class="btn-outline" onclick="generateReport('maint')">📄 PDF</button>
+                            <button class="btn-outline" onclick="generateReport('maint', true)">🖨️ Imprimir</button>
+                        </div>
+                    </div>
+                    <div class="report-item glass-card">
+                        <div class="report-icon">📊</div>
+                        <div class="report-info">
+                            <h4>Relatório gerencial mensal</h4>
+                            <p>Produção total · rendimento · cargas · manutenções — tudo em uma página</p>
+                        </div>
+                        <div class="report-actions">
+                            <button class="btn-outline" onclick="generateReport('monthly')">📄 PDF</button>
+                            <button class="btn-outline" onclick="generateReport('monthly', true)">🖨️ Imprimir</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="footer-note glass-card mt-20">
+                    <span class="info-icon">ℹ️</span>
+                    <p>PDFs gerados localmente com <strong>jsPDF + autoTable</strong> — funciona sem internet, sem servidor. O romaneio sai idêntico à planilha atual, só que formatado para impressão.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODAL NOVO FORNO (CADASTRO BASE) -->
+    <div id="modal-kiln" class="modal-overlay">
+        <div class="modal glass-modal">
+            <div class="modal-header">
+                <h2>Cadastrar Forno</h2>
+                <button class="btn-close" onclick="hideModal('kiln')">✕</button>
+            </div>
+            <form id="form-kiln">
+                <div class="form-group">
+                    <label>Praça</label>
+                    <input type="text" name="praca" placeholder="Ex: Sul 01" required>
+                </div>
+                <div class="form-group">
+                    <label>Responsável Padrão</label>
+                    <input type="text" name="responsavel" placeholder="Nome do encarregado" required>
+                </div>
+                <div class="form-group">
+                    <label>Modelo do Forno</label>
+                    <input type="text" name="modelo" placeholder="Ex: Circular 5m">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" onclick="hideModal('kiln')">Cancelar</button>
+                    <button type="submit" class="btn-primary-filled">Cadastrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL NOVA CARGA -->
+    <div id="modal-load" class="modal-overlay">
+        <div class="modal glass-modal">
+            <div class="modal-header">
+                <h2>Registrar Nova Carga</h2>
+                <button class="btn-close" onclick="hideModal('load')">✕</button>
+            </div>
+            <form id="form-load">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Placa do Veículo</label>
+                        <input type="text" name="placa" id="input-placa" list="list-placas" placeholder="ABC-1234" required>
+                        <datalist id="list-placas"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>Motorista</label>
+                        <input type="text" name="motorista" id="input-motorista" list="list-motoristas" placeholder="Nome completo" required>
+                        <datalist id="list-motoristas"></datalist>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Carvão</label>
+                    <select name="tipo">
+                        <option value="Eucalipto">Eucalipto</option>
+                        <option value="Angico">Angico</option>
+                        <option value="Misto">Misto</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Metragem (m³)</label>
+                        <input type="number" step="0.01" name="metragem" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Peso (kg)</label>
+                        <input type="number" step="1" name="peso" value="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Destino</label>
+                    <input type="text" name="destino" placeholder="Ex: Siderúrgica X">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" onclick="hideModal('load')">Cancelar</button>
+                    <button type="submit" class="btn-primary-filled">Salvar Carga</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast">Salvo com sucesso!</div>
+
+    <script src="app.js"></script>
+</body>
+</html>
