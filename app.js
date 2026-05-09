@@ -7,8 +7,15 @@ let maintenance = JSON.parse(localStorage.getItem('carboniza_maint')) || [];
 // Constants
 const TOAST_DURATION = 2000;
 
+// Expose functions to window for global access (critical for some browsers/environments)
+window.switchTab = switchTab;
+window.showModal = showModal;
+window.hideModal = hideModal;
+window.toggleMobileMenu = toggleMobileMenu;
+window.generateReport = generateReport;
+
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+function init() {
     try {
         if (kilns.length === 0) {
             kilns = [
@@ -22,10 +29,17 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
         setupForms();
         setInterval(updateDateTime, 60000);
+        console.log("Carboniza: Sistema inicializado com sucesso.");
     } catch (e) {
-        console.error("Erro na inicialização:", e);
+        console.error("Carboniza: Erro na inicialização:", e);
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
 
 function updateDateTime() {
     const elDate = document.getElementById('current-date');
@@ -46,6 +60,7 @@ function updateDateTime() {
 
 // Navigation Logic
 function switchTab(tab) {
+    console.log("Navegando para:", tab);
     const sections = document.querySelectorAll('.content-section');
     const navLinks = document.querySelectorAll('.nav-link');
 
@@ -53,10 +68,15 @@ function switchTab(tab) {
     navLinks.forEach(n => n.classList.remove('active'));
 
     const activeSection = document.getElementById(`section-${tab}`);
-    if (activeSection) activeSection.style.display = 'block';
+    if (activeSection) {
+        activeSection.style.display = 'block';
+    } else {
+        console.warn("Seção não encontrada:", `section-${tab}`);
+    }
 
     navLinks.forEach(n => {
-        if (n.getAttribute('onclick') && n.getAttribute('onclick').includes(tab)) {
+        const attr = n.getAttribute('onclick') || "";
+        if (attr.includes(`'${tab}'`)) {
             n.classList.add('active');
         }
     });
@@ -66,11 +86,8 @@ function switchTab(tab) {
 
 function toggleMobileMenu() {
     const mobileNav = document.getElementById('mobile-nav');
-    if (mobileNav.style.display === 'flex') {
-        mobileNav.style.display = 'none';
-    } else {
-        mobileNav.style.display = 'flex';
-    }
+    if (!mobileNav) return;
+    mobileNav.style.display = (mobileNav.style.display === 'flex') ? 'none' : 'flex';
 }
 
 // Modal Logic
@@ -189,7 +206,7 @@ function updateSelectors() {
     const uniquePracas = [...new Set(kilns.map(k => k.praca))];
     
     if (dailyPraca) {
-        dailyPraca.innerHTML = '<option value="">Selecione a praça</option>' + 
+        dailyPraca.innerHTML = '<option value="">Selecione a unidade</option>' + 
             uniquePracas.map(p => `<option value="${p}">${p}</option>`).join('');
     }
         
@@ -406,7 +423,7 @@ function showToast() {
 }
 
 // PDF Generation
-window.generateReport = function(type, print = false) {
+function generateReport(type, print = false) {
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -420,7 +437,7 @@ window.generateReport = function(type, print = false) {
             columns = ["ID", "Data", "Placa", "Motorista", "Peso (kg)"];
             tableData = loads.map(l => [l.id, l.data, l.placa, l.motorista, l.peso]);
         } else if (type === 'pracas') {
-            columns = ["Data", "Praça", "Modelo", "Carbonizando", "Obs"];
+            columns = ["Data", "Unidade", "Forno", "Carbonizando", "Obs"];
             tableData = history.map(h => [h.data, h.praca, h.modelo, h.carbonizando, h.obs]);
         }
         doc.autoTable({ startY: 35, head: [columns], body: tableData, theme: 'striped', headStyles: { fillColor: [255, 107, 0] } });
