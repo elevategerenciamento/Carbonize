@@ -14,7 +14,7 @@ let loadsChart = null;
 const TOAST_DURATION = 2000;
 const PRIMARY_COLOR = '#cc092f'; // Bradesco Red
 
-// Expose functions to window IMMEDIATELY (Critical for modules)
+// Expose functions to window IMMEDIATELY
 window.switchTab = switchTab;
 window.showModal = showModal;
 window.hideModal = hideModal;
@@ -37,6 +37,7 @@ function init() {
         updateDateTime();
         renderAll();
         setupForms();
+        setupFilters();
         setInterval(updateDateTime, 60000);
         console.log("Carbonize: Sistema pronto.");
     } catch (e) {
@@ -44,7 +45,6 @@ function init() {
     }
 }
 
-// Handling load
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
@@ -80,8 +80,6 @@ function switchTab(tab) {
     const activeSection = document.getElementById(`section-${tab}`);
     if (activeSection) {
         activeSection.style.display = 'block';
-    } else {
-        console.warn("Carbonize: Seção não encontrada:", tab);
     }
 
     navLinks.forEach(n => {
@@ -266,19 +264,44 @@ function renderMaintenance() {
 }
 
 function renderStock() {
-    const totalIn = history.reduce((acc, h) => acc + Number(h.carbonizando || 0), 0) * 1.5;
+    // Calculo básico: Entradas (carbonizando) vs Saídas (cargas)
+    const totalIn = history.reduce((acc, h) => acc + (Number(h.carbonizando || 0) * 1.5), 0); // Fator de rendimento estimado
     const totalOut = loads.reduce((acc, l) => acc + (Number(l.peso || 0) / 1000), 0);
     const balance = Math.max(0, totalIn - totalOut).toFixed(1);
 
-    const elBalance = document.getElementById('stock-balance');
-    const elIn = document.getElementById('stock-in');
-    const elOut = document.getElementById('stock-out');
-    const elDiff = document.getElementById('stock-diff');
+    document.getElementById('stock-balance').innerText = `${balance} t`;
+    document.getElementById('stock-in').innerText = `${totalIn.toFixed(1)} t`;
+    document.getElementById('stock-out').innerText = `${totalOut.toFixed(1)} t`;
 
-    if (elBalance) elBalance.innerText = `${balance} t`;
-    if (elIn) elIn.innerText = `${totalIn.toFixed(1)} t`;
-    if (elOut) elOut.innerText = `${totalOut.toFixed(1)} t`;
-    if (elDiff) elDiff.innerText = `${(totalIn - totalOut).toFixed(1)} t`;
+    const list = document.getElementById('stock-movement-list');
+    if (!list) return;
+
+    // Unindo movimentos para histórico
+    const movements = [
+        ...history.map(h => ({ type: 'entry', label: `Produção Forno ${h.modelo}`, amount: (Number(h.carbonizando || 0) * 1.5).toFixed(1) + ' t', date: h.data, ts: h.timestamp })),
+        ...loads.map(l => ({ type: 'exit', label: `Venda Romaneio #${l.id}`, amount: (Number(l.peso || 0) / 1000).toFixed(1) + ' t', date: l.data, ts: new Date(l.data.split('/').reverse().join('-')).getTime() }))
+    ].sort((a, b) => b.ts - a.ts);
+
+    const filterType = document.getElementById('stock-filter-type')?.value || 'all';
+    const filtered = movements.filter(m => filterType === 'all' || m.type === filterType);
+
+    list.innerHTML = filtered.slice(0, 10).map(m => `
+        <div class="stock-item ${m.type}">
+            <div class="type-icon"><i data-lucide="${m.type === 'entry' ? 'plus-circle' : 'minus-circle'}"></i></div>
+            <div class="info">
+                <h6>${m.label}</h6>
+                <span>${m.date}</span>
+            </div>
+            <div class="amount">${m.type === 'entry' ? '+' : '-'}${m.amount}</div>
+        </div>
+    `).join('');
+    
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function setupFilters() {
+    const stockFilter = document.getElementById('stock-filter-type');
+    if (stockFilter) stockFilter.onchange = renderStock;
 }
 
 function updateMaintBadge() {
@@ -375,7 +398,16 @@ function processForm(id, fd) {
     if (id === 'load') loads.push({ id: 1000 + loads.length + 1, data: new Date().toLocaleDateString('pt-BR'), hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), placa: fd.get('placa').toUpperCase(), motorista: fd.get('motorista'), metragem: fd.get('metragem'), peso: fd.get('peso'), destino: fd.get('destino') });
     if (id === 'maintenance') {
         const target = fd.get('kiln_target').split(' — ');
-        maintenance.push({ data: fd.get('repair_date'), praca: target[0], forno: target[1], servico: fd.get('issue_type'), custo: fd.get('cost'), resolved: true, timestamp: Date.now() });
+        maintenance.push({ 
+            data: fd.get('repair_date'), 
+            praca: target[0], 
+            forno: target[1], 
+            servico: fd.get('issue_type'), 
+            custo: fd.get('cost'), 
+            notes: fd.get('maint_notes'),
+            resolved: true, 
+            timestamp: Date.now() 
+        });
     }
 }
 
@@ -399,6 +431,20 @@ function showToast() {
 
 function generateReport(type, print = false) {
     try {
+        const start = document.getElementById(`report-${type}-start`)?.value;
+        const end = document.getElementById(`report-${type}-end`)?.value;
+
+        const filterData = (data, dateKey = 'data') => {
+            if (!start && !end) return data;
+            return data.filter(item => {
+                const itemDateStr = item[dateKey].split('/').reverse().join('-');
+                const itemDate = new Date(itemDateStr).getTime();
+                const startDate = start ? new Date(start).getTime() : 0;
+                const endDate = end ? new Date(end).getTime() : Infinity;
+                return itemDate >= startDate && itemDate <= endDate;
+            });
+        };
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         doc.setFillColor(204, 9, 47);
@@ -411,27 +457,43 @@ function generateReport(type, print = false) {
         doc.setFontSize(18);
         doc.text("Relatório de " + type.toUpperCase(), 14, 30);
         doc.setFontSize(10);
-        doc.text("Data de Emissão: " + new Date().toLocaleString(), 14, 38);
+        doc.text(`Período: ${start || 'Início'} até ${end || 'Hoje'}`, 14, 38);
+        doc.text("Emissão: " + new Date().toLocaleString(), 14, 44);
         
         let tableData = [];
         let columns = [];
         if (type === 'loads') {
-            columns = ["ID", "Data", "Placa", "Motorista", "Peso (kg)"];
-            tableData = loads.map(l => [l.id, l.data, l.placa, l.motorista, l.peso]);
+            columns = ["ID", "Data", "Placa", "Metragem", "Peso (kg)"];
+            const filtered = filterData(loads);
+            tableData = filtered.map(l => [l.id, l.data, l.placa, l.metragem, l.peso]);
         } else if (type === 'pracas') {
-            columns = ["Data", "Unidade", "Forno", "Carbonizando", "Obs"];
-            tableData = history.map(h => [h.data, h.praca, h.modelo, h.carbonizando, h.obs]);
+            columns = ["Data", "Unidade", "Forno", "V/C/C/E", "Obs"];
+            const filtered = filterData(history);
+            tableData = filtered.map(h => [h.data, h.praca, h.modelo, `${h.vazios}/${h.cheios}/${h.carbonizando}/${h.esfriando}`, h.obs]);
         } else if (type === 'maint') {
-            columns = ["Data", "Forno", "Serviço", "Custo (R$)"];
-            tableData = maintenance.map(m => [m.data, m.forno, m.servico, m.custo]);
+            columns = ["Data", "Forno", "Serviço", "Custo (R$)", "Obs"];
+            const filtered = filterData(maintenance, 'data');
+            tableData = filtered.map(m => [m.data, m.forno, m.servico, m.custo, m.notes || '']);
+        } else if (type === 'stock') {
+            columns = ["Data", "Tipo", "Descrição", "Volume"];
+            const filteredLoads = filterData(loads).map(l => [l.data, 'SAÍDA', `Venda #${l.id}`, `-${(l.peso/1000).toFixed(1)}t`]);
+            const filteredHist = filterData(history).map(h => [h.data, 'ENTRADA', `Produção ${h.modelo}`, `+${(h.carbonizando*1.5).toFixed(1)}t`]);
+            tableData = [...filteredHist, ...filteredLoads].sort((a,b) => new Date(b[0].split('/').reverse().join('-')) - new Date(a[0].split('/').reverse().join('-')));
         }
         
-        doc.autoTable({ startY: 45, head: [columns], body: tableData, theme: 'grid', headStyles: { fillColor: [204, 9, 47] } });
+        doc.autoTable({ 
+            startY: 50, 
+            head: [columns], 
+            body: tableData, 
+            theme: 'grid', 
+            headStyles: { fillColor: [204, 9, 47] },
+            styles: { fontSize: 9 }
+        });
         
         if (print) {
             window.open(doc.output('bloburl'), '_blank');
         } else {
-            doc.save(`carbonize_${type}.pdf`);
+            doc.save(`carbonize_${type}_${new Date().toISOString().split('T')[0]}.pdf`);
         }
     } catch (e) {
         console.error("Erro ao gerar PDF:", e);

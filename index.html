@@ -169,7 +169,7 @@
                     <div class="glass">
                         <div class="mini-summary">
                             <h4 class="card-title mb-20">Consolidado do Dia</h4>
-                            <div class="stats-grid-mini">
+                            <div class="stats-grid-mini" id="daily-stats-summary">
                                 <!-- Populated by JS -->
                             </div>
                         </div>
@@ -253,6 +253,10 @@
                                     <option value="Corretiva">Reparo de Base</option>
                                 </select>
                             </div>
+                            <div class="form-field">
+                                <label>Observações Detalhadas</label>
+                                <textarea name="maint_notes" rows="4" placeholder="Descreva os materiais usados, defeitos encontrados e detalhes técnicos do reparo..."></textarea>
+                            </div>
                             <button type="submit" class="btn-save">Finalizar Registro</button>
                         </form>
                     </div>
@@ -275,41 +279,43 @@
                 </div>
             </section>
 
-            <!-- SECTION: ESTOQUE (Improved) -->
+            <!-- SECTION: ESTOQUE (Overhaul) -->
             <section id="section-estoque" class="content-section" style="display: none;">
                 <div class="header-action">
-                    <h2 class="page-title">Controle de Inventário</h2>
+                    <h2 class="page-title">Centro de Inventário</h2>
                 </div>
                 
-                <div class="stock-layout">
-                    <div class="stock-hero-card">
-                        <span class="label">Volume Disponível</span>
+                <div class="stock-grid">
+                    <div class="stock-card success">
+                        <span class="label">Volume Atual em Pátio</span>
                         <h1 class="value" id="stock-balance">0.0 t</h1>
-                        <span class="meta"><i data-lucide="trending-up"></i> +4.2% em relação a ontem</span>
+                        <span class="sub">Saldo totalizado para venda</span>
                     </div>
-                    <div class="stock-side-panel">
-                        <h4 class="card-title mb-20">Resumo do Mês</h4>
-                        <div class="stock-mini-stats">
-                            <div class="stat-row">
-                                <span>Entrada Produção</span>
-                                <strong id="stock-in">0.0 t</strong>
-                            </div>
-                            <div class="stat-row">
-                                <span>Saída Vendas</span>
-                                <strong id="stock-out">0.0 t</strong>
-                            </div>
-                            <div class="stat-row">
-                                <span>Diferença</span>
-                                <strong id="stock-diff">0.0 t</strong>
-                            </div>
-                        </div>
+                    <div class="stock-card">
+                        <span class="label">Produção Mensal</span>
+                        <h1 class="value" id="stock-in">0.0 t</h1>
+                        <span class="sub">Total de entradas no período</span>
+                    </div>
+                    <div class="stock-card">
+                        <span class="label">Saídas (Vendas)</span>
+                        <h1 class="value" id="stock-out">0.0 t</h1>
+                        <span class="sub">Total de despachos realizados</span>
                     </div>
                 </div>
 
-                <div class="grid-card mt-32">
-                    <h4 class="card-title">Movimentação Recente</h4>
-                    <div id="stock-movement-list" class="mt-20">
-                        <!-- Custom list items here -->
+                <div class="stock-history">
+                    <div class="stock-history-header">
+                        <h4>Histórico de Movimentação</h4>
+                        <div class="date-filter">
+                            <select id="stock-filter-type">
+                                <option value="all">Todas as Movimentações</option>
+                                <option value="entry">Apenas Entradas</option>
+                                <option value="exit">Apenas Saídas</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="stock-movement-list">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
             </section>
@@ -362,10 +368,10 @@
                 </div>
             </section>
 
-            <!-- SECTION: RELATÓRIOS (Improved 100%) -->
+            <!-- SECTION: RELATÓRIOS (Improved) -->
             <section id="section-relatorios" class="content-section" style="display: none;">
                 <div class="header-action">
-                    <h2 class="page-title">Centro de Relatórios</h2>
+                    <h2 class="page-title">Centro de Relatórios Especializados</h2>
                 </div>
 
                 <div class="reports-grid">
@@ -373,7 +379,13 @@
                         <div class="icon-box"><i data-lucide="truck"></i></div>
                         <div class="info">
                             <h5>Romaneio Consolidado</h5>
-                            <p>Exporta todas as cargas e detalhes logísticos do dia selecionado para auditoria.</p>
+                            <p>Exporta todas as cargas e detalhes logísticos.</p>
+                            <div class="report-filters mt-16">
+                                <div class="filter-row" style="display: flex; gap: 8px;">
+                                    <input type="date" id="report-loads-start" class="xs-input">
+                                    <input type="date" id="report-loads-end" class="xs-input">
+                                </div>
+                            </div>
                         </div>
                         <div class="actions">
                             <button class="btn-primary" onclick="generateReport('loads')"><i data-lucide="download"></i> PDF</button>
@@ -385,11 +397,16 @@
                         <div class="icon-box"><i data-lucide="container"></i></div>
                         <div class="info">
                             <h5>Status dos Fornos</h5>
-                            <p>Relatório técnico com o estado atual de cada forno, observações e ciclos ativos.</p>
+                            <p>Relatório técnico com o estado atual de cada forno.</p>
+                            <div class="report-filters mt-16">
+                                <div class="filter-row" style="display: flex; gap: 8px;">
+                                    <input type="date" id="report-pracas-start" class="xs-input">
+                                    <input type="date" id="report-pracas-end" class="xs-input">
+                                </div>
+                            </div>
                         </div>
                         <div class="actions">
                             <button class="btn-primary" onclick="generateReport('pracas')"><i data-lucide="download"></i> PDF</button>
-                            <button class="btn-outline" onclick="generateReport('pracas', true)"><i data-lucide="printer"></i> Imprimir</button>
                         </div>
                     </div>
 
@@ -397,7 +414,13 @@
                         <div class="icon-box"><i data-lucide="wrench"></i></div>
                         <div class="info">
                             <h5>Histórico de Manutenção</h5>
-                            <p>Lista completa de reparos, custos e manutenções preventivas realizadas nos ativos.</p>
+                            <p>Lista completa de reparos e custos realizados.</p>
+                            <div class="report-filters mt-16">
+                                <div class="filter-row" style="display: flex; gap: 8px;">
+                                    <input type="date" id="report-maint-start" class="xs-input">
+                                    <input type="date" id="report-maint-end" class="xs-input">
+                                </div>
+                            </div>
                         </div>
                         <div class="actions">
                             <button class="btn-primary" onclick="generateReport('maint')"><i data-lucide="download"></i> PDF</button>
@@ -408,7 +431,13 @@
                         <div class="icon-box"><i data-lucide="database"></i></div>
                         <div class="info">
                             <h5>Movimentação de Estoque</h5>
-                            <p>Resumo mensal de entradas e saídas de carvão com cálculo de saldo final.</p>
+                            <p>Resumo mensal de entradas e saídas de carvão.</p>
+                            <div class="report-filters mt-16">
+                                <div class="filter-row" style="display: flex; gap: 8px;">
+                                    <input type="date" id="report-stock-start" class="xs-input">
+                                    <input type="date" id="report-stock-end" class="xs-input">
+                                </div>
+                            </div>
                         </div>
                         <div class="actions">
                             <button class="btn-primary" onclick="generateReport('stock')"><i data-lucide="download"></i> PDF</button>
@@ -419,7 +448,7 @@
         </main>
     </div>
 
-    <!-- MODALS (Updated Styles) -->
+    <!-- MODALS -->
     <div id="modal-kiln" class="modal-overlay">
         <div class="modal-glass">
             <div class="modal-header"><h3>Novo Ativo de Produção</h3><button class="close-btn" onclick="hideModal('kiln')">✕</button></div>
