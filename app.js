@@ -123,6 +123,7 @@ function renderAll() {
         updateSelectors();
         renderDashboard();
         renderKilnHistory();
+        renderKilnAssets();
         renderLoadsTable();
         renderMaintenance();
         renderStock();
@@ -233,6 +234,26 @@ function renderKilnHistory() {
     `).join('');
 }
 
+function renderKilnAssets() {
+    const list = document.getElementById('kilns-list-assets');
+    if (!list) return;
+    
+    if (kilns.length === 0) {
+        list.innerHTML = '<p class="text-dim" style="font-size: 13px; text-align: center;">Nenhum forno cadastrado.</p>';
+        return;
+    }
+
+    list.innerHTML = kilns.map(k => `
+        <div class="asset-card">
+            <div class="icon"><i data-lucide="container"></i></div>
+            <div class="details">
+                <h6>${k.praca}</h6>
+                <span>${k.modelo} • ${k.responsavel || 'Operador'}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
 function renderLoadsTable() {
     const list = document.getElementById('loads-table-body');
     if (!list) return;
@@ -271,19 +292,20 @@ function renderMaintenance() {
 }
 
 function renderStock() {
-    // Calculo básico: Entradas (carbonizando) vs Saídas (cargas)
-    const totalIn = history.reduce((acc, h) => acc + (Number(h.carbonizando || 0) * 1.5), 0); // Fator de rendimento estimado
+    const totalIn = history.reduce((acc, h) => acc + (Number(h.carbonizando || 0) * 1.5), 0);
     const totalOut = loads.reduce((acc, l) => acc + (Number(l.peso || 0) / 1000), 0);
     const balance = Math.max(0, totalIn - totalOut).toFixed(1);
 
-    document.getElementById('stock-balance').innerText = `${balance} t`;
-    document.getElementById('stock-in').innerText = `${totalIn.toFixed(1)} t`;
-    document.getElementById('stock-out').innerText = `${totalOut.toFixed(1)} t`;
+    const elBalance = document.getElementById('stock-balance');
+    const elIn = document.getElementById('stock-in');
+    const elOut = document.getElementById('stock-out');
+    if (elBalance) elBalance.innerText = `${balance} t`;
+    if (elIn) elIn.innerText = `${totalIn.toFixed(1)} t`;
+    if (elOut) elOut.innerText = `${totalOut.toFixed(1)} t`;
 
     const list = document.getElementById('stock-movement-list');
     if (!list) return;
 
-    // Unindo movimentos para histórico
     const movements = [
         ...history.map(h => ({ type: 'entry', label: `Produção Forno ${h.modelo}`, amount: (Number(h.carbonizando || 0) * 1.5).toFixed(1) + ' t', date: h.data, ts: h.timestamp })),
         ...loads.map(l => ({ type: 'exit', label: `Venda Romaneio #${l.id}`, amount: (Number(l.peso || 0) / 1000).toFixed(1) + ' t', date: l.data, ts: new Date(l.data.split('/').reverse().join('-')).getTime() }))
@@ -302,8 +324,6 @@ function renderStock() {
             <div class="amount">${m.type === 'entry' ? '+' : '-'}${m.amount}</div>
         </div>
     `).join('');
-    
-    if (window.lucide) window.lucide.createIcons();
 }
 
 function setupFilters() {
@@ -410,8 +430,15 @@ function processForm(id, fd) {
             obs: fd.get('obs') 
         };
         history.push(entry);
-        if ((fd.get('obs') || "").toLowerCase().includes('problema') || (fd.get('obs') || "").toLowerCase().includes('manutenção')) {
-            maintenance.push({ praca: entry.praca, forno: entry.modelo, problema: fd.get('obs'), resolved: false, timestamp: Date.now() });
+        
+        if (fd.get('obs') && fd.get('obs').trim() !== "") {
+            maintenance.push({ 
+                forno: `${entry.praca} (${entry.modelo})`, 
+                problema: fd.get('obs'), 
+                data: entry.data,
+                resolved: false, 
+                timestamp: Date.now() 
+            });
         }
     }
     if (id === 'load') loads.push({ id: 1000 + loads.length + 1, data: new Date().toLocaleDateString('pt-BR'), hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), placa: fd.get('placa').toUpperCase(), motorista: fd.get('motorista'), metragem: fd.get('metragem'), peso: fd.get('peso'), destino: fd.get('destino') });
@@ -419,8 +446,7 @@ function processForm(id, fd) {
         const target = fd.get('kiln_target').split(' — ');
         maintenance.push({ 
             data: fd.get('repair_date'), 
-            praca: target[0], 
-            forno: target[1], 
+            forno: target[0], 
             servico: fd.get('issue_type'), 
             custo: fd.get('cost'), 
             notes: fd.get('maint_notes'),

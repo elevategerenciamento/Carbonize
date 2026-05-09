@@ -510,6 +510,44 @@ input:focus, select:focus { outline: none; border-color: var(--primary); box-sha
 .stock-item.entry .amount { color: var(--success); }
 .stock-item.exit .amount { color: var(--primary); }
 
+/* Assets List (Fornos) */
+.assets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.asset-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    padding: 16px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: 0.2s;
+}
+
+.asset-card:hover { border-color: var(--primary); background: rgba(255, 255, 255, 0.05); }
+
+.asset-card .icon { 
+    width: 40px; 
+    height: 40px; 
+    background: var(--primary-dim); 
+    color: var(--primary); 
+    border-radius: 8px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+}
+
+.asset-card .details h6 { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+.asset-card .details span { font-size: 12px; color: var(--text-dim); }
+
+.mt-32 { margin-top: 32px; }
+.mt-20 { margin-top: 20px; }
+.mb-20 { margin-bottom: 20px; }
+
 /* Charts */
 .charts-grid {
     display: grid;

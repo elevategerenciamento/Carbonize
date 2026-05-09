@@ -129,34 +129,45 @@
                 </div>
             </section>
 
-            <!-- SECTION: FORNOS -->
             <section id="section-fornos" class="content-section" style="display: none;">
                 <div class="header-action">
-                    <h2 class="page-title">Gestão de Fornos</h2>
-                    <button class="btn-primary" onclick="showModal('kiln')"><i data-lucide="plus-circle"></i> Cadastrar Forno</button>
+                    <h2 class="page-title">Gestão de Ativos e Produção</h2>
+                    <button class="btn-primary" onclick="showModal('kiln')"><i data-lucide="plus-circle"></i> Novo Forno / Ativo</button>
                 </div>
 
-                <div class="pracas-container">
+                <div class="pracas-container" style="display: grid; grid-template-columns: 350px 1fr; gap: 32px;">
+                    <!-- Coluna 1: Lista de Ativos -->
                     <div class="glass">
-                        <h4 class="card-title">Lançamento de Ciclo</h4>
-                        <form id="form-kiln-daily" class="mt-20">
+                        <h4 class="card-title mb-20">Ativos Cadastrados</h4>
+                        <div id="kilns-list-assets" class="assets-list">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Coluna 2: Lançamento Diário -->
+                    <div class="glass">
+                        <h4 class="card-title">Lançamento de Produção (Fim de Turno)</h4>
+                        <p class="text-dim mb-20" style="font-size: 13px;">Preencha os dados consolidados da operação do dia.</p>
+                        
+                        <form id="form-kiln-daily">
                             <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                 <div class="form-field">
-                                    <label>Data do Lançamento</label>
+                                    <label>Data</label>
                                     <input type="date" name="data_lancamento" id="daily-date" required>
                                 </div>
                                 <div class="form-field">
-                                    <label>Responsável / Operador</label>
+                                    <label>Responsável</label>
                                     <input type="text" name="responsavel" placeholder="Nome do responsável" required>
                                 </div>
                             </div>
+                            
                             <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                 <div class="form-field">
-                                    <label>Identificação (Praça/Unidade)</label>
+                                    <label>Selecionar Unidade</label>
                                     <select name="praca_select" id="daily-praca-select" required></select>
                                 </div>
                                 <div class="form-field">
-                                    <label>Modelo do Forno</label>
+                                    <label>Modelo</label>
                                     <select name="modelo_select" id="daily-modelo-select">
                                         <option value="Forno Menor">Forno Menor</option>
                                         <option value="Forno JG">Forno JG</option>
@@ -164,43 +175,41 @@
                                     </select>
                                 </div>
                             </div>
+
                             <div class="form-field-4">
                                 <div class="sub-field"><label>Vazios</label><input type="number" name="vazios" value="0"></div>
                                 <div class="sub-field"><label>Cheios</label><input type="number" name="cheios" value="0"></div>
                                 <div class="sub-field"><label>Carbon.</label><input type="number" name="carbonizando" value="0"></div>
                                 <div class="sub-field"><label>Esfria</label><input type="number" name="esfriando" value="0"></div>
                             </div>
+
                             <div class="form-field">
-                                <label>Obs / Manutenção</label>
+                                <label>Obs / Manutenção (Gera alerta automático)</label>
                                 <textarea name="obs" rows="3" placeholder="Ex: Forno 04 com rachadura..."></textarea>
                             </div>
-                            <button type="submit" class="btn-save">Registrar Atualização</button>
+                            
+                            <button type="submit" class="btn-save" style="width: 100%;">Registrar Produção Diária</button>
                         </form>
                     </div>
+                </div>
 
-                    <div class="glass">
-                        <div class="mini-summary">
-                            <h4 class="card-title mb-20">Consolidado do Dia</h4>
-                            <div class="stats-grid-mini" id="daily-stats-summary">
-                                <!-- Populated by JS -->
-                            </div>
-                        </div>
-                        <h4 class="card-title mt-32">Histórico de Lançamentos</h4>
-                        <div class="table-wrapper mt-16">
-                            <table class="modern-table">
-                                <thead>
-                                    <tr>
-                                        <th>DATA</th>
-                                        <th>UNIDADE</th>
-                                        <th>RESPONSÁVEL</th>
-                                        <th>MODELO</th>
-                                        <th>V/C/C/E</th>
-                                        <th>OBS / MANUT.</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="kiln-history-list"></tbody>
-                            </table>
-                        </div>
+                <!-- Histórico Completo embaixo -->
+                <div class="glass mt-32">
+                    <h4 class="card-title mb-20">Histórico de Lançamentos Recentes</h4>
+                    <div class="table-wrapper">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>DATA</th>
+                                    <th>UNIDADE</th>
+                                    <th>RESPONSÁVEL</th>
+                                    <th>MODELO</th>
+                                    <th>V/C/C/E</th>
+                                    <th>OBS / MANUT.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kiln-history-list"></tbody>
+                        </table>
                     </div>
                 </div>
             </section>
