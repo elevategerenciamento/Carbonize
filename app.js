@@ -90,8 +90,10 @@ function switchTab(tab) {
 
 function toggleMobileMenu() {
     const mobileNav = document.getElementById('mobile-nav');
+    const menuOverlay = document.getElementById('menu-overlay');
     if (!mobileNav) return;
     mobileNav.classList.toggle('show');
+    if (menuOverlay) menuOverlay.classList.toggle('show');
 }
 
 function showModal(type, data = null) {
