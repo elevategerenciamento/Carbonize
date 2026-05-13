@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Carbonize | Gestão de Alta Performance</title>
+    <meta name="description" content="Sistema profissional de controle de produção de carvão vegetal.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link rel="icon" type="image/png" href="carboniza_flame_logo_1778301437004.png">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation Bar -->
+        <nav class="top-nav">
+            <div class="nav-brand">
+                <img src="carboniza_flame_logo_1778301437004.png" alt="Carboniza Logo" class="brand-logo-img">
+                <div class="logo-text">
+                    <span class="brand">CARBONIZE</span>
+                    <span class="unit">Unidade Industrial</span>
+                </div>
+            </div>
+            
+            <div class="nav-links">
+                <button class="nav-link active" onclick="switchTab('dashboard')"><i data-lucide="layout-dashboard"></i> Dashboard</button>
+                <button class="nav-link" onclick="switchTab('fornos')"><i data-lucide="container"></i> Fornos</button>
+                <button class="nav-link" onclick="switchTab('cargas')"><i data-lucide="truck"></i> Cargas</button>
+                <button class="nav-link" onclick="switchTab('manutencao')"><i data-lucide="wrench"></i> Manutenção</button>
+                <button class="nav-link" onclick="switchTab('estoque')"><i data-lucide="database"></i> Estoque</button>
+                <button class="nav-link" onclick="switchTab('analise')"><i data-lucide="bar-chart-3"></i> Análise</button>
+                <button class="nav-link" onclick="switchTab('custos')"><i data-lucide="dollar-sign"></i> Gestão de Custos</button>
+                <button class="nav-link" onclick="switchTab('relatorios')"><i data-lucide="file-text"></i> Relatórios</button>
+            </div>
+
+            <div class="nav-user">
+                <div class="user-info">
+                    <span class="user-name" id="greeting">Olá, Operador</span>
+                    <span class="user-date" id="current-date">--/--/----</span>
+                </div>
+                <div class="avatar">OP</div>
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i data-lucide="menu"></i></button>
+            </div>
+        </nav>
+
+        <!-- Menu Overlay -->
+        <div class="menu-overlay" id="menu-overlay" onclick="toggleMobileMenu()"></div>
+
+        <!-- Mobile Navigation -->
+        <div class="mobile-nav" id="mobile-nav">
+            <button class="nav-link active" onclick="switchTab('dashboard'); toggleMobileMenu()">Dashboard</button>
+            <button class="nav-link" onclick="switchTab('fornos'); toggleMobileMenu()">Fornos</button>
+            <button class="nav-link" onclick="switchTab('cargas'); toggleMobileMenu()">Cargas</button>
+            <button class="nav-link" onclick="switchTab('manutencao'); toggleMobileMenu()">Manutenção</button>
+            <button class="nav-link" onclick="switchTab('estoque'); toggleMobileMenu()">Estoque</button>
+            <button class="nav-link" onclick="switchTab('analise'); toggleMobileMenu()">Análise</button>
+            <button class="nav-link" onclick="switchTab('custos'); toggleMobileMenu()">Gestão de Custos</button>
+            <button class="nav-link" onclick="switchTab('relatorios'); toggleMobileMenu()">Relatórios</button>
+        </div>
+
+        <main class="main-content">
+            <!-- SECTION: DASHBOARD -->
+            <section id="section-dashboard" class="content-section">
+                <div class="header-action">
+                    <h2 class="page-title">Panorama Operacional</h2>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="container"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Fornos Ativos</span>
+                            <h2 class="kpi-value" id="kpi-fornos-ativos">0</h2>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="truck"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Cargas (Hoje)</span>
+                            <h2 class="kpi-value" id="kpi-cargas-hoje">0</h2>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="bar-chart"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Produção Mensal</span>
+                            <h2 class="kpi-value" id="kpi-prod-mes">0 t</h2>
+                        </div>
+                        <div class="kpi-progress"><div class="progress-bar" id="prod-progress"></div></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon text-primary"><i data-lucide="alert-circle"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Manutenções</span>
+                            <h2 class="kpi-value" id="kpi-maint">0</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="grid-card">
+                        <div class="card-header">
+                            <h4>Monitoramento em Tempo Real</h4>
+                            <button class="btn-icon" onclick="switchTab('fornos')">Expandir Fornos <i data-lucide="chevron-right"></i></button>
+                        </div>
+                        <div id="dashboard-pracas-list" class="mini-grid-container"></div>
+                    </div>
+                    <div class="grid-card">
+                        <div class="card-header">
+                            <h4>Fluxo de Saída Recente</h4>
+                            <button class="btn-primary" onclick="showModal('load')"><i data-lucide="plus"></i> Novo Romaneio</button>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="simple-table">
+                                <thead>
+                                    <tr>
+                                        <th>HORÁRIO</th>
+                                        <th>VEÍCULO</th>
+                                        <th>PESO LÍQ.</th>
+                                        <th>STATUS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-loads-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="section-fornos" class="content-section" style="display: none;">
+                <div class="header-action">
+                    <h2 class="page-title">Gestão de Ativos e Produção</h2>
+                    <button class="btn-primary" onclick="showModal('kiln')"><i data-lucide="plus-circle"></i> Novo Forno / Ativo</button>
+                </div>
+
+                <div class="pracas-container" style="display: grid; grid-template-columns: 350px 1fr; gap: 32px;">
+                    <!-- Coluna 1: Lista de Ativos -->
+                    <div class="glass" style="max-height: 700px; display: flex; flex-direction: column;">
+                        <h4 class="card-title mb-20">Ativos Cadastrados</h4>
+                        <div class="search-box mb-16">
+                            <i data-lucide="search"></i>
+                            <input type="text" id="asset-search" placeholder="Procurar forno..." oninput="renderKilnAssets()">
+                        </div>
+                        <div id="kilns-list-assets" class="assets-list" style="flex: 1; overflow-y: auto; padding-right: 8px;">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Coluna 2: Lançamento Diário -->
+                    <div class="glass">
+                        <h4 class="card-title">Lançamento de Produção (Fim de Turno)</h4>
+                        <p class="text-dim mb-20" style="font-size: 13px;">Preencha os dados consolidados da operação do dia.</p>
+                        
+                        <form id="form-kiln-daily">
+                            <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-field">
+                                    <label>Data</label>
+                                    <input type="date" name="data_lancamento" id="daily-date" required>
+                                </div>
+                                <div class="form-field">
+                                    <label>Responsável</label>
+                                    <input type="text" name="responsavel" placeholder="Nome do responsável" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-field">
+                                <label>Selecionar Forno / Unidade</label>
+                                <select name="praca_select" id="daily-praca-select" required></select>
+                            </div>
+
+                            <div class="form-field-4">
+                                <div class="sub-field"><label>Vazios</label><input type="number" name="vazios" value="0"></div>
+                                <div class="sub-field"><label>Cheios</label><input type="number" name="cheios" value="0"></div>
+                                <div class="sub-field"><label>Carbon.</label><input type="number" name="carbonizando" value="0"></div>
+                                <div class="sub-field"><label>Esfria</label><input type="number" name="esfriando" value="0"></div>
+                            </div>
+
+                            <div class="form-field">
+                                <label>Obs / Manutenção (Gera alerta automático)</label>
+                                <textarea name="obs" rows="3" placeholder="Ex: Forno 04 com rachadura..."></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn-save" style="width: 100%;">Registrar Produção Diária</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Histórico Completo embaixo -->
+                <div class="glass mt-32">
+                    <h4 class="card-title mb-20">Histórico de Lançamentos Recentes</h4>
+                    <div class="table-wrapper">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>DATA</th>
+                                    <th>UNIDADE</th>
+                                    <th>RESPONSÁVEL</th>
+                                    <th>MODELO</th>
+                                    <th>V/C/C/E</th>
+                                    <th>OBS / MANUT.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kiln-history-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: CARGAS -->
+            <section id="section-cargas" class="content-section" style="display: none;">
+                <div class="header-action">
+                    <h2 class="page-title">Expedição e Logística</h2>
+                    <button class="btn-primary" onclick="showModal('load')"><i data-lucide="truck"></i> Novo Romaneio</button>
+                </div>
+
+                <div class="glass">
+                    <div class="card-header">
+                        <h4>Relatório de Saídas: <span id="loads-today-date" class="text-primary">--/--/----</span></h4>
+                        <div class="table-stats">
+                            <span id="loads-count-summary" class="badge">0 CARGAS</span>
+                            <span id="loads-total-kg" class="badge">0 KG TOTAL</span>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Nº IDENT.</th>
+                                    <th>DATA/HORA</th>
+                                    <th>TIPO</th>
+                                    <th>VEÍCULO</th>
+                                    <th>MOTORISTA</th>
+                                    <th>M³ / KG</th>
+                                    <th>DESTINO</th>
+                                </tr>
+                            </thead>
+                            <tbody id="loads-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: MANUTENÇÃO -->
+            <section id="section-manutencao" class="content-section" style="display: none;">
+                <div class="header-action">
+                    <h2 class="page-title">Manutenção e Ativos</h2>
+                    <span class="status-badge warning" id="maint-alert-badge">SISTEMA OK</span>
+                </div>
+
+                <div class="maint-grid">
+                    <div class="glass">
+                        <h4 class="card-title">Ordem de Serviço</h4>
+                        <form id="form-maintenance" class="mt-20">
+                            <div class="form-field">
+                                <label>Ativo / Forno</label>
+                                <select name="kiln_target" id="maint-kiln-select" required></select>
+                            </div>
+                            <div class="form-field-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-field"><label>Data do Reparo</label><input type="date" name="repair_date" required></div>
+                                <div class="form-field"><label>Custo Estimado (R$)</label><input type="number" step="0.01" name="cost" value="0"></div>
+                            </div>
+                            <div class="form-field">
+                                <label>Tipo de Intervenção</label>
+                                <select name="issue_type">
+                                    <option value="Estrutural">Rachadura / Estrutura</option>
+                                    <option value="Componentes">Troca de Tampa/Porta</option>
+                                    <option value="Preventiva">Limpeza e Rejunte</option>
+                                    <option value="Corretiva">Reparo de Base</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label>Observações Detalhadas</label>
+                                <textarea name="maint_notes" rows="4" placeholder="Descreva os materiais usados, defeitos encontrados e detalhes técnicos do reparo..."></textarea>
+                            </div>
+                            <button type="submit" class="btn-save">Finalizar Registro</button>
+                        </form>
+                    </div>
+                    <div class="glass">
+                        <h4 class="card-title">Intervenções Pendentes</h4>
+                        <div class="table-wrapper mt-20">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>FORNO</th>
+                                        <th>PROBLEMA</th>
+                                        <th>DATA REGISTRO</th>
+                                        <th>AÇÕES</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="open-issues-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: ESTOQUE (Overhaul) -->
+            <section id="section-estoque" class="content-section" style="display: none;">
+                <div class="header-action">
+                    <h2 class="page-title">Centro de Inventário</h2>
+                </div>
+                
+                <div class="stock-grid">
+                    <div class="stock-card success">
+                        <span class="label">Volume Atual em Pátio</span>
+                        <h1 class="value" id="stock-balance">0.0 t</h1>
+                        <span class="sub">Saldo totalizado para venda</span>
+                    </div>
+                    <div class="stock-card">
+                        <span class="label">Produção Mensal</span>
+                        <h1 class="value" id="stock-in">0.0 t</h1>
+                        <span class="sub">Total de entradas no período</span>
+                    </div>
+                    <div class="stock-card">
+                        <span class="label">Saídas (Vendas)</span>
+                        <h1 class="value" id="stock-out">0.0 t</h1>
+                        <span class="sub">Total de despachos realizados</span>
+                    </div>
+                </div>
+
+                <div class="stock-history">
+                    <div class="stock-history-header">
+                        <h4>Histórico de Movimentação</h4>
+                        <div class="date-filter">
+                            <select id="stock-filter-type">
+                                <option value="all">Todas as Movimentações</option>
+                                <option value="entry">Apenas Entradas</option>
+                                <option value="exit">Apenas Saídas</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="stock-movement-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: ANÁLISE -->
+            <section id="section-analise" class="content-section" style="display: none;">
+                <div class="header-action">
+                    <h2 class="page-title">Análise de Performance</h2>
+                    <div class="date-filter">
+                        <select id="analysis-period">
+                            <option value="monthly">Período Mensal</option>
+                            <option value="weekly">Período Semanal</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h4>Fluxo de Carbonização (t)</h4>
+                            <p>Desempenho por unidade de produção</p>
+                        </div>
+                        <div class="chart-container"><canvas id="prodChart"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h4>Frequência de Logística</h4>
+                            <p>Volume de romaneios por dia</p>
+                        </div>
+                        <div class="chart-container"><canvas id="loadsChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="analysis-stats mt-32">
+                    <div class="stat-item">
+                        <span class="lbl">Pico de Produção</span>
+                        <h4 id="best-day-val">Quarta-feira</h4>
+                        <p>Máximo diário registrado</p>
+                    </div>
+                    <div class="stat-item">
+                        <span class="lbl">Eficiência de Carga</span>
+                        <h4>3.4 m³/t</h4>
+                        <p id="avg-yield">Média de densidade</p>
+                    </div>
+                    <div class="stat-item">
+                        <span class="lbl">Tempo Médio Ciclo</span>
+                        <h4>4.2 Dias</h4>
+                        <p>Forno JG (Principal)</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: GESTÃO DE CUSTOS -->
+            <section id="section-custos" class="content-section" style="display: none;">
+                <div class="header-action">
+                    <h2 class="page-title">Gestão de Custos Operacionais</h2>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="wallet"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Total Gasto (Mês)</span>
+                            <h2 class="kpi-value" id="kpi-custo-mes">R$ 0,00</h2>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="trending-up"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Maior Categoria</span>
+                            <h2 class="kpi-value" id="kpi-custo-categoria">---</h2>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="calendar"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Último Gasto</span>
+                            <h2 class="kpi-value" id="kpi-custo-ultimo">R$ 0,00</h2>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="layers"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Lançamentos</span>
+                            <h2 class="kpi-value" id="kpi-custo-count">0</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pracas-container" style="display: grid; grid-template-columns: 400px 1fr; gap: 32px;">
+                    <div class="glass">
+                        <h4 class="card-title">Lançar Nova Despesa</h4>
+                        <p class="text-dim mb-20" style="font-size: 13px;">Registre todos os custos da operação.</p>
+                        
+                        <form id="form-expense">
+                            <div class="form-field">
+                                <label>Data</label>
+                                <input type="date" name="expense_date" id="expense-date" required>
+                            </div>
+                            <div class="form-field">
+                                <label>Categoria</label>
+                                <select name="expense_category" required>
+                                    <option value="Madeira">Madeira / Matéria Prima</option>
+                                    <option value="Mão de Obra">Mão de Obra / Salários</option>
+                                    <option value="Manutenção">Manutenção de Fornos</option>
+                                    <option value="Logística">Logística / Fretes</option>
+                                    <option value="Insumos">Insumos (Ferramentas, EPIs)</option>
+                                    <option value="Outros">Outros Gastos</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label>Descrição do Gasto</label>
+                                <input type="text" name="expense_desc" placeholder="Ex: Compra de 50m³ de eucalipto" required>
+                            </div>
+                            <div class="form-field">
+                                <label>Valor (R$)</label>
+                                <input type="number" step="0.01" name="expense_value" placeholder="0,00" required>
+                            </div>
+                            
+                            <button type="submit" class="btn-save" style="width: 100%;">Registrar Despesa</button>
+                        </form>
+                    </div>
+
+                    <div class="glass">
+                        <h4 class="card-title mb-20">Histórico de Gastos</h4>
+                        <div class="table-wrapper">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>DATA</th>
+                                        <th>CATEGORIA</th>
+                                        <th>DESCRIÇÃO</th>
+                                        <th>VALOR</th>
+                                        <th>AÇÕES</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expense-history-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: RELATÓRIOS -->
+            <section id="section-relatorios" class="content-section" style="display: none;">
+                <div class="header-action">
+                    <h2 class="page-title">Centro de Relatórios e Inteligência</h2>
+                </div>
+
+                <div class="reports-premium-grid">
+                    <!-- Card: Logística -->
+                    <div class="report-premium-card">
+                        <div class="card-glow"></div>
+                        <div class="card-content">
+                            <div class="report-header">
+                                <div class="report-icon"><i data-lucide="truck"></i></div>
+                                <div>
+                                    <h5>Logística & Saídas</h5>
+                                    <p>Histórico completo de romaneios e expedição.</p>
+                                </div>
+                            </div>
+                            <div class="report-body">
+                                <label>Filtrar Período:</label>
+                                <div class="filter-group">
+                                    <input type="date" id="report-loads-start">
+                                    <input type="date" id="report-loads-end">
+                                </div>
+                            </div>
+                            <div class="report-footer">
+                                <button class="btn-primary" onclick="generateReport('loads')"><i data-lucide="file-down"></i> Exportar PDF</button>
+                                <button class="btn-outline-sm" onclick="generateReport('loads', true)"><i data-lucide="printer"></i> Imprimir</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card: Produção -->
+                    <div class="report-premium-card">
+                        <div class="card-glow"></div>
+                        <div class="card-content">
+                            <div class="report-header">
+                                <div class="report-icon"><i data-lucide="container"></i></div>
+                                <div>
+                                    <h5>Produção de Fornos</h5>
+                                    <p>Rendimento, ciclos e status das unidades.</p>
+                                </div>
+                            </div>
+                            <div class="report-body">
+                                <label>Filtrar Período:</label>
+                                <div class="filter-group">
+                                    <input type="date" id="report-pracas-start">
+                                    <input type="date" id="report-pracas-end">
+                                </div>
+                            </div>
+                            <div class="report-footer">
+                                <button class="btn-primary" onclick="generateReport('pracas')"><i data-lucide="file-down"></i> Exportar PDF</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card: Manutenção -->
+                    <div class="report-premium-card">
+                        <div class="card-glow"></div>
+                        <div class="card-content">
+                            <div class="report-header">
+                                <div class="report-icon"><i data-lucide="wrench"></i></div>
+                                <div>
+                                    <h5>Manutenção & Ativos</h5>
+                                    <p>Custos e histórico de intervenções técnicas.</p>
+                                </div>
+                            </div>
+                            <div class="report-body">
+                                <label>Filtrar Período:</label>
+                                <div class="filter-group">
+                                    <input type="date" id="report-maint-start">
+                                    <input type="date" id="report-maint-end">
+                                </div>
+                            </div>
+                            <div class="report-footer">
+                                <button class="btn-primary" onclick="generateReport('maint')"><i data-lucide="file-down"></i> Exportar PDF</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card: Estoque -->
+                    <div class="report-premium-card">
+                        <div class="card-glow"></div>
+                        <div class="card-content">
+                            <div class="report-header">
+                                <div class="report-icon"><i data-lucide="database"></i></div>
+                                <div>
+                                    <h5>Inventário de Pátio</h5>
+                                    <p>Balanço de entradas, saídas e saldo atual.</p>
+                                </div>
+                            </div>
+                            <div class="report-body">
+                                <label>Filtrar Período:</label>
+                                <div class="filter-group">
+                                    <input type="date" id="report-stock-start">
+                                    <input type="date" id="report-stock-end">
+                                </div>
+                            </div>
+                            <div class="report-footer">
+                                <button class="btn-primary" onclick="generateReport('stock')"><i data-lucide="file-down"></i> Exportar PDF</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card: Gestão de Custos -->
+                    <div class="report-premium-card">
+                        <div class="card-glow"></div>
+                        <div class="card-content">
+                            <div class="report-header">
+                                <div class="report-icon"><i data-lucide="dollar-sign"></i></div>
+                                <div>
+                                    <h5>Gestão de Custos</h5>
+                                    <p>Relatório financeiro detalhado de despesas.</p>
+                                </div>
+                            </div>
+                            <div class="report-body">
+                                <label>Filtrar Período:</label>
+                                <div class="filter-group">
+                                    <input type="date" id="report-expenses-start">
+                                    <input type="date" id="report-expenses-end">
+                                </div>
+                            </div>
+                            <div class="report-footer">
+                                <button class="btn-primary" onclick="generateReport('expenses')"><i data-lucide="file-down"></i> PDF</button>
+                                <button class="btn-primary" style="background: #1d6f42;" onclick="exportToExcel('expenses')"><i data-lucide="table"></i> EXCEL</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODALS -->
+    <div id="modal-kiln" class="modal-overlay">
+        <div class="modal-glass">
+            <div class="modal-header"><h3 id="kiln-modal-title">Novo Ativo de Produção</h3><button class="close-btn" onclick="hideModal('kiln')">✕</button></div>
+            <form id="form-kiln">
+                <input type="hidden" name="kiln_index" id="kiln-edit-index" value="">
+                <div class="form-field"><label>Identificação / Unidade</label><input type="text" name="praca" id="kiln-modal-praca" placeholder="Ex: Sul 01" required></div>
+                <div class="form-field">
+                    <label>Modelo do Forno</label>
+                    <select name="modelo" id="kiln-modal-modelo">
+                        <option value="Forno Menor">Forno Menor</option>
+                        <option value="Forno JG">Forno JG</option>
+                        <option value="Circular 5m">Circular 5m</option>
+                    </select>
+                </div>
+                <div class="form-field"><label>Operador Responsável</label><input type="text" name="responsavel" id="kiln-modal-resp" value="Operador Padrão"></div>
+                <button type="submit" class="btn-save" id="kiln-modal-btn">Cadastrar Forno</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-load" class="modal-overlay">
+        <div class="modal-glass">
+            <div class="modal-header"><h3>Registrar Romaneio de Saída</h3><button class="close-btn" onclick="hideModal('load')">✕</button></div>
+            <form id="form-load">
+                <div class="form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-field">
+                        <label>Nº Identificador</label>
+                        <input type="text" name="identificador" id="load-id-auto" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Tipo de Carvão</label>
+                        <select name="tipo_carvao">
+                            <option value="Eucalipto">Eucalipto</option>
+                            <option value="Cerrado">Cerrado</option>
+                            <option value="Mistura">Mistura</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-field"><label>Data</label><input type="date" name="data_carga" id="load-date-manual" required></div>
+                    <div class="form-field"><label>Hora</label><input type="time" name="hora_carga" id="load-time-manual" required></div>
+                </div>
+                <div class="form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-field"><label>Placa do Veículo</label><input type="text" name="placa" placeholder="ABC-1234" required></div>
+                    <div class="form-field"><label>Motorista</label><input type="text" name="motorista" placeholder="Nome completo" required></div>
+                </div>
+                <div class="form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-field"><label>Metragem (m³)</label><input type="number" step="0.01" name="metragem" value="0"></div>
+                    <div class="form-field"><label>Peso Líquido (kg)</label><input type="number" name="peso" value="0"></div>
+                </div>
+                <div class="form-field"><label>Destino do Carregamento</label><input type="text" name="destino" placeholder="Nome da empresa/usina" required></div>
+                <button type="submit" class="btn-save">Emitir Romaneio</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast">Operação realizada com sucesso!</div>
+
+    <script type="module" src="app.js"></script>
+    <script>
+        // Initialize Lucide Icons after DOM load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+            console.log("Carbonize: Lucide Initialized");
+        });
+        
+        // Fallback robust navigation
+        window.safeSwitch = function(tab) {
+            if (typeof window.switchTab === 'function') {
+                window.switchTab(tab);
+            } else {
+                console.error("switchTab not ready yet");
+            }
+        };
+    </script>
+</body>
+</html>
