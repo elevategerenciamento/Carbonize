@@ -34,6 +34,7 @@ window.exportToExcel = exportToExcel;
 window.handleLogin = handleLogin;
 window.logout = logout;
 window.toggleUserDropdown = toggleUserDropdown;
+window.togglePassword = togglePassword;
 
 // Initialize
 async function init() {
@@ -72,6 +73,7 @@ async function init() {
 
 async function handleLogin(e) {
     e.preventDefault();
+    console.log("Carbonize: Tentando login/cadastro...");
     const fd = new FormData(e.target);
     const farmName = fd.get('farm_name').trim().toLowerCase().replace(/\s+/g, '_');
     const email = `${farmName}@carbonize.com`;
@@ -803,4 +805,19 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
     init();
+}
+
+function togglePassword(id) {
+    const input = document.getElementById(id);
+    const btn = input.nextElementSibling;
+    const icon = btn.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+    } else {
+        input.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+    }
+    if (window.lucide) window.lucide.createIcons();
 }
