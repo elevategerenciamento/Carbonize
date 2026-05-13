@@ -802,3 +802,10 @@ document.addEventListener('click', (e) => {
         if (menu) menu.classList.remove('show');
     }
 });
+
+// Start the app
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
