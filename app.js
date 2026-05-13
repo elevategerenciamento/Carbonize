@@ -5,6 +5,7 @@ let kilns = JSON.parse(localStorage.getItem('carboniza_kilns')) || [];
 let loads = JSON.parse(localStorage.getItem('carboniza_loads')) || [];
 let history = JSON.parse(localStorage.getItem('carboniza_history')) || [];
 let maintenance = JSON.parse(localStorage.getItem('carboniza_maint')) || [];
+let settings = JSON.parse(localStorage.getItem('carboniza_settings')) || { enterprise_name: 'FAZENDAPETKOV', access_email: 'fazendapetkov@carbonize.com' };
 
 // Charts Instances
 let prodChart = null;
@@ -70,7 +71,9 @@ function updateDateTime() {
     let greeting = "Boa noite";
     if (hour >= 5 && hour < 12) greeting = "Bom dia";
     else if (hour >= 12 && hour < 18) greeting = "Boa tarde";
-    elGreeting.innerText = `${greeting}, Operador`;
+    
+    const enterprise = settings.enterprise_name || 'Operador';
+    elGreeting.innerText = `${greeting}, ${enterprise}`;
 }
 
 function switchTab(tab) {
@@ -149,6 +152,7 @@ function renderAll() {
         renderLoadsTable();
         renderMaintenance();
         renderStock();
+        updateSettingsUI();
         if (window.lucide) window.lucide.createIcons();
     } catch (e) {
         console.error("Carbonize Render Error:", e);
@@ -338,7 +342,7 @@ function renderCharts() {
 }
 
 function setupForms() {
-    const forms = ['kiln', 'kiln-daily', 'load', 'maintenance'];
+    const forms = ['kiln', 'kiln-daily', 'load', 'maintenance', 'settings'];
     forms.forEach(id => {
         const f = document.getElementById(`form-${id}`);
         if (f) {
@@ -346,7 +350,7 @@ function setupForms() {
                 e.preventDefault();
                 processForm(id, new FormData(e.target));
                 saveAll();
-                if (id === 'kiln' || id === 'load') hideModal(id);
+                if (id === 'kiln' || id === 'load' || id === 'settings') hideModal(id);
                 e.target.reset();
                 showToast();
             };
@@ -398,6 +402,20 @@ function processForm(id, fd) {
         const target = fd.get('kiln_target').split(' — ');
         maintenance.push({ data: fd.get('repair_date'), forno: target[0], servico: fd.get('issue_type'), custo: fd.get('cost'), notes: fd.get('maint_notes'), resolved: true, timestamp: Date.now() });
     }
+    if (id === 'settings') {
+        settings.enterprise_name = fd.get('enterprise_name');
+        settings.access_email = fd.get('access_email');
+    }
+}
+
+function updateSettingsUI() {
+    const elEnterprise = document.getElementById('settings-enterprise');
+    const elEmail = document.getElementById('settings-email');
+    const elUnit = document.querySelector('.nav-brand .unit');
+    
+    if (elEnterprise) elEnterprise.value = settings.enterprise_name;
+    if (elEmail) elEmail.value = settings.access_email;
+    if (elUnit && settings.enterprise_name) elUnit.innerText = settings.enterprise_name;
 }
 
 function resolveMaint(ts) {
@@ -410,6 +428,7 @@ function saveAll() {
     localStorage.setItem('carboniza_loads', JSON.stringify(loads));
     localStorage.setItem('carboniza_history', JSON.stringify(history));
     localStorage.setItem('carboniza_maint', JSON.stringify(maintenance));
+    localStorage.setItem('carboniza_settings', JSON.stringify(settings));
     renderAll();
 }
 

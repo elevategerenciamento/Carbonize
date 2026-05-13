@@ -13,17 +13,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="icon" type="image/png" href="carboniza_flame_logo_1778301437004.png">
+    <link rel="icon" type="image/png" href="carboniza_logo_premium.png">
 </head>
 <body>
     <div class="app-container">
         <!-- Top Navigation Bar -->
         <nav class="top-nav">
             <div class="nav-brand">
-                <img src="carboniza_flame_logo_1778301437004.png" alt="Carboniza Logo" class="brand-logo-img">
+                <img src="carboniza_logo_premium.png" alt="Carbonize Logo" class="brand-logo-img">
                 <div class="logo-text">
                     <span class="brand">CARBONIZE</span>
-                    <span class="unit">Unidade Industrial</span>
+                    <span class="unit">Intelligence & Industry</span>
                 </div>
             </div>
             
@@ -43,6 +43,7 @@
                     <span class="user-date" id="current-date">--/--/----</span>
                 </div>
                 <div class="avatar">OP</div>
+                <button class="settings-btn" onclick="showModal('settings')" title="Configurações"><i data-lucide="settings"></i></button>
                 <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i data-lucide="menu"></i></button>
             </div>
         </nav>
@@ -547,6 +548,27 @@
                 </div>
                 <div class="form-field"><label>Destino do Carregamento</label><input type="text" name="destino" placeholder="Nome da empresa/usina" required></div>
                 <button type="submit" class="btn-save">Emitir Romaneio</button>
+            </form>
+        </div>
+    <div id="modal-settings" class="modal-overlay">
+        <div class="modal-glass settings-modal">
+            <div class="modal-header">
+                <h3><i data-lucide="settings"></i> Configurações</h3>
+                <button class="close-btn" onclick="hideModal('settings')">✕</button>
+            </div>
+            <form id="form-settings">
+                <div class="form-field">
+                    <label>Nome do Empreendimento</label>
+                    <input type="text" name="enterprise_name" id="settings-enterprise" value="FAZENDAPETKOV" required>
+                </div>
+                <div class="form-field">
+                    <label>E-mail de Acesso</label>
+                    <input type="email" name="access_email" id="settings-email" value="fazendapetkov@carbonize.com" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="hideModal('settings')">Cancelar</button>
+                    <button type="submit" class="btn-save-settings">Salvar Configurações</button>
+                </div>
             </form>
         </div>
     </div>
