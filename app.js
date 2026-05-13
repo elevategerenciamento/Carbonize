@@ -30,7 +30,6 @@ async function init() {
         document.getElementById('login-screen').style.display = 'none';
         document.querySelector('.app-container').style.display = 'flex';
         await loadAllData();
-        updateUI();
     } else {
         document.getElementById('login-screen').style.display = 'flex';
         document.querySelector('.app-container').style.display = 'none';
@@ -39,9 +38,10 @@ async function init() {
     if (window.lucide) window.lucide.createIcons();
     setupEventListeners();
     renderCharts();
+    updateUI();
 }
 
-// 4. AUTHENTICATION LOGIC
+// 4. AUTHENTICATION
 async function handleLogin(e) {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -53,20 +53,19 @@ async function handleLogin(e) {
 
     try {
         if (action === 'signup') {
-            const { data, error } = await supabase.auth.signUp({
+            const { error } = await supabase.auth.signUp({
                 email, password,
                 options: { data: { farm_name: farmName } }
             });
             if (error) throw error;
-            alert("Conta criada! Verifique seu e-mail ou tente entrar.");
+            alert("Conta criada! Tente entrar agora.");
         } else {
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
             location.reload();
         }
     } catch (err) {
-        console.error("Auth Error:", err.message);
-        alert("Erro de autenticação: " + err.message);
+        alert("Erro: " + err.message);
     }
 }
 
@@ -75,7 +74,7 @@ async function logout() {
     location.reload();
 }
 
-// 5. DATA FETCHING & SYNC
+// 5. DATA SYNC
 async function loadAllData() {
     if (!currentUser) return;
     const uid = currentUser.id;
@@ -95,7 +94,6 @@ async function loadAllData() {
         maintenance = m.data || [];
         expenses = e.data || [];
         
-        console.log("Data Sync Complete");
         renderAll();
     } catch (err) {
         console.error("Sync Error:", err);
@@ -115,9 +113,7 @@ function updateUI() {
         const farm = currentUser.user_metadata.farm_name || "Fazenda";
         document.getElementById('display-enterprise-name').innerText = farm;
         document.getElementById('greeting').innerText = `Olá, ${farm}`;
-        document.getElementById('dropdown-farm-name').innerText = farm;
-        document.getElementById('dropdown-email').innerText = currentUser.email;
-        document.getElementById('user-avatar-initials').innerText = farm.substring(0, 2).toUpperCase();
+        document.getElementById('user-avatar-initials').innerText = farm.substring(0, 1).toUpperCase();
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('pt-BR');
     }
 }
@@ -125,12 +121,9 @@ function updateUI() {
 function switchTab(tabId) {
     document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
     document.getElementById(`section-${tabId}`).style.display = 'block';
-    
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    // Handle both desktop and mobile links
     document.querySelectorAll(`button[onclick*="switchTab('${tabId}')"]`).forEach(l => l.classList.add('active'));
-    
-    if (tabId === 'analise') renderCharts();
+    if (tabId === 'analise' || tabId === 'dashboard') renderCharts();
 }
 
 function showModal(id) {
@@ -146,10 +139,7 @@ function hideModal(id) {
 }
 
 function toggleMobileMenu() {
-    const nav = document.getElementById('mobile-nav');
-    const overlay = document.getElementById('menu-overlay');
-    nav.classList.toggle('show');
-    overlay.classList.toggle('show');
+    document.getElementById('mobile-nav').classList.toggle('show');
 }
 
 function toggleUserDropdown() {
@@ -183,56 +173,46 @@ function renderKilns() {
     const list = document.getElementById('kilns-list-assets');
     const select = document.getElementById('daily-praca-select');
     const maintSelect = document.getElementById('maint-kiln-select');
+    const historyList = document.getElementById('kiln-history-list');
     
     if (list) {
-        list.innerHTML = kilns.map((k, i) => `
-            <div class="asset-card glass">
-                <div class="icon"><i data-lucide="container"></i></div>
-                <div class="details">
-                    <h6>${k.praca}</h6>
-                    <span>${k.modelo}</span>
-                </div>
+        list.innerHTML = kilns.map(k => `
+            <div class="kpi-card" style="padding: 12px; gap: 10px; border-radius: 12px;">
+                <div class="kpi-icon" style="width: 32px; height: 32px; font-size: 14px;"><i data-lucide="container"></i></div>
+                <div><h6 style="font-size: 12px;">${k.praca}</h6><span style="font-size: 10px; color:var(--text-dim);">${k.modelo}</span></div>
             </div>
         `).join('');
     }
 
     if (select) {
-        select.innerHTML = '<option value="">Selecione um ativo...</option>' + 
-            kilns.map(k => `<option value="${k.praca}">${k.praca} (${k.modelo})</option>`).join('');
+        select.innerHTML = '<option value="">Selecione...</option>' + kilns.map(k => `<option value="${k.praca}">${k.praca}</option>`).join('');
     }
     
-    if (maintSelect) {
-        maintSelect.innerHTML = select.innerHTML;
+    if (maintSelect) maintSelect.innerHTML = select.innerHTML;
+
+    if (historyList) {
+        const sortedHistory = [...history].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        historyList.innerHTML = sortedHistory.slice(0, 10).map(h => `
+            <tr>
+                <td>${h.data}</td>
+                <td>${h.praca}</td>
+                <td>${h.vazios}/${h.cheios}/${h.carbonizando}/${h.esfriando}</td>
+                <td style="font-size:11px;">${h.obs || '-'}</td>
+            </tr>
+        `).join('');
     }
 }
 
 function renderLoads() {
     const tbody = document.getElementById('loads-table-body');
-    const dashBody = document.getElementById('dashboard-loads-list');
-    
-    const sortedLoads = [...loads].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    
     if (tbody) {
-        tbody.innerHTML = sortedLoads.map(l => `
+        tbody.innerHTML = loads.map(l => `
             <tr>
                 <td>#${l.identificador}</td>
                 <td>${l.data} ${l.hora}</td>
-                <td>${l.tipo_carvao}</td>
-                <td>${l.placa}</td>
-                <td>${l.motorista}</td>
-                <td>${l.metragem}m³ / ${l.peso}kg</td>
-                <td>${l.destino}</td>
-            </tr>
-        `).join('');
-    }
-
-    if (dashBody) {
-        dashBody.innerHTML = sortedLoads.slice(0, 5).map(l => `
-            <tr>
-                <td>${l.hora}</td>
                 <td>${l.placa}</td>
                 <td>${l.peso} kg</td>
-                <td><span class="status-badge success">Expedido</span></td>
+                <td>${l.destino}</td>
             </tr>
         `).join('');
     }
@@ -245,10 +225,15 @@ function renderMaintenance() {
             <tr>
                 <td>${m.forno}</td>
                 <td>${m.problema}</td>
-                <td>${m.data}</td>
-                <td><button class="btn-save" style="padding: 4px 8px; font-size: 10px;" onclick="resolveMaint('${m.id}')">Resolver</button></td>
+                <td><button class="btn-primary" style="padding: 6px 12px; font-size: 11px;" onclick="resolveMaint('${m.id}')">OK</button></td>
             </tr>
         `).join('');
+    }
+    const badge = document.getElementById('maint-alert-badge');
+    const count = maintenance.filter(m => !m.resolved).length;
+    if (badge) {
+        badge.innerText = count > 0 ? `${count} PENDENTES` : "SISTEMA OK";
+        badge.className = count > 0 ? "status-badge danger" : "status-badge success";
     }
 }
 
@@ -266,25 +251,22 @@ function renderStock() {
 function renderExpenses() {
     const list = document.getElementById('expense-history-list');
     const totalEl = document.getElementById('kpi-custo-mes');
-    
     const total = expenses.reduce((acc, e) => acc + Number(e.expense_value || 0), 0);
     if (totalEl) totalEl.innerText = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-
     if (list) {
         list.innerHTML = expenses.map(e => `
             <tr>
                 <td>${e.expense_date}</td>
                 <td>${e.expense_category}</td>
-                <td>${e.expense_desc}</td>
                 <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
-                <td><button onclick="deleteExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2"></i></button></td>
+                <td><button onclick="deleteExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button></td>
             </tr>
         `).join('');
     }
 }
 
 async function deleteExpense(id) {
-    if (confirm("Deseja excluir esta despesa?")) {
+    if (confirm("Deseja excluir?")) {
         await supabase.from('expenses').delete().eq('id', id);
         await loadAllData();
     }
@@ -312,58 +294,32 @@ function setupEventListeners() {
 }
 
 async function processForm(id, fd) {
-    if (id === 'kiln') {
-        await saveItem('kilns', { praca: fd.get('praca'), modelo: fd.get('modelo'), responsavel: fd.get('responsavel') });
-    }
+    if (id === 'kiln') await saveItem('kilns', { praca: fd.get('praca'), modelo: fd.get('modelo') });
     if (id === 'kiln-daily') {
-        const item = { 
-            data: fd.get('data_lancamento'), 
-            responsavel: fd.get('responsavel'), 
-            praca: fd.get('praca_select'),
-            vazios: fd.get('vazios'),
-            cheios: fd.get('cheios'),
-            carbonizando: fd.get('carbonizando'),
-            esfriando: fd.get('esfriando'),
-            obs: fd.get('obs')
-        };
+        const item = { data: fd.get('data_lancamento'), responsavel: fd.get('responsavel'), praca: fd.get('praca_select'), vazios: fd.get('vazios'), cheios: fd.get('cheios'), carbonizando: fd.get('carbonizando'), esfriando: fd.get('esfriando'), obs: fd.get('obs') };
         await saveItem('production_history', item);
         if (item.obs) await saveItem('maintenance', { forno: item.praca, problema: item.obs, data: item.data, resolved: false });
     }
-    if (id === 'load') {
-        await saveItem('loads', { 
-            identificador: fd.get('identificador'), 
-            data: fd.get('data_carga'), 
-            hora: fd.get('hora_carga'),
-            placa: fd.get('placa'),
-            motorista: fd.get('motorista'),
-            tipo_carvao: fd.get('tipo_carvao'),
-            metragem: fd.get('metragem'),
-            peso: fd.get('peso'),
-            destino: fd.get('destino')
-        });
-    }
-    if (id === 'expense') {
-        await saveItem('expenses', {
-            expense_date: fd.get('expense_date'),
-            expense_category: fd.get('expense_category'),
-            expense_desc: fd.get('expense_desc'),
-            expense_value: fd.get('expense_value')
-        });
-    }
+    if (id === 'load') await saveItem('loads', { identificador: fd.get('identificador'), data: fd.get('data_carga'), hora: fd.get('hora_carga'), placa: fd.get('placa'), motorista: fd.get('motorista'), peso: fd.get('peso'), destino: fd.get('destino') });
+    if (id === 'expense') await saveItem('expenses', { expense_date: fd.get('expense_date'), expense_category: fd.get('expense_category'), expense_desc: fd.get('expense_desc'), expense_value: fd.get('expense_value') });
     if (id === 'settings') {
-        const newName = fd.get('enterprise_name');
-        await supabase.auth.updateUser({ data: { farm_name: newName } });
+        await supabase.auth.updateUser({ data: { farm_name: fd.get('enterprise_name') } });
         location.reload();
     }
 }
+
+let prodChartInstance = null;
+let loadsChartInstance = null;
 
 function renderCharts() {
     const ctx1 = document.getElementById('prodChart');
     const ctx2 = document.getElementById('loadsChart');
     if (!ctx1 || !ctx2) return;
+    if (prodChartInstance) prodChartInstance.destroy();
+    if (loadsChartInstance) loadsChartInstance.destroy();
 
-    new Chart(ctx1, { type: 'line', data: { labels: ['S1', 'S2', 'S3', 'S4'], datasets: [{ label: 'Produção (t)', data: [15, 22, 18, 25], borderColor: PRIMARY_COLOR, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false } });
-    new Chart(ctx2, { type: 'bar', data: { labels: ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'], datasets: [{ label: 'Cargas', data: [2, 5, 3, 6, 8, 4, 2], backgroundColor: PRIMARY_COLOR }] }, options: { responsive: true, maintainAspectRatio: false } });
+    prodChartInstance = new Chart(ctx1, { type: 'line', data: { labels: ['S1', 'S2', 'S3', 'S4'], datasets: [{ label: 'Produção', data: [15, 22, 18, 25], borderColor: PRIMARY_COLOR, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+    loadsChartInstance = new Chart(ctx2, { type: 'bar', data: { labels: ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'], datasets: [{ label: 'Cargas', data: [2, 5, 3, 6, 8, 4, 2], backgroundColor: PRIMARY_COLOR }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
 }
 
 function showToast() {
@@ -372,6 +328,7 @@ function showToast() {
     setTimeout(() => t.classList.remove('show'), TOAST_DURATION);
 }
 
+// Global functions for HTML
 window.switchTab = switchTab;
 window.showModal = showModal;
 window.hideModal = hideModal;
@@ -380,7 +337,4 @@ window.toggleUserDropdown = toggleUserDropdown;
 window.logout = logout;
 window.resolveMaint = resolveMaint;
 window.deleteExpense = deleteExpense;
-window.togglePassword = (id) => {
-    const input = document.getElementById(id);
-    input.type = input.type === 'password' ? 'text' : 'password';
-};
+window.generateReport = (type) => alert(`Gerando relatório de ${type}...`);
