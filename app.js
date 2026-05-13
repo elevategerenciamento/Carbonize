@@ -1,11 +1,17 @@
 console.log("Carbonize: app.js carregando...");
 
+// Supabase Configuration
+const SUPABASE_URL = "https://bdzppelpteaxkmcrmcoc.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkenBwZWxwdGVheGttY3JtY29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NDYxNjksImV4cCI6MjA5NDIyMjE2OX0.KFbnzEIGBfvHtnKK0pQp8_YurYwBttl5dTMOXfQq-OQ";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 // State Management
-let kilns = JSON.parse(localStorage.getItem('carboniza_kilns')) || [];
-let loads = JSON.parse(localStorage.getItem('carboniza_loads')) || [];
-let history = JSON.parse(localStorage.getItem('carboniza_history')) || [];
-let maintenance = JSON.parse(localStorage.getItem('carboniza_maint')) || [];
-let settings = JSON.parse(localStorage.getItem('carboniza_settings')) || { enterprise_name: 'FAZENDAPETKOV', access_email: 'fazendapetkov@carbonize.com' };
+let kilns = [];
+let loads = [];
+let history = [];
+let maintenance = [];
+let expenses = [];
+let settings = { enterprise_name: 'FAZENDAPETKOV', access_email: '' };
 
 // Charts Instances
 let prodChart = null;
@@ -13,9 +19,9 @@ let loadsChart = null;
 
 // Constants
 const TOAST_DURATION = 2000;
-const PRIMARY_COLOR = '#cc092f'; // Bradesco Red
+const PRIMARY_COLOR = '#e6002e'; // Vibrant Red
 
-// Expose functions to window IMMEDIATELY
+// Expose functions to window
 window.switchTab = switchTab;
 window.showModal = showModal;
 window.hideModal = hideModal;
@@ -25,31 +31,43 @@ window.resolveMaint = resolveMaint;
 window.deleteKiln = deleteKiln;
 window.editKiln = editKiln;
 window.renderKilnAssets = renderKilnAssets;
+window.deleteExpense = deleteExpense;
+window.exportToExcel = exportToExcel;
+window.handleLogin = handleLogin;
+window.logout = logout;
+window.toggleUserDropdown = toggleUserDropdown;
+window.togglePassword = togglePassword;
 
 // Initialize
-function init() {
+async function init() {
     console.log("Carbonize: Inicializando sistema...");
-    try {
-        if (kilns.length === 0) {
-            kilns = [
-                { praca: 'Sul 01', responsavel: 'Ricardo', modelo: 'Forno Menor' },
-                { praca: 'Sul 01', responsavel: 'Ricardo', modelo: 'Forno JG' },
-                { praca: 'Norte 01', responsavel: 'José', modelo: 'Circular 5m' }
-            ];
-            saveAll();
+    
+    // Configurar listener de Auth
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN') {
+            document.getElementById('login-screen').style.display = 'none';
+            document.querySelector('.app-container').style.display = 'flex';
+            loadAllFromSupabase();
+        } else if (event === 'SIGNED_OUT') {
+            document.getElementById('login-screen').style.display = 'flex';
+            document.querySelector('.app-container').style.display = 'none';
         }
-        updateDateTime();
-        
-        const dailyDateInput = document.getElementById('daily-date');
-        if (dailyDateInput) dailyDateInput.value = new Date().toISOString().split('T')[0];
+    });
 
-        renderAll();
-        setupForms();
-        setupFilters();
-        setInterval(updateDateTime, 60000);
-    } catch (e) {
-        console.error("Carbonize: Erro na inicialização:", e);
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.querySelector('.app-container').style.display = 'flex';
+        await loadAllFromSupabase();
+    } else {
+        document.getElementById('login-screen').style.display = 'flex';
     }
+
+    updateDateTime();
+    setupForms();
+    setupFilters();
+    setInterval(updateDateTime, 60000);
 }
 
 if (document.readyState === 'loading') {
@@ -58,14 +76,69 @@ if (document.readyState === 'loading') {
     init();
 }
 
+async function handleLogin(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const farmNameRaw = fd.get('farm_name');
+    const password = fd.get('password');
+    const action = e.target.dataset.action || 'login';
+    const btn = e.submitter;
+
+    if (!farmNameRaw || !password) return alert("Preencha todos os campos.");
+
+    const farmName = farmNameRaw.trim().toLowerCase().replace(/\s+/g, '_');
+    const email = `${farmName}@carbonize.com`;
+
+    try {
+        if (btn) btn.innerText = "...";
+        if (action === 'signup') {
+            const { error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: farmNameRaw } } });
+            if (error) throw error;
+            alert("Conta criada! Agora você pode entrar.");
+        } else {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+        }
+    } catch (err) {
+        alert("Erro: " + err.message);
+    } finally {
+        if (btn) btn.innerText = action === 'login' ? 'Entrar' : 'Cadastrar';
+    }
+}
+
+async function logout() {
+    await supabase.auth.signOut();
+}
+
+async function loadAllFromSupabase() {
+    try {
+        await updateUserDisplay();
+        
+        const { data: kData } = await supabase.from('kilns').select('*');
+        const { data: lData } = await supabase.from('loads').select('*');
+        const { data: hData } = await supabase.from('production_history').select('*');
+        const { data: mData } = await supabase.from('maintenance').select('*');
+        const { data: eData } = await supabase.from('expenses').select('*');
+
+        if (kData) kilns = kData;
+        if (lData) loads = lData.map(l => ({...l, id: l.identificador, data: l.data_carga, hora: l.hora_carga, tipo: l.tipo_carvao}));
+        if (hData) history = hData.map(h => ({...h, data: h.data_lancamento}));
+        if (mData) maintenance = mData.map(m => ({...m, data: m.data_registro, timestamp: Number(m.timestamp_maint)}));
+        if (eData) expenses = eData.map(e => ({...e, data: e.data_expense, desc: e.description, timestamp: Number(e.timestamp_expense)}));
+
+        renderAll();
+    } catch (err) {
+        console.error("Erro ao carregar dados:", err);
+    }
+}
+
 function updateDateTime() {
     const elDate = document.getElementById('current-date');
     const elGreeting = document.getElementById('greeting');
     if (!elDate || !elGreeting) return;
 
     const now = new Date();
-    const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
-    elDate.innerText = now.toLocaleDateString('pt-BR', options);
+    elDate.innerText = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     
     const hour = now.getHours();
     let greeting = "Boa noite";
@@ -92,11 +165,8 @@ function switchTab(tab) {
 }
 
 function toggleMobileMenu() {
-    const mobileNav = document.getElementById('mobile-nav');
-    const menuOverlay = document.getElementById('menu-overlay');
-    if (!mobileNav) return;
-    mobileNav.classList.toggle('show');
-    if (menuOverlay) menuOverlay.classList.toggle('show');
+    document.getElementById('mobile-nav')?.classList.toggle('show');
+    document.getElementById('menu-overlay')?.classList.toggle('show');
 }
 
 function showModal(type, data = null) {
@@ -105,41 +175,27 @@ function showModal(type, data = null) {
     modal.style.display = 'flex';
 
     if (type === 'kiln') {
-        const title = document.getElementById('kiln-modal-title');
-        const btn = document.getElementById('kiln-modal-btn');
         const editIdx = document.getElementById('kiln-edit-index');
-        
         if (data) {
-            title.innerText = "Editar Forno";
-            btn.innerText = "Salvar Alterações";
             editIdx.value = data.index;
             document.getElementById('kiln-modal-praca').value = data.praca;
             document.getElementById('kiln-modal-modelo').value = data.modelo;
             document.getElementById('kiln-modal-resp').value = data.responsavel;
         } else {
-            title.innerText = "Novo Ativo de Produção";
-            btn.innerText = "Cadastrar Forno";
             editIdx.value = "";
             document.getElementById('form-kiln').reset();
         }
     }
 
     if (type === 'load') {
-        // Gerar número de série diferente (ex: 10000 + random)
-        const nextId = 10000 + Math.floor(Math.random() * 90000);
-        const elId = document.getElementById('load-id-auto');
-        if (elId) elId.value = nextId;
-
-        const elDate = document.getElementById('load-date-manual');
-        const elTime = document.getElementById('load-time-manual');
-        if (elDate) elDate.value = new Date().toISOString().split('T')[0];
-        if (elTime) elTime.value = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('load-id-auto').value = 10000 + Math.floor(Math.random() * 90000);
+        document.getElementById('load-date-manual').value = new Date().toISOString().split('T')[0];
+        document.getElementById('load-time-manual').value = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     }
 }
 
 function hideModal(type) {
-    const modal = document.getElementById(`modal-${type}`);
-    if (modal) modal.style.display = 'none';
+    document.getElementById(`modal-${type}`).style.display = 'none';
 }
 
 function renderAll() {
@@ -152,6 +208,7 @@ function renderAll() {
         renderLoadsTable();
         renderMaintenance();
         renderStock();
+        renderExpenses();
         updateSettingsUI();
         if (window.lucide) window.lucide.createIcons();
     } catch (e) {
@@ -168,8 +225,7 @@ function updateKPIs() {
 
     if (elFornosAtivos) elFornosAtivos.innerText = kilns.length;
     const today = new Date().toLocaleDateString('pt-BR');
-    const todayLoads = loads.filter(l => l.data === today);
-    if (elCargasHoje) elCargasHoje.innerText = todayLoads.length;
+    if (elCargasHoje) elCargasHoje.innerText = loads.filter(l => l.data === today).length;
 
     const currentMonth = new Date().getMonth();
     const monthLoads = loads.filter(l => {
@@ -181,6 +237,15 @@ function updateKPIs() {
     if (elProgress) elProgress.style.width = `${Math.min(100, (totalTons / 160) * 100)}%`;
 
     if (elMaint) elMaint.innerText = maintenance.filter(m => !m.resolved).length;
+
+    // Custos KPIs
+    const elCustoMes = document.getElementById('kpi-custo-mes');
+    const monthExpenses = expenses.filter(e => {
+        try { return new Date(e.data.split('/').reverse().join('-')).getMonth() === currentMonth; }
+        catch (err) { return false; }
+    });
+    const totalValue = monthExpenses.reduce((sum, e) => sum + Number(e.valor), 0);
+    if (elCustoMes) elCustoMes.innerText = `R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 }
 
 function renderDashboard() {
@@ -230,129 +295,86 @@ function renderKilnAssets() {
     const list = document.getElementById('kilns-list-assets');
     const search = document.getElementById('asset-search')?.value.toLowerCase() || "";
     if (!list) return;
-
     const filtered = kilns.filter(k => k.praca.toLowerCase().includes(search) || k.modelo.toLowerCase().includes(search));
-
-    if (filtered.length === 0) {
-        list.innerHTML = `<p class="text-dim" style="font-size: 13px; text-align: center; padding-top: 20px;">${search ? 'Nenhum resultado.' : 'Nenhum forno cadastrado.'}</p>`;
-        return;
-    }
-
-    list.innerHTML = filtered.map((k, idx) => {
-        const originalIdx = kilns.indexOf(k);
-        return `
-            <div class="asset-card">
-                <div class="icon"><i data-lucide="container"></i></div>
-                <div class="details">
-                    <h6>${k.praca}</h6>
-                    <span>${k.modelo} • ${k.responsavel || 'Operador'}</span>
-                </div>
-                <div class="actions">
-                    <button onclick="editKiln(${originalIdx})" title="Editar"><i data-lucide="edit-2"></i></button>
-                    <button class="delete" onclick="deleteKiln(${originalIdx})" title="Excluir"><i data-lucide="trash-2"></i></button>
-                </div>
+    list.innerHTML = filtered.map((k, idx) => `
+        <div class="asset-card">
+            <div class="icon"><i data-lucide="container"></i></div>
+            <div class="details"><h6>${k.praca}</h6><span>${k.modelo} • ${k.responsavel}</span></div>
+            <div class="actions">
+                <button onclick="editKiln(${kilns.indexOf(k)})"><i data-lucide="edit-2"></i></button>
+                <button class="delete" onclick="deleteKiln(${kilns.indexOf(k)})"><i data-lucide="trash-2"></i></button>
             </div>
-        `;
-    }).join('');
+        </div>
+    `).join('');
     if (window.lucide) window.lucide.createIcons();
 }
 
-function editKiln(idx) {
-    const k = kilns[idx];
-    showModal('kiln', { ...k, index: idx });
-}
-
-function deleteKiln(idx) {
-    if (confirm("Deseja realmente excluir este ativo?")) {
-        kilns.splice(idx, 1);
-        saveAll();
-    }
-}
+function editKiln(idx) { showModal('kiln', { ...kilns[idx], index: idx }); }
+function deleteKiln(idx) { if (confirm("Excluir ativo?")) { kilns.splice(idx, 1); saveAll(); } }
 
 function renderLoadsTable() {
     const list = document.getElementById('loads-table-body');
     if (!list) return;
     const today = new Date().toLocaleDateString('pt-BR');
-    const todayLoads = loads.filter(l => l.data === today).reverse();
-    list.innerHTML = todayLoads.map(l => `
+    list.innerHTML = loads.filter(l => l.data === today).reverse().map(l => `
         <tr>
             <td><strong>#${l.id}</strong></td>
             <td>${l.data} <br> <small>${l.hora}</small></td>
-            <td><span class="status-badge success">${l.tipo || 'Eucalipto'}</span></td>
+            <td><span class="status-badge success">${l.tipo}</span></td>
             <td><strong>${l.placa}</strong></td>
             <td>${l.motorista}</td>
             <td>${l.metragem} m³ <br> ${Number(l.peso).toLocaleString()} kg</td>
             <td>${l.destino}</td>
         </tr>
     `).join('');
-    
-    const elCount = document.getElementById('loads-count-summary');
-    const elKg = document.getElementById('loads-total-kg');
-    if (elCount) elCount.innerText = `${todayLoads.length} CARGAS`;
-    if (elKg) elKg.innerText = `${todayLoads.reduce((s, l) => s + Number(l.peso || 0), 0).toLocaleString()} KG TOTAL`;
 }
 
 function renderMaintenance() {
     const openList = document.getElementById('open-issues-list');
-    if (openList) {
-        openList.innerHTML = maintenance.filter(m => !m.resolved).map(m => `<tr><td>${m.forno}</td><td>${m.problema}</td><td>${new Date(m.timestamp).toLocaleDateString('pt-BR')}</td><td><button class="btn-icon" onclick="resolveMaint('${m.timestamp}')">Concluir</button></td></tr>`).join('');
-    }
+    if (openList) openList.innerHTML = maintenance.filter(m => !m.resolved).map(m => `<tr><td>${m.forno}</td><td>${m.problema}</td><td>${new Date(m.timestamp).toLocaleDateString('pt-BR')}</td><td><button class="btn-icon" onclick="resolveMaint('${m.timestamp}')">Concluir</button></td></tr>`).join('');
 }
+
+function renderExpenses() {
+    const list = document.getElementById('expense-history-list');
+    if (!list) return;
+    list.innerHTML = expenses.slice(-15).reverse().map((e, idx) => `
+        <tr>
+            <td>${e.data}</td>
+            <td><span class="status-badge warning">${e.categoria}</span></td>
+            <td>${e.desc}</td>
+            <td><strong>R$ ${Number(e.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></td>
+            <td><button class="btn-icon text-primary" onclick="deleteExpense(${expenses.indexOf(e)})"><i data-lucide="trash-2"></i></button></td>
+        </tr>
+    `).join('');
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function deleteExpense(idx) { if (confirm("Excluir despesa?")) { expenses.splice(idx, 1); saveAll(); } }
 
 function renderStock() {
     const totalIn = history.reduce((acc, h) => acc + (Number(h.carbonizando || 0) * 1.5), 0);
     const totalOut = loads.reduce((acc, l) => acc + (Number(l.peso || 0) / 1000), 0);
     const balance = Math.max(0, totalIn - totalOut).toFixed(1);
-    const elBalance = document.getElementById('stock-balance');
-    if (elBalance) elBalance.innerText = `${balance} t`;
-    if (document.getElementById('stock-in')) document.getElementById('stock-in').innerText = `${totalIn.toFixed(1)} t`;
-    if (document.getElementById('stock-out')) document.getElementById('stock-out').innerText = `${totalOut.toFixed(1)} t`;
-
-    const list = document.getElementById('stock-movement-list');
-    if (!list) return;
-    const movements = [...history.map(h => ({ type: 'entry', label: `Produção Forno ${h.modelo}`, amount: (Number(h.carbonizando || 0) * 1.5).toFixed(1) + ' t', date: h.data, ts: h.timestamp })), ...loads.map(l => ({ type: 'exit', label: `Venda Romaneio #${l.id}`, amount: (Number(l.peso || 0) / 1000).toFixed(1) + ' t', date: l.data, ts: new Date(l.data.split('/').reverse().join('-')).getTime() }))].sort((a, b) => b.ts - a.ts);
-    const filterType = document.getElementById('stock-filter-type')?.value || 'all';
-    list.innerHTML = movements.filter(m => filterType === 'all' || m.type === filterType).slice(0, 10).map(m => `<div class="stock-item ${m.type}"><div class="type-icon"><i data-lucide="${m.type === 'entry' ? 'plus-circle' : 'minus-circle'}"></i></div><div class="info"><h6>${m.label}</h6><span>${m.date}</span></div><div class="amount">${m.type === 'entry' ? '+' : '-'}${m.amount}</div></div>`).join('');
+    if (document.getElementById('stock-balance')) document.getElementById('stock-balance').innerText = `${balance} t`;
 }
 
-function setupFilters() {
-    const stockFilter = document.getElementById('stock-filter-type');
-    if (stockFilter) stockFilter.onchange = renderStock;
-}
-
-function updateMaintBadge() {
-    const count = maintenance.filter(m => !m.resolved).length;
-    const elCount = document.getElementById('maint-count');
-    const elAlertBadge = document.getElementById('maint-alert-badge');
-    if (elCount) elCount.innerText = count;
-    if (elAlertBadge) {
-        elAlertBadge.innerText = count > 0 ? `${count} PENDENTES` : "SISTEMA OK";
-        elAlertBadge.className = count > 0 ? "status-badge danger" : "status-badge success";
-    }
-}
-
-function renderCharts() {
-    const prodCtx = document.getElementById('prodChart');
-    const loadsCtx = document.getElementById('loadsChart');
-    if (!prodCtx || !loadsCtx) return;
-    if (prodChart) prodChart.destroy();
-    if (loadsChart) loadsChart.destroy();
-    prodChart = new Chart(prodCtx, { type: 'line', data: { labels: ['S1', 'S2', 'S3', 'S4'], datasets: [{ label: 'Produção (t)', data: [12.5, 18.2, 14.8, 21.0], borderColor: PRIMARY_COLOR, backgroundColor: 'rgba(204, 9, 47, 0.1)', fill: true, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false } });
-    loadsChart = new Chart(loadsCtx, { type: 'bar', data: { labels: ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'], datasets: [{ label: 'Cargas', data: [4, 7, 5, 8, 12, 9, 6], backgroundColor: PRIMARY_COLOR }] }, options: { responsive: true, maintainAspectRatio: false } });
-}
+function setupFilters() { document.getElementById('stock-filter-type').onchange = renderStock; }
 
 function setupForms() {
-    const forms = ['kiln', 'kiln-daily', 'load', 'maintenance', 'settings'];
+    const loginForm = document.getElementById('form-login');
+    if (loginForm) loginForm.onsubmit = handleLogin;
+
+    const forms = ['kiln', 'kiln-daily', 'load', 'maintenance', 'expense', 'settings'];
     forms.forEach(id => {
         const f = document.getElementById(`form-${id}`);
         if (f) {
-            f.onsubmit = (e) => {
+            f.onsubmit = async (e) => {
                 e.preventDefault();
                 processForm(id, new FormData(e.target));
-                saveAll();
-                if (id === 'kiln' || id === 'load' || id === 'settings') hideModal(id);
+                await saveAll();
+                if (id !== 'kiln-daily' && id !== 'expense') hideModal(id);
                 e.target.reset();
-                showToast();
+                showToast("Dados sincronizados!");
             };
         }
     });
@@ -362,45 +384,22 @@ function processForm(id, fd) {
     if (id === 'kiln') {
         const idx = fd.get('kiln_index');
         const data = { praca: fd.get('praca'), responsavel: fd.get('responsavel'), modelo: fd.get('modelo') };
-        if (idx !== "") kilns[idx] = data;
-        else kilns.push(data);
+        if (idx !== "") kilns[idx] = data; else kilns.push(data);
     }
     if (id === 'kiln-daily') {
         const praca = fd.get('praca_select');
         const kData = kilns.find(k => k.praca === praca) || { modelo: 'N/A' };
-        const entry = { 
-            timestamp: Date.now(), 
-            data: fd.get('data_lancamento') ? new Date(fd.get('data_lancamento')).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR'), 
-            responsavel: fd.get('responsavel'),
-            praca: praca, 
-            modelo: kData.modelo, 
-            vazios: fd.get('vazios'), 
-            cheios: fd.get('cheios'), 
-            carbonizando: fd.get('carbonizando'), 
-            esfriando: fd.get('esfriando'), 
-            obs: fd.get('obs') 
-        };
-        history.push(entry);
-        if (fd.get('obs') && fd.get('obs').trim() !== "") {
-            maintenance.push({ forno: `${entry.praca}`, problema: fd.get('obs'), data: entry.data, resolved: false, timestamp: Date.now() });
-        }
+        history.push({ timestamp: Date.now(), data: fd.get('data_lancamento') ? new Date(fd.get('data_lancamento')).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR'), responsavel: fd.get('responsavel'), praca, modelo: kData.modelo, vazios: fd.get('vazios'), cheios: fd.get('cheios'), carbonizando: fd.get('carbonizando'), esfriando: fd.get('esfriando'), obs: fd.get('obs') });
     }
     if (id === 'load') {
-        loads.push({ 
-            id: fd.get('identificador'), 
-            data: fd.get('data_carga') ? new Date(fd.get('data_carga')).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR'), 
-            hora: fd.get('hora_carga'),
-            placa: fd.get('placa').toUpperCase(), 
-            motorista: fd.get('motorista'), 
-            tipo: fd.get('tipo_carvao'),
-            metragem: fd.get('metragem'), 
-            peso: fd.get('peso'), 
-            destino: fd.get('destino') 
-        });
+        loads.push({ id: fd.get('identificador'), data: fd.get('data_carga') ? new Date(fd.get('data_carga')).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR'), hora: fd.get('hora_carga'), placa: fd.get('placa').toUpperCase(), motorista: fd.get('motorista'), tipo: fd.get('tipo_carvao'), metragem: fd.get('metragem'), peso: fd.get('peso'), destino: fd.get('destino') });
     }
     if (id === 'maintenance') {
         const target = fd.get('kiln_target').split(' — ');
-        maintenance.push({ data: fd.get('repair_date'), forno: target[0], servico: fd.get('issue_type'), custo: fd.get('cost'), notes: fd.get('maint_notes'), resolved: true, timestamp: Date.now() });
+        maintenance.push({ data: fd.get('repair_date'), forno: target[0], problema: fd.get('issue_type'), resolved: true, timestamp: Date.now() });
+    }
+    if (id === 'expense') {
+        expenses.push({ timestamp: Date.now(), data: fd.get('expense_date') ? new Date(fd.get('expense_date')).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR'), categoria: fd.get('expense_category'), desc: fd.get('expense_desc'), valor: fd.get('expense_value') });
     }
     if (id === 'settings') {
         settings.enterprise_name = fd.get('enterprise_name');
@@ -412,53 +411,68 @@ function updateSettingsUI() {
     const elEnterprise = document.getElementById('settings-enterprise');
     const elEmail = document.getElementById('settings-email');
     const elUnit = document.querySelector('.nav-brand .unit');
-    
     if (elEnterprise) elEnterprise.value = settings.enterprise_name;
     if (elEmail) elEmail.value = settings.access_email;
     if (elUnit && settings.enterprise_name) elUnit.innerText = settings.enterprise_name;
 }
 
-function resolveMaint(ts) {
-    maintenance = maintenance.map(m => m.timestamp.toString() === ts ? { ...m, resolved: true } : m);
-    saveAll();
-}
+function resolveMaint(ts) { maintenance = maintenance.map(m => m.timestamp.toString() === ts ? { ...m, resolved: true } : m); saveAll(); }
 
-function saveAll() {
-    localStorage.setItem('carboniza_kilns', JSON.stringify(kilns));
-    localStorage.setItem('carboniza_loads', JSON.stringify(loads));
-    localStorage.setItem('carboniza_history', JSON.stringify(history));
-    localStorage.setItem('carboniza_maint', JSON.stringify(maintenance));
-    localStorage.setItem('carboniza_settings', JSON.stringify(settings));
+async function saveAll() {
+    try {
+        const kilnsPayload = kilns.map(k => ({ praca: k.praca, responsavel: k.responsavel, modelo: k.modelo }));
+        const loadsPayload = loads.map(l => ({ identificador: l.id, data_carga: l.data, hora_carga: l.hora, placa: l.placa, motorista: l.motorista, tipo_carvao: l.tipo, metragem: Number(l.metragem), peso: Number(l.peso), destino: l.destino }));
+        const historyPayload = history.map(h => ({ timestamp: h.timestamp, data_lancamento: h.data, responsavel: h.responsavel, praca: h.praca, modelo: h.modelo, vazios: Number(h.vazios), cheios: Number(h.cheios), carbonizando: Number(h.carbonizando), esfriando: Number(h.esfriando), obs: h.obs }));
+        const maintPayload = maintenance.map(m => ({ data_registro: m.data, forno: m.forno, problema: m.problema, resolved: m.resolved, timestamp_maint: m.timestamp }));
+        const expensesPayload = expenses.map(e => ({ timestamp_expense: e.timestamp, data_expense: e.data, categoria: e.categoria, description: e.desc, valor: Number(e.valor) }));
+
+        await supabase.from('kilns').delete().neq('praca', 'NULL_VAL');
+        await supabase.from('kilns').insert(kilnsPayload);
+        await supabase.from('loads').delete().neq('identificador', '0');
+        await supabase.from('loads').insert(loadsPayload);
+        await supabase.from('production_history').delete().neq('timestamp', 0);
+        await supabase.from('production_history').insert(historyPayload);
+        await supabase.from('maintenance').delete().neq('timestamp_maint', 0);
+        await supabase.from('maintenance').insert(maintPayload);
+        await supabase.from('expenses').delete().neq('timestamp_expense', 0);
+        await supabase.from('expenses').insert(expensesPayload);
+        
+        localStorage.setItem('carboniza_settings', JSON.stringify(settings));
+        console.log("Sincronizado!");
+    } catch (err) { console.error("Sync Error:", err); }
     renderAll();
 }
 
-function showToast() {
+function showToast(msg = "Sucesso!") {
     const toast = document.getElementById('toast');
-    if (toast) { toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), TOAST_DURATION); }
+    if (toast) { toast.innerText = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2000); }
 }
 
 function generateReport(type, print = false) {
-    try {
-        const start = document.getElementById(`report-${type}-start`)?.value;
-        const end = document.getElementById(`report-${type}-end`)?.value;
-        const filterData = (data, dateKey = 'data') => {
-            if (!start && !end) return data;
-            return data.filter(item => {
-                const itemDate = new Date(item[dateKey].split('/').reverse().join('-')).getTime();
-                const startDate = start ? new Date(start).getTime() : 0;
-                const endDate = end ? new Date(end).getTime() : Infinity;
-                return itemDate >= startDate && itemDate <= endDate;
-            });
-        };
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.setFillColor(204, 9, 47); doc.rect(0, 0, 210, 15, 'F');
-        doc.setTextColor(255, 255, 255); doc.setFontSize(14); doc.text("CARBONIZE - GESTÃO INDUSTRIAL", 14, 10);
-        doc.setTextColor(0, 0, 0); doc.setFontSize(18); doc.text("Relatório de " + type.toUpperCase(), 14, 30);
-        let tableData = []; let columns = [];
-        if (type === 'loads') { columns = ["ID", "Data", "Hora", "Tipo", "Placa", "Peso (kg)"]; tableData = filterData(loads).map(l => [l.id, l.data, l.hora, l.tipo, l.placa, l.peso]); }
-        else if (type === 'pracas') { columns = ["Data", "Unidade", "V/C/C/E", "Obs"]; tableData = filterData(history).map(h => [h.data, h.praca, `${h.vazios}/${h.cheios}/${h.carbonizando}/${h.esfriando}`, h.obs]); }
-        doc.autoTable({ startY: 50, head: [columns], body: tableData, theme: 'grid', headStyles: { fillColor: [204, 9, 47] } });
-        if (print) window.open(doc.output('bloburl'), '_blank'); else doc.save(`carbonize_${type}.pdf`);
-    } catch (e) { alert("Erro ao gerar relatório."); }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.text("Relatório Carbonize - " + type, 14, 20);
+    doc.autoTable({ head: [['Data', 'Detalhe']], body: [[new Date().toLocaleDateString(), "Relatório gerado pelo sistema"]] });
+    if (print) window.open(doc.output('bloburl'), '_blank'); else doc.save(`relatorio_${type}.pdf`);
+}
+
+function exportToExcel(type) {
+    const data = type === 'expenses' ? expenses : loads;
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Dados");
+    XLSX.writeFile(wb, `export_${type}.xlsx`);
+}
+
+function toggleUserDropdown() { document.getElementById('user-dropdown')?.classList.toggle('show'); }
+function togglePassword(id) { const el = document.getElementById(id); el.type = el.type === 'password' ? 'text' : 'password'; }
+
+async function updateUserDisplay() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const farmName = user.user_metadata?.display_name || user.email.split('@')[0].toUpperCase();
+    settings.enterprise_name = farmName;
+    settings.access_email = user.email;
+    document.getElementById('dropdown-farm-name').innerText = farmName;
+    document.getElementById('dropdown-email').innerText = user.email;
 }
