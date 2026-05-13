@@ -33,6 +33,7 @@ window.deleteExpense = deleteExpense;
 window.exportToExcel = exportToExcel;
 window.handleLogin = handleLogin;
 window.logout = logout;
+window.toggleUserDropdown = toggleUserDropdown;
 
 // Initialize
 async function init() {
@@ -109,6 +110,8 @@ async function logout() {
 
 async function loadAllFromSupabase() {
     try {
+        await updateUserDisplay();
+        
         const { data: kData } = await supabase.from('kilns').select('*');
         const { data: lData } = await supabase.from('loads').select('*');
         const { data: hData } = await supabase.from('production_history').select('*');
@@ -477,6 +480,9 @@ function setupForms() {
     const loginForm = document.getElementById('form-login');
     if (loginForm) loginForm.onsubmit = handleLogin;
 
+    const settingsForm = document.getElementById('form-settings');
+    if (settingsForm) settingsForm.onsubmit = updateProfile;
+
     const forms = ['kiln', 'kiln-daily', 'load', 'maintenance', 'expense'];
     forms.forEach(id => {
         const f = document.getElementById(`form-${id}`);
@@ -731,8 +737,68 @@ function exportToExcel(type) {
         // Exportar arquivo
         XLSX.writeFile(workbook, filename);
         showToast();
-    } catch (e) {
-        console.error("Erro ao exportar Excel:", e);
-        alert("Erro ao exportar para Excel. Verifique se a biblioteca foi carregada corretamente.");
     }
 }
+
+async function updateProfile(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const displayName = fd.get('display_name');
+    
+    try {
+        const { error } = await supabase.auth.updateUser({
+            data: { display_name: displayName }
+        });
+        if (error) throw error;
+        showToast("Perfil atualizado!");
+        hideModal('settings');
+        await updateUserDisplay();
+    } catch (err) {
+        console.error("Erro ao atualizar perfil:", err);
+        showToast("Erro ao salvar.");
+    }
+}
+
+function toggleUserDropdown() {
+    const menu = document.getElementById('user-dropdown');
+    if (menu) menu.classList.toggle('show');
+}
+
+async function updateUserDisplay() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const farmName = user.user_metadata?.display_name || user.email.split('@')[0].replace(/_/g, ' ').toUpperCase();
+    const email = user.email;
+
+    // Update greeting
+    const elGreeting = document.getElementById('greeting');
+    if (elGreeting) {
+        const hour = new Date().getHours();
+        let greetingPrefix = "Boa noite";
+        if (hour >= 5 && hour < 12) greetingPrefix = "Bom dia";
+        else if (hour >= 12 && hour < 18) greetingPrefix = "Boa tarde";
+        elGreeting.innerText = `${greetingPrefix}, ${farmName}`;
+    }
+
+    // Update dropdown
+    const elDropFarm = document.getElementById('dropdown-farm-name');
+    const elDropEmail = document.getElementById('dropdown-email');
+    if (elDropFarm) elDropFarm.innerText = farmName;
+    if (elDropEmail) elDropEmail.innerText = email;
+
+    // Update settings form
+    const elSetFarm = document.getElementById('settings-display-name');
+    const elSetEmail = document.getElementById('settings-email');
+    if (elSetFarm) elSetFarm.value = farmName;
+    if (elSetEmail) elSetEmail.value = email;
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+    const container = document.querySelector('.user-dropdown-container');
+    const menu = document.getElementById('user-dropdown');
+    if (container && !container.contains(e.target)) {
+        if (menu) menu.classList.remove('show');
+    }
+});

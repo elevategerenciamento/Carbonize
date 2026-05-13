@@ -74,7 +74,26 @@
                     <span class="user-name" id="greeting">Olá, Operador</span>
                     <span class="user-date" id="current-date">--/--/----</span>
                 </div>
-                <div class="avatar" onclick="logout()" title="Clique para Sair">OP</div>
+                <div class="user-dropdown-container">
+                    <div class="avatar" onclick="toggleUserDropdown()">OP</div>
+                    <div id="user-dropdown" class="user-dropdown-menu glass">
+                        <div class="dropdown-header">
+                            <span class="dropdown-farm-name" id="dropdown-farm-name">Fazenda</span>
+                            <span class="dropdown-email" id="dropdown-email">---</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item" onclick="showModal('settings')">
+                            <i data-lucide="settings"></i> Configurações
+                        </button>
+                        <button class="dropdown-item" onclick="switchTab('ajuda')">
+                            <i data-lucide="help-circle"></i> Ajuda & Suporte
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item logout" onclick="logout()">
+                            <i data-lucide="log-out"></i> Sair do Sistema
+                        </button>
+                    </div>
+                </div>
                 <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i data-lucide="menu"></i></button>
             </div>
         </nav>
@@ -705,6 +724,30 @@
     </div>
 
     <div id="toast">Operação realizada com sucesso!</div>
+
+    <!-- Modal: Settings -->
+    <div id="modal-settings" class="modal">
+        <div class="modal-glass" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3><i data-lucide="settings"></i> Configurações</h3>
+                <button class="close-btn" onclick="hideModal('settings')">&times;</button>
+            </div>
+            <form id="form-settings">
+                <div class="form-field">
+                    <label>Nome do Empreendimento</label>
+                    <input type="text" name="display_name" id="settings-display-name" required>
+                </div>
+                <div class="form-field">
+                    <label>E-mail de Acesso</label>
+                    <input type="text" id="settings-email" disabled style="opacity: 0.6;">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-outline" onclick="hideModal('settings')" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn-save" style="flex: 1;">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script type="module" src="app.js"></script>
     <script>
