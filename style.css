@@ -204,6 +204,15 @@ body {
     gap: 48px; /* Aumentado para evitar 'blocos colados' */
 }
 
+/* Fix para telas médias onde o menu pode cortar no canto direito */
+@media (max-width: 1366px) {
+    .top-nav { padding: 0 20px; }
+    .nav-brand .brand { font-size: 18px; }
+    .nav-links { gap: 4px; padding: 4px; }
+    .nav-link { padding: 8px 12px; font-size: 12px; }
+    .nav-user { gap: 10px; padding-left: 12px; }
+}
+
 @media (max-width: 768px) {
     .main-content {
         padding: 20px 16px;
