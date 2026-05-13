@@ -76,31 +76,29 @@ async function handleLogin(e) {
     const farmName = fd.get('farm_name').trim().toLowerCase().replace(/\s+/g, '_');
     const email = `${farmName}@carbonize.com`;
     const password = fd.get('password');
-    const btn = e.target.querySelector('button');
+    const action = e.target.dataset.action || 'login';
+    const btn = e.target.querySelector(`button[onclick*="${action}"]`) || e.target.querySelector('button');
 
     try {
         btn.disabled = true;
-        btn.innerText = "Verificando...";
+        const originalText = btn.innerText;
+        btn.innerText = "...";
 
-        // Tentar Login
-        let { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-        // Se falhar e for erro de credenciais, tentar criar conta (Auto-registro)
-        if (error && error.status === 400) {
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
-            if (signUpError) throw signUpError;
-            showToast("Conta criada para sua Fazenda!");
-        } else if (error) {
-            throw error;
+        if (action === 'signup') {
+            const { data, error } = await supabase.auth.signUp({ email, password });
+            if (error) throw error;
+            showToast("Conta criada! Bem-vindo!");
         } else {
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
             showToast("Bem-vindo de volta!");
         }
     } catch (err) {
         console.error("Erro Auth:", err);
-        showToast("Senha incorreta ou erro de conexão.");
+        showToast(err.message || "Erro na autenticação.");
     } finally {
         btn.disabled = false;
-        btn.innerText = "Entrar no Sistema";
+        btn.innerText = action === 'login' ? 'Entrar' : 'Cadastrar';
     }
 }
 

@@ -41,8 +41,11 @@
                         <input type="password" name="password" placeholder="••••••••" required>
                     </div>
                 </div>
-                <button type="submit" class="btn-login">Entrar no Sistema</button>
-                <p class="login-footer">Caso não tenha conta, o primeiro acesso criará uma nova.</p>
+                <div class="login-actions" style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button type="submit" onclick="this.form.dataset.action='login'" class="btn-login" style="flex: 1; margin-top: 0;">Entrar</button>
+                    <button type="submit" onclick="this.form.dataset.action='signup'" class="btn-login" style="flex: 1; margin-top: 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); box-shadow: none;">Cadastrar</button>
+                </div>
+                <p class="login-footer">Acesse ou crie sua conta para gerenciar seus dados.</p>
             </form>
         </div>
     </div>
