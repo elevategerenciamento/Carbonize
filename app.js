@@ -74,33 +74,48 @@ async function init() {
 async function handleLogin(e) {
     e.preventDefault();
     console.log("Carbonize: Tentando login/cadastro...");
+    
+    if (!supabase) {
+        alert("Erro: Sistema de conexão (Supabase) não inicializado.");
+        return;
+    }
+
     const fd = new FormData(e.target);
-    const farmName = fd.get('farm_name').trim().toLowerCase().replace(/\s+/g, '_');
-    const email = `${farmName}@carbonize.com`;
+    const farmNameRaw = fd.get('farm_name');
     const password = fd.get('password');
+    
+    if (!farmNameRaw || !password) {
+        alert("Por favor, preencha todos os campos.");
+        return;
+    }
+
+    const farmName = farmNameRaw.trim().toLowerCase().replace(/\s+/g, '_');
+    const email = `${farmName}@carbonize.com`;
     const action = e.target.dataset.action || 'login';
-    const btn = e.target.querySelector(`button[onclick*="${action}"]`) || e.target.querySelector('button');
+    const btn = e.submitter || e.target.querySelector('button[type="submit"]');
 
     try {
-        btn.disabled = true;
-        const originalText = btn.innerText;
-        btn.innerText = "...";
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "...";
+        }
 
         if (action === 'signup') {
             const { data, error } = await supabase.auth.signUp({ email, password });
             if (error) throw error;
-            showToast("Conta criada! Bem-vindo!");
+            alert("Conta criada com sucesso! Você já pode entrar.");
         } else {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
-            showToast("Bem-vindo de volta!");
         }
     } catch (err) {
         console.error("Erro Auth:", err);
-        showToast(err.message || "Erro na autenticação.");
+        alert("Erro na Autenticação: " + (err.message || "Tente novamente mais tarde."));
     } finally {
-        btn.disabled = false;
-        btn.innerText = action === 'login' ? 'Entrar' : 'Cadastrar';
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = action === 'login' ? 'Entrar' : 'Cadastrar';
+        }
     }
 }
 
