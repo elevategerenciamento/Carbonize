@@ -14,17 +14,17 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-    <link rel="icon" type="image/png" href="carboniza_flame_logo_1778301437004.png">
+    <link rel="icon" type="image/png" href="logo_premium.png">
 </head>
 <body>
     <div class="app-container">
         <!-- Top Navigation Bar -->
         <nav class="top-nav">
             <div class="nav-brand">
-                <img src="carboniza_flame_logo_1778301437004.png" alt="Carboniza Logo" class="brand-logo-img">
+                <img src="logo_premium.png" alt="Carbonize Logo" class="brand-logo-img">
                 <div class="logo-text">
                     <span class="brand">CARBONIZE</span>
-                    <span class="unit">Unidade Industrial</span>
+                    <span class="unit">Intelligence & Industry</span>
                 </div>
             </div>
             
@@ -35,7 +35,7 @@
                 <button class="nav-link" onclick="switchTab('manutencao')"><i data-lucide="wrench"></i> Manutenção</button>
                 <button class="nav-link" onclick="switchTab('estoque')"><i data-lucide="database"></i> Estoque</button>
                 <button class="nav-link" onclick="switchTab('analise')"><i data-lucide="bar-chart-3"></i> Análise</button>
-                <button class="nav-link" onclick="switchTab('custos')"><i data-lucide="dollar-sign"></i> Gestão de Custos</button>
+                <button class="nav-link" onclick="switchTab('custos')"><i data-lucide="wallet"></i> Custos</button>
                 <button class="nav-link" onclick="switchTab('relatorios')"><i data-lucide="file-text"></i> Relatórios</button>
             </div>
 
@@ -54,14 +54,18 @@
 
         <!-- Mobile Navigation -->
         <div class="mobile-nav" id="mobile-nav">
-            <button class="nav-link active" onclick="switchTab('dashboard'); toggleMobileMenu()">Dashboard</button>
-            <button class="nav-link" onclick="switchTab('fornos'); toggleMobileMenu()">Fornos</button>
-            <button class="nav-link" onclick="switchTab('cargas'); toggleMobileMenu()">Cargas</button>
-            <button class="nav-link" onclick="switchTab('manutencao'); toggleMobileMenu()">Manutenção</button>
-            <button class="nav-link" onclick="switchTab('estoque'); toggleMobileMenu()">Estoque</button>
-            <button class="nav-link" onclick="switchTab('analise'); toggleMobileMenu()">Análise</button>
-            <button class="nav-link" onclick="switchTab('custos'); toggleMobileMenu()">Gestão de Custos</button>
-            <button class="nav-link" onclick="switchTab('relatorios'); toggleMobileMenu()">Relatórios</button>
+            <div class="mobile-nav-header">
+                <img src="logo_premium.png" alt="Logo" style="height: 32px; width: auto;">
+                <button class="close-mobile-btn" onclick="toggleMobileMenu()"><i data-lucide="x"></i></button>
+            </div>
+            <button class="nav-link active" onclick="switchTab('dashboard'); toggleMobileMenu()"><i data-lucide="layout-dashboard"></i> Dashboard</button>
+            <button class="nav-link" onclick="switchTab('fornos'); toggleMobileMenu()"><i data-lucide="container"></i> Fornos</button>
+            <button class="nav-link" onclick="switchTab('cargas'); toggleMobileMenu()"><i data-lucide="truck"></i> Cargas</button>
+            <button class="nav-link" onclick="switchTab('manutencao'); toggleMobileMenu()"><i data-lucide="wrench"></i> Manutenção</button>
+            <button class="nav-link" onclick="switchTab('estoque'); toggleMobileMenu()"><i data-lucide="database"></i> Estoque</button>
+            <button class="nav-link" onclick="switchTab('analise'); toggleMobileMenu()"><i data-lucide="bar-chart-3"></i> Análise</button>
+            <button class="nav-link" onclick="switchTab('custos'); toggleMobileMenu()"><i data-lucide="wallet"></i> Custos</button>
+            <button class="nav-link" onclick="switchTab('relatorios'); toggleMobileMenu()"><i data-lucide="file-text"></i> Relatórios</button>
         </div>
 
         <main class="main-content">
