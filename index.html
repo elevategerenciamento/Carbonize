@@ -18,7 +18,36 @@
     <link rel="icon" type="image/png" href="logo_premium.png">
 </head>
 <body>
-    <div class="app-container">
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-overlay">
+        <div class="login-box glass">
+            <div class="login-header">
+                <img src="logo_premium.png" alt="Carbonize Logo" class="login-logo">
+                <h3>Acesso ao Sistema</h3>
+                <p>Gestão de Alta Performance</p>
+            </div>
+            <form id="form-login">
+                <div class="form-field">
+                    <label>Nome da Fazenda / Empreendimento</label>
+                    <div class="input-with-icon">
+                        <i data-lucide="sprout"></i>
+                        <input type="text" name="farm_name" placeholder="Ex: Fazenda Santa Maria" required>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Senha de Acesso</label>
+                    <div class="input-with-icon">
+                        <i data-lucide="lock"></i>
+                        <input type="password" name="password" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn-login">Entrar no Sistema</button>
+                <p class="login-footer">Caso não tenha conta, o primeiro acesso criará uma nova.</p>
+            </form>
+        </div>
+    </div>
+
+    <div class="app-container" style="display: none;">
         <!-- Top Navigation Bar -->
         <nav class="top-nav">
             <div class="nav-brand">
@@ -45,7 +74,7 @@
                     <span class="user-name" id="greeting">Olá, Operador</span>
                     <span class="user-date" id="current-date">--/--/----</span>
                 </div>
-                <div class="avatar">OP</div>
+                <div class="avatar" onclick="logout()" title="Clique para Sair">OP</div>
                 <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i data-lucide="menu"></i></button>
             </div>
         </nav>

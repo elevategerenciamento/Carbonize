@@ -20,7 +20,6 @@ let loadsChart = null;
 const TOAST_DURATION = 2000;
 const PRIMARY_COLOR = '#cc092f'; // Bradesco Red
 
-// Expose functions to window IMMEDIATELY
 window.switchTab = switchTab;
 window.showModal = showModal;
 window.hideModal = hideModal;
@@ -32,39 +31,80 @@ window.editKiln = editKiln;
 window.renderKilnAssets = renderKilnAssets;
 window.deleteExpense = deleteExpense;
 window.exportToExcel = exportToExcel;
+window.handleLogin = handleLogin;
+window.logout = logout;
 
 // Initialize
 async function init() {
-    console.log("Carbonize: Inicializando sistema com Supabase...");
-    try {
-        await loadAllFromSupabase();
-
-        if (kilns.length === 0) {
-            kilns = [
-                { praca: 'Sul 01', responsavel: 'Ricardo', modelo: 'Forno Menor' },
-                { praca: 'Sul 01', responsavel: 'Ricardo', modelo: 'Forno JG' },
-                { praca: 'Norte 01', responsavel: 'José', modelo: 'Circular 5m' }
-            ];
-            await saveAll();
+    console.log("Carbonize: Inicializando sistema com Auth...");
+    
+    // Configurar listener de Auth
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN') {
+            document.getElementById('login-screen').style.display = 'none';
+            document.querySelector('.app-container').style.display = 'flex';
+            loadAllFromSupabase();
+        } else if (event === 'SIGNED_OUT') {
+            document.getElementById('login-screen').style.display = 'flex';
+            document.querySelector('.app-container').style.display = 'none';
         }
-        updateDateTime();
-        
-        const dailyDateInput = document.getElementById('daily-date');
-        if (dailyDateInput) dailyDateInput.value = new Date().toISOString().split('T')[0];
-        
-        const expenseDateInput = document.getElementById('expense-date');
-        if (expenseDateInput) expenseDateInput.value = new Date().toISOString().split('T')[0];
+    });
 
-        renderAll();
-        setupForms();
-        setupFilters();
-        setInterval(updateDateTime, 60000);
-        
-        // Sincronização automática a cada 30 segundos (opcional)
-        setInterval(loadAllFromSupabase, 30000);
-    } catch (e) {
-        console.error("Carbonize: Erro na inicialização:", e);
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.querySelector('.app-container').style.display = 'flex';
+        await loadAllFromSupabase();
+    } else {
+        document.getElementById('login-screen').style.display = 'flex';
     }
+
+    updateDateTime();
+    setupForms();
+    setupFilters();
+    setInterval(updateDateTime, 60000);
+    setInterval(() => {
+        if (supabase.auth.getSession()) loadAllFromSupabase();
+    }, 30000);
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const farmName = fd.get('farm_name').trim().toLowerCase().replace(/\s+/g, '_');
+    const email = `${farmName}@carbonize.com`;
+    const password = fd.get('password');
+    const btn = e.target.querySelector('button');
+
+    try {
+        btn.disabled = true;
+        btn.innerText = "Verificando...";
+
+        // Tentar Login
+        let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        // Se falhar e for erro de credenciais, tentar criar conta (Auto-registro)
+        if (error && error.status === 400) {
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+            if (signUpError) throw signUpError;
+            showToast("Conta criada para sua Fazenda!");
+        } else if (error) {
+            throw error;
+        } else {
+            showToast("Bem-vindo de volta!");
+        }
+    } catch (err) {
+        console.error("Erro Auth:", err);
+        showToast("Senha incorreta ou erro de conexão.");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Entrar no Sistema";
+    }
+}
+
+async function logout() {
+    await supabase.auth.signOut();
 }
 
 async function loadAllFromSupabase() {
@@ -106,7 +146,9 @@ function updateDateTime() {
     let greeting = "Boa noite";
     if (hour >= 5 && hour < 12) greeting = "Bom dia";
     else if (hour >= 12 && hour < 18) greeting = "Boa tarde";
-    elGreeting.innerText = `${greeting}, Operador`;
+    const { data: { user } } = await supabase.auth.getUser();
+    const farmName = user?.email?.split('@')[0].replace(/_/g, ' ').toUpperCase() || "Operador";
+    elGreeting.innerText = `${greeting}, ${farmName}`;
 }
 
 function switchTab(tab) {
@@ -432,6 +474,9 @@ function renderCharts() {
 }
 
 function setupForms() {
+    const loginForm = document.getElementById('form-login');
+    if (loginForm) loginForm.onsubmit = handleLogin;
+
     const forms = ['kiln', 'kiln-daily', 'load', 'maintenance', 'expense'];
     forms.forEach(id => {
         const f = document.getElementById(`form-${id}`);
