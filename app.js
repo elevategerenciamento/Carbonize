@@ -130,12 +130,6 @@ async function loadAllFromSupabase() {
     }
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
-}
-
 async function updateDateTime() {
     const elDate = document.getElementById('current-date');
     const elGreeting = document.getElementById('greeting');
@@ -737,6 +731,9 @@ function exportToExcel(type) {
         // Exportar arquivo
         XLSX.writeFile(workbook, filename);
         showToast();
+    } catch (e) {
+        console.error("Erro ao exportar Excel:", e);
+        alert("Erro ao exportar para Excel.");
     }
 }
 
