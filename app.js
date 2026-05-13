@@ -149,6 +149,7 @@ function toggleUserDropdown() {
 
 // 7. RENDERERS
 function renderAll() {
+    console.log("Carbonize: Rendering UI...", { kilns, loads, history, maintenance, expenses });
     renderDashboard();
     renderKilns();
     renderLoads();
@@ -250,19 +251,24 @@ function renderStock() {
 }
 
 function renderExpenses() {
+    console.log("Rendering expenses...", expenses);
     const list = document.getElementById('expense-history-list');
     const totalEl = document.getElementById('kpi-custo-mes');
     const total = expenses.reduce((acc, e) => acc + Number(e.expense_value || 0), 0);
     if (totalEl) totalEl.innerText = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     if (list) {
-        list.innerHTML = expenses.map(e => `
-            <tr>
-                <td>${e.expense_date}</td>
-                <td>${e.expense_category}</td>
-                <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
-                <td><button onclick="deleteExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button></td>
-            </tr>
-        `).join('');
+        if (expenses.length === 0) {
+            list.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-dim);">Nenhum lançamento encontrado.</td></tr>';
+        } else {
+            list.innerHTML = expenses.map(e => `
+                <tr>
+                    <td>${e.expense_date}</td>
+                    <td>${e.expense_category}</td>
+                    <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
+                    <td><button onclick="deleteExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button></td>
+                </tr>
+            `).join('');
+        }
     }
 }
 
@@ -311,16 +317,65 @@ async function processForm(id, fd) {
 
 let prodChartInstance = null;
 let loadsChartInstance = null;
+let efficiencyChartInstance = null;
+let costsDistChartInstance = null;
 
 function renderCharts() {
     const ctx1 = document.getElementById('prodChart');
     const ctx2 = document.getElementById('loadsChart');
-    if (!ctx1 || !ctx2) return;
+    const ctx3 = document.getElementById('efficiencyChart');
+    const ctx4 = document.getElementById('costsDistChart');
+
     if (prodChartInstance) prodChartInstance.destroy();
     if (loadsChartInstance) loadsChartInstance.destroy();
+    if (efficiencyChartInstance) efficiencyChartInstance.destroy();
+    if (costsDistChartInstance) costsDistChartInstance.destroy();
 
-    prodChartInstance = new Chart(ctx1, { type: 'line', data: { labels: ['S1', 'S2', 'S3', 'S4'], datasets: [{ label: 'Produção', data: [15, 22, 18, 25], borderColor: PRIMARY_COLOR, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-    loadsChartInstance = new Chart(ctx2, { type: 'bar', data: { labels: ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'], datasets: [{ label: 'Cargas', data: [2, 5, 3, 6, 8, 4, 2], backgroundColor: PRIMARY_COLOR }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+    if (ctx1) prodChartInstance = new Chart(ctx1, { type: 'line', data: { labels: ['S1', 'S2', 'S3', 'S4'], datasets: [{ label: 'Produção', data: [15, 22, 18, 25], borderColor: PRIMARY_COLOR, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+    if (ctx2) loadsChartInstance = new Chart(ctx2, { type: 'bar', data: { labels: ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'], datasets: [{ label: 'Cargas', data: [2, 5, 3, 6, 8, 4, 2], backgroundColor: PRIMARY_COLOR }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+    
+    if (ctx3) {
+        efficiencyChartInstance = new Chart(ctx3, {
+            type: 'radar',
+            data: {
+                labels: ['Velocidade', 'Qualidade', 'Custo', 'Manutenção', 'Segurança'],
+                datasets: [{
+                    label: 'Score Atual',
+                    data: [85, 92, 78, 88, 95],
+                    backgroundColor: 'rgba(230, 0, 46, 0.2)',
+                    borderColor: PRIMARY_COLOR,
+                    pointBackgroundColor: PRIMARY_COLOR
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: { grid: { color: 'rgba(255,255,255,0.1)' }, angleLines: { color: 'rgba(255,255,255,0.1)' }, pointLabels: { color: '#94949e' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    if (ctx4) {
+        costsDistChartInstance = new Chart(ctx4, {
+            type: 'doughnut',
+            data: {
+                labels: ['Lenha', 'Mão de Obra', 'Logística', 'Manutenção'],
+                datasets: [{
+                    data: [45, 25, 20, 10],
+                    backgroundColor: [PRIMARY_COLOR, '#8a001c', '#ff4d6d', '#590011'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'right', labels: { color: '#94949e', font: { size: 10 } } } }
+            }
+        });
+    }
 }
 
 function showToast() {
