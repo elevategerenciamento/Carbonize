@@ -78,6 +78,7 @@ async function logout() {
 async function loadAllData() {
     if (!currentUser) return;
     const uid = currentUser.id;
+    console.log("Carbonize: Fetching data for UID:", uid);
 
     try {
         const [k, l, h, m, e] = await Promise.all([
@@ -88,22 +89,40 @@ async function loadAllData() {
             supabase.from('expenses').select('*').eq('user_id', uid)
         ]);
 
+        if (k.error) console.warn("Erro Kilns:", k.error);
+        if (l.error) console.warn("Erro Loads:", l.error);
+        if (h.error) console.warn("Erro History:", h.error);
+        if (m.error) console.warn("Erro Maintenance:", m.error);
+        if (e.error) console.warn("Erro Expenses:", e.error);
+
         kilns = k.data || [];
         loads = l.data || [];
         history = h.data || [];
         maintenance = m.data || [];
         expenses = e.data || [];
         
+        console.log("Data loaded:", { kilns, loads, history, maintenance, expenses });
         renderAll();
     } catch (err) {
         console.error("Sync Error:", err);
+        alert("Erro de sincronização. Verifique sua conexão ou as tabelas do banco.");
     }
 }
 
 async function saveItem(table, item) {
-    if (!currentUser) return;
-    const { error } = await supabase.from(table).insert([{ ...item, user_id: currentUser.id }]);
-    if (error) console.error(`Error saving to ${table}:`, error);
+    if (!currentUser) {
+        alert("Sessão expirada. Faça login novamente.");
+        return;
+    }
+    console.log(`Saving to ${table}:`, item);
+    const { data, error } = await supabase.from(table).insert([{ ...item, user_id: currentUser.id }]);
+    
+    if (error) {
+        console.error(`Error saving to ${table}:`, error);
+        throw new Error(error.message || `Erro ao salvar em ${table}`);
+    }
+    
+    console.log(`Saved to ${table} successfully:`, data);
     await loadAllData();
 }
 
@@ -160,15 +179,24 @@ function renderAll() {
 }
 
 function renderDashboard() {
-    const activeKilns = history.filter(h => h.carbonizando > 0).length;
-    const today = new Date().toLocaleDateString('pt-BR');
-    const todayLoads = loads.filter(l => l.data === today).length;
-    const monthlyProd = history.reduce((acc, h) => acc + (Number(h.carbonizando || 0) * 1.5), 0);
+    if (!Array.isArray(history)) history = [];
+    if (!Array.isArray(loads)) loads = [];
+    if (!Array.isArray(maintenance)) maintenance = [];
 
-    document.getElementById('kpi-fornos-ativos').innerText = activeKilns;
-    document.getElementById('kpi-cargas-hoje').innerText = todayLoads;
-    document.getElementById('kpi-prod-mes').innerText = `${monthlyProd.toFixed(1)} t`;
-    document.getElementById('kpi-maint').innerText = maintenance.filter(m => !m.resolved).length;
+    const activeKilns = history.filter(h => h && h.carbonizando > 0).length;
+    const today = new Date().toLocaleDateString('pt-BR');
+    const todayLoads = loads.filter(l => l && l.data === today).length;
+    const monthlyProd = history.reduce((acc, h) => acc + (Number(h ? h.carbonizando : 0) * 1.5), 0);
+
+    const kpiFornos = document.getElementById('kpi-fornos-ativos');
+    const kpiCargas = document.getElementById('kpi-cargas-hoje');
+    const kpiProd = document.getElementById('kpi-prod-mes');
+    const kpiMaint = document.getElementById('kpi-maint');
+
+    if (kpiFornos) kpiFornos.innerText = activeKilns;
+    if (kpiCargas) kpiCargas.innerText = todayLoads;
+    if (kpiProd) kpiProd.innerText = `${monthlyProd.toFixed(1)} t`;
+    if (kpiMaint) kpiMaint.innerText = maintenance.filter(m => m && !m.resolved).length;
 }
 
 function renderKilns() {
@@ -290,11 +318,29 @@ function setupEventListeners() {
         if (f) {
             f.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                const btn = e.target.querySelector('button[type="submit"]');
+                const originalText = btn ? btn.innerText : "Salvar";
+                
+                if (btn) {
+                    btn.innerText = "Processando...";
+                    btn.disabled = true;
+                }
+
                 const fd = new FormData(e.target);
-                await processForm(id, fd);
-                if (['kiln', 'load', 'settings'].includes(id)) hideModal(id);
-                e.target.reset();
-                showToast();
+                try {
+                    await processForm(id, fd);
+                    if (['kiln', 'load', 'settings'].includes(id)) hideModal(id);
+                    e.target.reset();
+                    showToast("Operação realizada com sucesso!");
+                } catch (err) {
+                    console.error("Form error:", err);
+                    alert("Erro operacional: " + err.message + "\n\nVerifique se as tabelas foram criadas corretamente no Supabase.");
+                } finally {
+                    if (btn) {
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                    }
+                }
             });
         }
     });
@@ -307,7 +353,7 @@ async function processForm(id, fd) {
         await saveItem('production_history', item);
         if (item.obs) await saveItem('maintenance', { forno: item.praca, problema: item.obs, data: item.data, resolved: false });
     }
-    if (id === 'load') await saveItem('loads', { identificador: fd.get('identificador'), data: fd.get('data_carga'), hora: fd.get('hora_carga'), placa: fd.get('placa'), motorista: fd.get('motorista'), peso: fd.get('peso'), destino: fd.get('destino') });
+    if (id === 'load') await saveItem('loads', { identificador: fd.get('identificador'), data: fd.get('data_carga'), hora: fd.get('hora_carga'), placa: fd.get('placa'), motorista: fd.get('motorista'), tipo_carvao: fd.get('tipo_carvao'), metragem: fd.get('metragem'), peso: fd.get('peso'), destino: fd.get('destino') });
     if (id === 'expense') await saveItem('expenses', { expense_date: fd.get('expense_date'), expense_category: fd.get('expense_category'), expense_desc: fd.get('expense_desc'), expense_value: fd.get('expense_value') });
     if (id === 'settings') {
         await supabase.auth.updateUser({ data: { farm_name: fd.get('enterprise_name') } });
@@ -393,72 +439,383 @@ window.toggleUserDropdown = toggleUserDropdown;
 window.logout = logout;
 window.resolveMaint = resolveMaint;
 window.deleteExpense = deleteExpense;
-// 9. REPORT GENERATOR
-window.generateReport = async (type, format = 'pdf') => {
-    console.log(`Generating ${type} report as ${format}...`);
-    const start = document.getElementById(`report-${type === 'expenses' ? 'expenses' : type}-start`).value;
-    const end = document.getElementById(`report-${type === 'expenses' ? 'expenses' : type}-end`).value;
+// 9. PREMIUM REPORT ENGINE
+function formatDateBR(dateStr) {
+    if (!dateStr) return '-';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dateStr;
+}
 
+function getReportDateRange(type) {
+    const typeMap = { 'loads': 'loads', 'pracas': 'pracas', 'maint': 'maint', 'expenses': 'expenses' };
+    const key = typeMap[type] || type;
+    const start = document.getElementById(`report-${key}-start`).value;
+    const end = document.getElementById(`report-${key}-end`).value;
+    return { start, end };
+}
+
+function filterByDateRange(arr, dateField, start, end) {
+    return arr.filter(item => {
+        const d = item[dateField];
+        return d && d >= start && d <= end;
+    });
+}
+
+window.generateReport = async (type, format = 'pdf') => {
+    const { start, end } = getReportDateRange(type);
+    
     if (!start || !end) {
-        alert("Por favor, selecione o período.");
+        alert("Por favor, selecione o período inicial e final.");
         return;
     }
 
-    let data = [];
-    let title = "";
-    let headers = [];
+    const farmName = currentUser?.user_metadata?.farm_name || "Fazenda";
+    const now = new Date();
+    const generatedAt = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}`;
 
+    let reportConfig = {};
+
+    // ─── EXPEDIÇÃO ───
     if (type === 'loads') {
-        data = loads.filter(l => l.data >= start && l.data <= end);
-        title = "Relatório de Expedição e Logística";
-        headers = [["ID", "Data", "Hora", "Placa", "Peso (kg)", "Destino"]];
-        data = data.map(l => [l.identificador, l.data, l.hora, l.placa, l.peso, l.destino]);
-    } else if (type === 'pracas') {
-        data = history.filter(h => h.data >= start && h.data <= end);
-        title = "Relatório de Produção e Ciclos";
-        headers = [["Data", "Unidade", "Vazios", "Cheios", "Carbon.", "Esfria"]];
-        data = data.map(h => [h.data, h.praca, h.vazios, h.cheios, h.carbonizando, h.esfriando]);
-    } else if (type === 'maint') {
-        data = maintenance.filter(m => m.data >= start && m.data <= end);
-        title = "Relatório de Manutenção e Ativos";
-        headers = [["Data", "Unidade", "Problema", "Status"]];
-        data = data.map(m => [m.data, m.forno, m.problema, m.resolved ? "Resolvido" : "Pendente"]);
-    } else if (type === 'expenses') {
-        data = expenses.filter(e => e.expense_date >= start && e.expense_date <= end);
-        title = "Relatório de Custos Operacionais";
-        headers = [["Data", "Categoria", "Descrição", "Valor (R$)"]];
-        data = data.map(e => [e.expense_date, e.expense_category, e.expense_desc, Number(e.expense_value).toFixed(2)]);
+        const filtered = filterByDateRange(loads, 'data', start, end);
+        const totalPeso = filtered.reduce((a, l) => a + Number(l.peso || 0), 0);
+        const totalMetragem = filtered.reduce((a, l) => a + Number(l.metragem || 0), 0);
+
+        reportConfig = {
+            title: "RELATÓRIO DE EXPEDIÇÃO E LOGÍSTICA",
+            subtitle: "Controle de Saídas e Romaneios",
+            summaryItems: [
+                { label: "Total de Cargas", value: filtered.length },
+                { label: "Peso Total", value: `${totalPeso.toLocaleString('pt-BR')} kg` },
+                { label: "Metragem Total", value: `${totalMetragem.toFixed(1)} m³` },
+                { label: "Destinos Únicos", value: [...new Set(filtered.map(l => l.destino))].length }
+            ],
+            headers: ["Nº Identificador", "Data", "Hora", "Placa", "Motorista", "Tipo de Carvão", "Metragem (m³)", "Peso (kg)", "Destino"],
+            rows: filtered.map(l => [
+                l.identificador || '-',
+                formatDateBR(l.data),
+                l.hora || '-',
+                l.placa || '-',
+                l.motorista || '-',
+                l.tipo_carvao || 'Eucalipto',
+                l.metragem || '0',
+                Number(l.peso || 0).toLocaleString('pt-BR'),
+                l.destino || '-'
+            ]),
+            footer: `Peso Total Expedido: ${totalPeso.toLocaleString('pt-BR')} kg | Metragem Total: ${totalMetragem.toFixed(1)} m³`
+        };
     }
 
+    // ─── PRODUÇÃO ───
+    else if (type === 'pracas') {
+        const filtered = filterByDateRange(history, 'data', start, end);
+        const totalCarbonizando = filtered.reduce((a, h) => a + Number(h.carbonizando || 0), 0);
+        const totalProd = totalCarbonizando * 1.5;
+        const unidades = [...new Set(filtered.map(h => h.praca))];
+
+        reportConfig = {
+            title: "RELATÓRIO DE PRODUÇÃO E CICLOS",
+            subtitle: "Desempenho Operacional dos Fornos",
+            summaryItems: [
+                { label: "Registros no Período", value: filtered.length },
+                { label: "Fornos em Carbonização", value: totalCarbonizando },
+                { label: "Produção Estimada", value: `${totalProd.toFixed(1)} t` },
+                { label: "Unidades Operantes", value: unidades.length }
+            ],
+            headers: ["Data", "Responsável", "Unidade / Forno", "Vazios", "Cheios", "Carbonizando", "Esfriando", "Observações"],
+            rows: filtered.map(h => [
+                formatDateBR(h.data),
+                h.responsavel || '-',
+                h.praca || '-',
+                h.vazios || '0',
+                h.cheios || '0',
+                h.carbonizando || '0',
+                h.esfriando || '0',
+                h.obs || '-'
+            ]),
+            footer: `Produção Estimada no Período: ${totalProd.toFixed(1)} toneladas`
+        };
+    }
+
+    // ─── MANUTENÇÃO ───
+    else if (type === 'maint') {
+        const filtered = filterByDateRange(maintenance, 'data', start, end);
+        const pendentes = filtered.filter(m => !m.resolved).length;
+        const resolvidos = filtered.filter(m => m.resolved).length;
+        const custoTotal = filtered.reduce((a, m) => a + Number(m.cost || 0), 0);
+
+        reportConfig = {
+            title: "RELATÓRIO DE MANUTENÇÃO E ATIVOS",
+            subtitle: "Gestão de Reparos e Ordens de Serviço",
+            summaryItems: [
+                { label: "Total de Ocorrências", value: filtered.length },
+                { label: "Pendentes", value: pendentes },
+                { label: "Resolvidos", value: resolvidos },
+                { label: "Custo Total", value: `R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
+            ],
+            headers: ["Data", "Forno / Unidade", "Problema Relatado", "Custo (R$)", "Status"],
+            rows: filtered.map(m => [
+                formatDateBR(m.data),
+                m.forno || '-',
+                m.problema || '-',
+                `R$ ${Number(m.cost || 0).toFixed(2)}`,
+                m.resolved ? '✓ Resolvido' : '⚠ Pendente'
+            ]),
+            footer: `Custo Total de Manutenção: R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+        };
+    }
+
+    // ─── CUSTOS ───
+    else if (type === 'expenses') {
+        const filtered = filterByDateRange(expenses, 'expense_date', start, end);
+        const total = filtered.reduce((a, e) => a + Number(e.expense_value || 0), 0);
+        
+        // Agrupa por categoria
+        const byCategory = {};
+        filtered.forEach(e => {
+            const cat = e.expense_category || 'Outros';
+            byCategory[cat] = (byCategory[cat] || 0) + Number(e.expense_value || 0);
+        });
+
+        reportConfig = {
+            title: "RELATÓRIO DE CUSTOS OPERACIONAIS",
+            subtitle: "Análise Financeira e Fluxo de Despesas",
+            summaryItems: [
+                { label: "Total de Lançamentos", value: filtered.length },
+                { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` },
+                { label: "Maior Categoria", value: Object.keys(byCategory).sort((a,b) => byCategory[b] - byCategory[a])[0] || '-' },
+                { label: "Categorias", value: Object.keys(byCategory).length }
+            ],
+            headers: ["Data", "Categoria", "Descrição", "Valor (R$)"],
+            rows: filtered.map(e => [
+                formatDateBR(e.expense_date),
+                e.expense_category || '-',
+                e.expense_desc || '-',
+                `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            ]),
+            footer: `Valor Total no Período: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            categoryBreakdown: byCategory
+        };
+    }
+
+    if (reportConfig.rows.length === 0) {
+        alert("Nenhum registro encontrado no período selecionado.");
+        return;
+    }
+
+    // ════════════════════════════════════
+    //  EXPORTAÇÃO XLS (CSV UTF-8 BOM)
+    // ════════════════════════════════════
     if (format === 'excel') {
-        const csvContent = "data:text/csv;charset=utf-8," 
-            + headers[0].join(",") + "\n"
-            + data.map(e => e.join(",")).join("\n");
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `carbonize_${type}_${start}_to_${end}.csv`);
+        const BOM = '\uFEFF';
+        const separator = ';';
+        let csvRows = [];
+        
+        // Cabeçalho da planilha
+        csvRows.push(reportConfig.headers.join(separator));
+        
+        // Dados
+        reportConfig.rows.forEach(row => {
+            csvRows.push(row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(separator));
+        });
+
+        // Linha em branco + totais
+        csvRows.push('');
+        if (reportConfig.footer) {
+            csvRows.push(`"${reportConfig.footer}"`);
+        }
+        
+        // Se for custos, adicionar breakdown por categoria
+        if (reportConfig.categoryBreakdown) {
+            csvRows.push('');
+            csvRows.push(`"RESUMO POR CATEGORIA"`);
+            csvRows.push(`"Categoria"${separator}"Valor (R$)"`);
+            Object.entries(reportConfig.categoryBreakdown).forEach(([cat, val]) => {
+                csvRows.push(`"${cat}"${separator}"R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits: 2})}"`);
+            });
+        }
+
+        const csvContent = BOM + csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Carbonize_${type}_${formatDateBR(start)}_a_${formatDateBR(end)}.csv`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    } else {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.setFont("helvetica", "bold");
-        doc.text("CARBONIZE - INTELIGÊNCIA INDUSTRIAL", 14, 15);
-        doc.setFontSize(10);
-        doc.text(title, 14, 22);
-        doc.text(`Período: ${start} até ${end}`, 14, 28);
-        
-        doc.autoTable({
-            startY: 35,
-            head: headers,
-            body: data,
-            theme: 'striped',
-            headStyles: { fillColor: [230, 0, 46] }
-        });
-        
-        doc.save(`carbonize_${type}_${start}.pdf`);
+        URL.revokeObjectURL(url);
+        showToast();
+        return;
     }
+
+    // ════════════════════════════════════
+    //  EXPORTAÇÃO PDF PREMIUM
+    // ════════════════════════════════════
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: reportConfig.headers.length > 6 ? 'landscape' : 'portrait' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // ── CABEÇALHO PREMIUM ──
+    // Barra vermelha superior
+    doc.setFillColor(230, 0, 46);
+    doc.rect(0, 0, pageWidth, 28, 'F');
+    
+    // Barra escura secundária
+    doc.setFillColor(15, 15, 18);
+    doc.rect(0, 28, pageWidth, 8, 'F');
+
+    // Título na barra vermelha
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text("CARBONIZE", 14, 14);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("INTELIGÊNCIA INDUSTRIAL", 14, 20);
+
+    // Info direita
+    doc.setFontSize(9);
+    doc.text(farmName.toUpperCase(), pageWidth - 14, 12, { align: 'right' });
+    doc.setFontSize(7);
+    doc.text(`Gerado em: ${generatedAt}`, pageWidth - 14, 18, { align: 'right' });
+    doc.text(`Período: ${formatDateBR(start)} a ${formatDateBR(end)}`, pageWidth - 14, 24, { align: 'right' });
+
+    // ── TÍTULO DO RELATÓRIO ──
+    let yPos = 44;
+    doc.setTextColor(30, 30, 30);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(reportConfig.title, 14, yPos);
+    yPos += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text(reportConfig.subtitle, 14, yPos);
+    yPos += 10;
+
+    // ── CARDS DE RESUMO ──
+    const cardWidth = (pageWidth - 28 - 18) / 4;
+    reportConfig.summaryItems.forEach((item, i) => {
+        const x = 14 + i * (cardWidth + 6);
+        
+        // Card background
+        doc.setFillColor(245, 245, 248);
+        doc.roundedRect(x, yPos, cardWidth, 20, 3, 3, 'F');
+        
+        // Barra lateral vermelha
+        doc.setFillColor(230, 0, 46);
+        doc.rect(x, yPos, 2, 20, 'F');
+
+        // Label
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(120, 120, 120);
+        doc.text(item.label.toUpperCase(), x + 8, yPos + 7);
+
+        // Value
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(30, 30, 30);
+        doc.text(String(item.value), x + 8, yPos + 15);
+    });
+
+    yPos += 30;
+
+    // ── LINHA SEPARADORA ──
+    doc.setDrawColor(230, 0, 46);
+    doc.setLineWidth(0.5);
+    doc.line(14, yPos, pageWidth - 14, yPos);
+    yPos += 6;
+
+    // ── TABELA DE DADOS ──
+    doc.autoTable({
+        startY: yPos,
+        head: [reportConfig.headers],
+        body: reportConfig.rows,
+        theme: 'grid',
+        styles: {
+            fontSize: 8,
+            cellPadding: 4,
+            lineColor: [220, 220, 220],
+            lineWidth: 0.3,
+            font: 'helvetica'
+        },
+        headStyles: {
+            fillColor: [30, 30, 35],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 7,
+            halign: 'center',
+            cellPadding: 5
+        },
+        alternateRowStyles: {
+            fillColor: [248, 248, 252]
+        },
+        columnStyles: reportConfig.headers.reduce((acc, _, i) => {
+            acc[i] = { halign: i === 0 ? 'center' : 'left' };
+            return acc;
+        }, {}),
+        margin: { left: 14, right: 14 },
+        didDrawPage: function(data) {
+            // Rodapé em cada página
+            doc.setFillColor(245, 245, 248);
+            doc.rect(0, pageHeight - 18, pageWidth, 18, 'F');
+            doc.setDrawColor(230, 0, 46);
+            doc.setLineWidth(0.5);
+            doc.line(0, pageHeight - 18, pageWidth, pageHeight - 18);
+            
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7);
+            doc.setTextColor(120, 120, 120);
+            doc.text("Carbonize - Inteligência Industrial | Documento gerado automaticamente", 14, pageHeight - 8);
+            doc.text(`Página ${data.pageNumber}`, pageWidth - 14, pageHeight - 8, { align: 'right' });
+        }
+    });
+
+    // ── RODAPÉ FINAL COM TOTAIS ──
+    let finalY = doc.lastAutoTable.finalY + 10;
+    if (finalY > pageHeight - 40) {
+        doc.addPage();
+        finalY = 20;
+    }
+
+    // Barra de total
+    doc.setFillColor(30, 30, 35);
+    doc.roundedRect(14, finalY, pageWidth - 28, 14, 3, 3, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text(reportConfig.footer, pageWidth / 2, finalY + 9, { align: 'center' });
+
+    // Se for custos, adicionar breakdown por categoria
+    if (reportConfig.categoryBreakdown) {
+        finalY += 22;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        doc.text("DISTRIBUIÇÃO POR CATEGORIA", 14, finalY);
+        finalY += 2;
+
+        const cats = Object.entries(reportConfig.categoryBreakdown);
+        doc.autoTable({
+            startY: finalY,
+            head: [["Categoria", "Valor (R$)", "% do Total"]],
+            body: cats.map(([cat, val]) => {
+                const total = cats.reduce((a, [, v]) => a + v, 0);
+                return [cat, `R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, `${((val/total)*100).toFixed(1)}%`];
+            }),
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
+            headStyles: { fillColor: [230, 0, 46], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [255, 245, 247] },
+            margin: { left: 14, right: pageWidth / 2 }
+        });
+    }
+
+    doc.save(`Carbonize_${type}_${formatDateBR(start)}_a_${formatDateBR(end)}.pdf`);
     showToast();
 };
+
