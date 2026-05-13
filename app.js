@@ -136,7 +136,7 @@ if (document.readyState === 'loading') {
     init();
 }
 
-function updateDateTime() {
+async function updateDateTime() {
     const elDate = document.getElementById('current-date');
     const elGreeting = document.getElementById('greeting');
     if (!elDate || !elGreeting) return;
