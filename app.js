@@ -337,4 +337,72 @@ window.toggleUserDropdown = toggleUserDropdown;
 window.logout = logout;
 window.resolveMaint = resolveMaint;
 window.deleteExpense = deleteExpense;
-window.generateReport = (type) => alert(`Gerando relatório de ${type}...`);
+// 9. REPORT GENERATOR
+window.generateReport = async (type, format = 'pdf') => {
+    console.log(`Generating ${type} report as ${format}...`);
+    const start = document.getElementById(`report-${type === 'expenses' ? 'expenses' : type}-start`).value;
+    const end = document.getElementById(`report-${type === 'expenses' ? 'expenses' : type}-end`).value;
+
+    if (!start || !end) {
+        alert("Por favor, selecione o período.");
+        return;
+    }
+
+    let data = [];
+    let title = "";
+    let headers = [];
+
+    if (type === 'loads') {
+        data = loads.filter(l => l.data >= start && l.data <= end);
+        title = "Relatório de Expedição e Logística";
+        headers = [["ID", "Data", "Hora", "Placa", "Peso (kg)", "Destino"]];
+        data = data.map(l => [l.identificador, l.data, l.hora, l.placa, l.peso, l.destino]);
+    } else if (type === 'pracas') {
+        data = history.filter(h => h.data >= start && h.data <= end);
+        title = "Relatório de Produção e Ciclos";
+        headers = [["Data", "Unidade", "Vazios", "Cheios", "Carbon.", "Esfria"]];
+        data = data.map(h => [h.data, h.praca, h.vazios, h.cheios, h.carbonizando, h.esfriando]);
+    } else if (type === 'maint') {
+        data = maintenance.filter(m => m.data >= start && m.data <= end);
+        title = "Relatório de Manutenção e Ativos";
+        headers = [["Data", "Unidade", "Problema", "Status"]];
+        data = data.map(m => [m.data, m.forno, m.problema, m.resolved ? "Resolvido" : "Pendente"]);
+    } else if (type === 'expenses') {
+        data = expenses.filter(e => e.expense_date >= start && e.expense_date <= end);
+        title = "Relatório de Custos Operacionais";
+        headers = [["Data", "Categoria", "Descrição", "Valor (R$)"]];
+        data = data.map(e => [e.expense_date, e.expense_category, e.expense_desc, Number(e.expense_value).toFixed(2)]);
+    }
+
+    if (format === 'excel') {
+        const csvContent = "data:text/csv;charset=utf-8," 
+            + headers[0].join(",") + "\n"
+            + data.map(e => e.join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `carbonize_${type}_${start}_to_${end}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } else {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFont("helvetica", "bold");
+        doc.text("CARBONIZE - INTELIGÊNCIA INDUSTRIAL", 14, 15);
+        doc.setFontSize(10);
+        doc.text(title, 14, 22);
+        doc.text(`Período: ${start} até ${end}`, 14, 28);
+        
+        doc.autoTable({
+            startY: 35,
+            head: headers,
+            body: data,
+            theme: 'striped',
+            headStyles: { fillColor: [230, 0, 46] }
+        });
+        
+        doc.save(`carbonize_${type}_${start}.pdf`);
+    }
+    showToast();
+};

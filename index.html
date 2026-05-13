@@ -21,7 +21,7 @@
     <div id="login-screen" class="login-overlay">
         <div class="login-box">
             <div class="login-header">
-                <img src="logo_premium.png" alt="Carbonize Logo" class="login-logo">
+                <img src="public/carboniza_logo.png" alt="Carbonize Logo" class="login-logo">
                 <h3 style="color:#fff; font-size:24px; font-weight:800;">Acesso Industrial</h3>
                 <p style="color:var(--text-dim); font-size:14px; margin-top:8px;">Gestão de Alta Performance</p>
             </div>
@@ -46,7 +46,7 @@
     <div class="app-container" style="display: none;">
         <nav class="top-nav">
             <div class="nav-brand">
-                <img src="logo_premium.png" alt="Carbonize Logo" class="brand-logo-img">
+                <img src="public/carboniza_logo.png" alt="Carbonize Logo" class="brand-logo-img">
                 <div class="logo-text">
                     <span class="brand">CARBONIZE</span>
                     <span class="unit" id="display-enterprise-name">Intelligence</span>
@@ -284,19 +284,19 @@
             <!-- SECTION: RELATÓRIOS -->
             <section id="section-relatorios" class="content-section" style="display: none;">
                 <div class="header-action"><h2 class="page-title">Central de Inteligência</h2></div>
-                <div class="charts-grid">
                     <div class="glass">
-                        <h4 style="margin-bottom: 20px;">Relatórios de Expedição</h4>
-                        <div class="filter-group" style="margin-bottom: 20px;"><input type="date" id="report-loads-start"><input type="date" id="report-loads-end"></div>
+                        <h4 style="margin-bottom: 20px;">Relatórios de Manutenção</h4>
+                        <div class="filter-group" style="margin-bottom: 20px;"><input type="date" id="report-maint-start"><input type="date" id="report-maint-end"></div>
                         <div style="display: flex; gap: 12px;">
-                            <button class="btn-primary" onclick="generateReport('loads')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
+                            <button class="btn-primary" onclick="generateReport('maint')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
                         </div>
                     </div>
                     <div class="glass">
-                        <h4 style="margin-bottom: 20px;">Relatórios de Produção</h4>
-                        <div class="filter-group" style="margin-bottom: 20px;"><input type="date" id="report-pracas-start"><input type="date" id="report-pracas-end"></div>
+                        <h4 style="margin-bottom: 20px;">Relatórios de Custos</h4>
+                        <div class="filter-group" style="margin-bottom: 20px;"><input type="date" id="report-expenses-start"><input type="date" id="report-expenses-end"></div>
                         <div style="display: flex; gap: 12px;">
-                            <button class="btn-primary" onclick="generateReport('pracas')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
+                            <button class="btn-primary" onclick="generateReport('expenses')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
+                            <button class="btn-primary" onclick="generateReport('expenses', 'excel')" style="flex:1; background:#1D6F42;"><i data-lucide="file-spreadsheet"></i> Planilha</button>
                         </div>
                     </div>
                 </div>
