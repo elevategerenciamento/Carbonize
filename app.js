@@ -1,11 +1,16 @@
 console.log("Carbonize: app.js carregando...");
 
+// Supabase Configuration
+const SUPABASE_URL = "https://bdzppelpteaxkmmcrmcoc.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkenBwZWxwdGVheGttY3JtY29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NDYxNjksImV4cCI6MjA5NDIyMjE2OX0.KFbnzEIGBfvHtnKK0pQp8_YurYwBttl5dTMOXfQq-OQ";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 // State Management
-let kilns = JSON.parse(localStorage.getItem('carboniza_kilns')) || [];
-let loads = JSON.parse(localStorage.getItem('carboniza_loads')) || [];
-let history = JSON.parse(localStorage.getItem('carboniza_history')) || [];
-let maintenance = JSON.parse(localStorage.getItem('carboniza_maint')) || [];
-let expenses = JSON.parse(localStorage.getItem('carboniza_expenses')) || [];
+let kilns = [];
+let loads = [];
+let history = [];
+let maintenance = [];
+let expenses = [];
 
 // Charts Instances
 let prodChart = null;
@@ -29,16 +34,18 @@ window.deleteExpense = deleteExpense;
 window.exportToExcel = exportToExcel;
 
 // Initialize
-function init() {
-    console.log("Carbonize: Inicializando sistema...");
+async function init() {
+    console.log("Carbonize: Inicializando sistema com Supabase...");
     try {
+        await loadAllFromSupabase();
+
         if (kilns.length === 0) {
             kilns = [
                 { praca: 'Sul 01', responsavel: 'Ricardo', modelo: 'Forno Menor' },
                 { praca: 'Sul 01', responsavel: 'Ricardo', modelo: 'Forno JG' },
                 { praca: 'Norte 01', responsavel: 'José', modelo: 'Circular 5m' }
             ];
-            saveAll();
+            await saveAll();
         }
         updateDateTime();
         
@@ -52,8 +59,31 @@ function init() {
         setupForms();
         setupFilters();
         setInterval(updateDateTime, 60000);
+        
+        // Sincronização automática a cada 30 segundos (opcional)
+        setInterval(loadAllFromSupabase, 30000);
     } catch (e) {
         console.error("Carbonize: Erro na inicialização:", e);
+    }
+}
+
+async function loadAllFromSupabase() {
+    try {
+        const { data: kData } = await supabase.from('kilns').select('*');
+        const { data: lData } = await supabase.from('loads').select('*');
+        const { data: hData } = await supabase.from('production_history').select('*');
+        const { data: mData } = await supabase.from('maintenance').select('*');
+        const { data: eData } = await supabase.from('expenses').select('*');
+
+        if (kData) kilns = kData;
+        if (lData) loads = lData.map(l => ({...l, id: l.identificador, data: l.data_carga, hora: l.hora_carga, tipo: l.tipo_carvao}));
+        if (hData) history = hData.map(h => ({...h, data: h.data_lancamento}));
+        if (mData) maintenance = mData.map(m => ({...m, data: m.data_registro, timestamp: Number(m.timestamp_maint)}));
+        if (eData) expenses = eData.map(e => ({...e, data: e.data_expense, desc: e.description, timestamp: Number(e.timestamp_expense)}));
+
+        renderAll();
+    } catch (err) {
+        console.error("Erro ao carregar dados do Supabase:", err);
     }
 }
 
@@ -483,12 +513,73 @@ function resolveMaint(ts) {
     saveAll();
 }
 
-function saveAll() {
-    localStorage.setItem('carboniza_kilns', JSON.stringify(kilns));
-    localStorage.setItem('carboniza_loads', JSON.stringify(loads));
-    localStorage.setItem('carboniza_history', JSON.stringify(history));
-    localStorage.setItem('carboniza_maint', JSON.stringify(maintenance));
-    localStorage.setItem('carboniza_expenses', JSON.stringify(expenses));
+async function saveAll() {
+    try {
+        // Mapeamento para os nomes de colunas do Supabase
+        const kilnsPayload = kilns.map(k => ({ praca: k.praca, responsavel: k.responsavel, modelo: k.modelo }));
+        const loadsPayload = loads.map(l => ({ 
+            identificador: l.id, 
+            data_carga: l.data, 
+            hora_carga: l.hora, 
+            placa: l.placa, 
+            motorista: l.motorista, 
+            tipo_carvao: l.tipo, 
+            metragem: Number(l.metragem), 
+            peso: Number(l.peso), 
+            destino: l.destino 
+        }));
+        const historyPayload = history.map(h => ({
+            timestamp: h.timestamp,
+            data_lancamento: h.data,
+            responsavel: h.responsavel,
+            praca: h.praca,
+            modelo: h.modelo,
+            vazios: Number(h.vazios),
+            cheios: Number(h.cheios),
+            carbonizando: Number(h.carbonizando),
+            esfriando: Number(h.esfriando),
+            obs: h.obs
+        }));
+        const maintPayload = maintenance.map(m => ({
+            data_registro: m.data,
+            forno: m.forno,
+            problema: m.problema,
+            servico: m.servico || m.problema,
+            custo: Number(m.custo || 0),
+            notes: m.notes || '',
+            resolved: m.resolved,
+            timestamp_maint: m.timestamp
+        }));
+        const expensesPayload = expenses.map(e => ({
+            timestamp_expense: e.timestamp,
+            data_expense: e.data,
+            categoria: e.categoria,
+            description: e.desc,
+            valor: Number(e.valor)
+        }));
+
+        // Limpar e reinserir (estratégia simples para demo)
+        // Em um app maior usaríamos IDs reais e PATCH/UPSERT individual
+        await supabase.from('kilns').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('kilns').insert(kilnsPayload);
+
+        await supabase.from('loads').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('loads').insert(loadsPayload);
+
+        await supabase.from('production_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('production_history').insert(historyPayload);
+
+        await supabase.from('maintenance').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('maintenance').insert(maintPayload);
+
+        await supabase.from('expenses').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('expenses').insert(expensesPayload);
+
+        console.log("Sincronizado com Supabase!");
+    } catch (err) {
+        console.error("Erro ao salvar no Supabase:", err);
+    }
+    
     renderAll();
 }
 
