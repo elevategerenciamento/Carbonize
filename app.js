@@ -1,7 +1,7 @@
 console.log("Carbonize: app.js carregando...");
 
 // Supabase Configuration
-const SUPABASE_URL = "https://bdzppelpteaxkmmcrmcoc.supabase.co";
+const SUPABASE_URL = "https://bdzppelpteaxkmcrmcoc.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkenBwZWxwdGVheGttY3JtY29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NDYxNjksImV4cCI6MjA5NDIyMjE2OX0.KFbnzEIGBfvHtnKK0pQp8_YurYwBttl5dTMOXfQq-OQ";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
