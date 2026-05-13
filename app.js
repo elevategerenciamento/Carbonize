@@ -436,18 +436,39 @@ function setupForms() {
     forms.forEach(id => {
         const f = document.getElementById(`form-${id}`);
         if (f) {
-            f.onsubmit = (e) => {
+            f.onsubmit = async (e) => {
                 e.preventDefault();
-                processForm(id, new FormData(e.target));
-                saveAll();
-                if (id === 'kiln' || id === 'load') hideModal(id);
-                e.target.reset();
-                // Re-set date fields after reset
-                const expDateInput = document.getElementById('expense-date');
-                if (expDateInput) expDateInput.value = new Date().toISOString().split('T')[0];
-                const dailyInput = document.getElementById('daily-date');
-                if (dailyInput) dailyInput.value = new Date().toISOString().split('T')[0];
-                showToast();
+                const btn = f.querySelector('button[type="submit"]');
+                const originalText = btn ? btn.innerText : "";
+                
+                try {
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.innerText = "Sincronizando...";
+                    }
+
+                    processForm(id, new FormData(e.target));
+                    await saveAll();
+                    
+                    if (id === 'kiln' || id === 'load') hideModal(id);
+                    e.target.reset();
+                    
+                    // Re-set date fields after reset
+                    const expDateInput = document.getElementById('expense-date');
+                    if (expDateInput) expDateInput.value = new Date().toISOString().split('T')[0];
+                    const dailyInput = document.getElementById('daily-date');
+                    if (dailyInput) dailyInput.value = new Date().toISOString().split('T')[0];
+                    
+                    showToast("Dados salvos na nuvem!");
+                } catch (err) {
+                    console.error("Erro ao processar formulário:", err);
+                    showToast("Erro ao conectar com servidor.");
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerText = originalText;
+                    }
+                }
             };
         }
     });
