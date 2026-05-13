@@ -140,6 +140,7 @@ function hideModal(id) {
 
 function toggleMobileMenu() {
     document.getElementById('mobile-nav').classList.toggle('show');
+    document.querySelector('.mobile-menu-btn').classList.toggle('open');
 }
 
 function toggleUserDropdown() {

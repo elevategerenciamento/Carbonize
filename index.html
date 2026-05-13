@@ -78,9 +78,31 @@
                     <button class="dropdown-item logout" onclick="logout()"><i data-lucide="log-out"></i> Sair do Sistema</button>
                 </div>
 
-                <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i data-lucide="menu"></i></button>
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
             </div>
         </nav>
+
+        <!-- Mobile Navigation Sidebar -->
+        <div id="mobile-nav" class="mobile-nav">
+            <div class="mobile-nav-header">
+                <img src="public/carboniza_logo.png" alt="Logo" style="height: 32px;">
+                <button class="close-menu" onclick="toggleMobileMenu()">✕</button>
+            </div>
+            <div class="mobile-nav-links">
+                <button class="mobile-nav-link" onclick="switchTab('dashboard'); toggleMobileMenu()"><i data-lucide="layout-dashboard"></i> Dashboard</button>
+                <button class="mobile-nav-link" onclick="switchTab('fornos'); toggleMobileMenu()"><i data-lucide="container"></i> Fornos</button>
+                <button class="mobile-nav-link" onclick="switchTab('cargas'); toggleMobileMenu()"><i data-lucide="truck"></i> Cargas</button>
+                <button class="mobile-nav-link" onclick="switchTab('manutencao'); toggleMobileMenu()"><i data-lucide="wrench"></i> Manutenção</button>
+                <button class="mobile-nav-link" onclick="switchTab('estoque'); toggleMobileMenu()"><i data-lucide="database"></i> Estoque</button>
+                <button class="mobile-nav-link" onclick="switchTab('analise'); toggleMobileMenu()"><i data-lucide="bar-chart-3"></i> Análise</button>
+                <button class="mobile-nav-link" onclick="switchTab('custos'); toggleMobileMenu()"><i data-lucide="wallet"></i> Custos</button>
+                <button class="mobile-nav-link" onclick="switchTab('relatorios'); toggleMobileMenu()"><i data-lucide="file-text"></i> Relatórios</button>
+            </div>
+        </div>
 
         <main class="main-content">
             <!-- SECTION: DASHBOARD -->
