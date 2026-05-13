@@ -571,21 +571,12 @@ window.generateReport = async (type, format = 'pdf') => {
         const filtered = filterByDateRange(expenses, 'expense_date', start, end);
         const total = filtered.reduce((a, e) => a + Number(e.expense_value || 0), 0);
         
-        // Agrupa por categoria
-        const byCategory = {};
-        filtered.forEach(e => {
-            const cat = e.expense_category || 'Outros';
-            byCategory[cat] = (byCategory[cat] || 0) + Number(e.expense_value || 0);
-        });
-
         reportConfig = {
             title: "RELATÓRIO DE CUSTOS OPERACIONAIS",
             subtitle: "Análise Financeira e Fluxo de Despesas",
             summaryItems: [
                 { label: "Total de Lançamentos", value: filtered.length },
-                { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` },
-                { label: "Maior Categoria", value: Object.keys(byCategory).sort((a,b) => byCategory[b] - byCategory[a])[0] || '-' },
-                { label: "Categorias", value: Object.keys(byCategory).length }
+                { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
             ],
             headers: ["Data", "Categoria", "Descrição", "Valor (R$)"],
             rows: filtered.map(e => [
@@ -594,8 +585,7 @@ window.generateReport = async (type, format = 'pdf') => {
                 e.expense_desc || '-',
                 `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
             ]),
-            footer: `Valor Total no Período: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
-            categoryBreakdown: byCategory
+            footer: `Valor Total no Período: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
         };
     }
 
@@ -626,15 +616,7 @@ window.generateReport = async (type, format = 'pdf') => {
             csvRows.push(`"${reportConfig.footer}"`);
         }
         
-        // Se for custos, adicionar breakdown por categoria
-        if (reportConfig.categoryBreakdown) {
-            csvRows.push('');
-            csvRows.push(`"RESUMO POR CATEGORIA"`);
-            csvRows.push(`"Categoria"${separator}"Valor (R$)"`);
-            Object.entries(reportConfig.categoryBreakdown).forEach(([cat, val]) => {
-                csvRows.push(`"${cat}"${separator}"R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits: 2})}"`);
-            });
-        }
+
 
         const csvContent = BOM + csvRows.join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -790,30 +772,7 @@ window.generateReport = async (type, format = 'pdf') => {
     doc.setTextColor(255, 255, 255);
     doc.text(reportConfig.footer, pageWidth / 2, finalY + 9, { align: 'center' });
 
-    // Se for custos, adicionar breakdown por categoria
-    if (reportConfig.categoryBreakdown) {
-        finalY += 22;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(30, 30, 30);
-        doc.text("DISTRIBUIÇÃO POR CATEGORIA", 14, finalY);
-        finalY += 2;
 
-        const cats = Object.entries(reportConfig.categoryBreakdown);
-        doc.autoTable({
-            startY: finalY,
-            head: [["Categoria", "Valor (R$)", "% do Total"]],
-            body: cats.map(([cat, val]) => {
-                const total = cats.reduce((a, [, v]) => a + v, 0);
-                return [cat, `R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, `${((val/total)*100).toFixed(1)}%`];
-            }),
-            theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
-            headStyles: { fillColor: [230, 0, 46], textColor: [255, 255, 255], fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: [255, 245, 247] },
-            margin: { left: 14, right: pageWidth / 2 }
-        });
-    }
 
     doc.save(`Carbonize_${type}_${formatDateBR(start)}_a_${formatDateBR(end)}.pdf`);
     showToast();
