@@ -250,15 +250,25 @@
                                     <input type="text" name="expense_date" class="date-picker" placeholder="Selecionar data" required>
                                 </div>
                             </div>
-                            <div class="form-field">
-                                <label>Categoria</label>
-                                <select name="expense_category">
-                                    <option value="Lenha">Lenha / Matéria Prima</option>
-                                    <option value="Mão de Obra">Mão de Obra</option>
-                                    <option value="Manutenção">Manutenção</option>
-                                    <option value="Logística">Logística</option>
-                                    <option value="Outros">Outros</option>
-                                </select>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                <div class="form-field">
+                                    <label>Categoria</label>
+                                    <select name="expense_category">
+                                        <option value="Lenha">Lenha / Matéria Prima</option>
+                                        <option value="Mão de Obra">Mão de Obra</option>
+                                        <option value="Manutenção">Manutenção</option>
+                                        <option value="Logística">Logística</option>
+                                        <option value="Outros">Outros</option>
+                                    </select>
+                                </div>
+                                <div class="form-field">
+                                    <label>Pagamento</label>
+                                    <select name="payment_method">
+                                        <option value="Pix">Pix</option>
+                                        <option value="Dinheiro">Dinheiro</option>
+                                        <option value="Cartão">Cartão</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="form-field"><label>Descrição</label><input type="text" name="expense_desc" placeholder="Ex: Pagamento Frete" required></div>
                             <div style="display:grid; grid-template-columns:1fr 2fr; gap:12px;">
@@ -274,7 +284,7 @@
                         <h4 class="card-title" style="margin-bottom: 24px;">Fluxo de Custos</h4>
                         <div class="table-wrapper">
                             <table class="modern-table">
-                                <thead><tr><th>DATA</th><th>CATEGORIA</th><th>QTD</th><th>VALOR</th><th>AÇÃO</th></tr></thead>
+                                <thead><tr><th>DATA</th><th>CATEGORIA</th><th>PAGAMENTO</th><th>QTD</th><th>VALOR</th><th>AÇÃO</th></tr></thead>
                                 <tbody id="expense-history-list"></tbody>
                             </table>
                         </div>
