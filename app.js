@@ -341,7 +341,7 @@ function renderExpenses() {
                     <td>${e.expense_date}</td>
                     <td>${e.expense_desc || '-'}</td>
                     <td>${e.payment_method || '-'}</td>
-                    <td>${e.expense_quantity || 1}</td>
+                    <td>${Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                     <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
                     <td><button onclick="deleteExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button></td>
                 </tr>
@@ -653,7 +653,7 @@ window.generateReport = async (type, format = 'pdf') => {
                 formatDateBR(e.expense_date),
                 e.expense_desc || '-',
                 e.payment_method || '-',
-                e.expense_quantity || '1',
+                Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
                 `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
             ]),
             footer: `Valor Total no Período: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
