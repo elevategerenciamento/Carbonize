@@ -144,9 +144,10 @@ async function saveItem(table, item) {
 function updateUI() {
     if (currentUser) {
         const farm = currentUser.user_metadata.farm_name || "Fazenda";
+        const operator = currentUser.user_metadata.operator_name || farm;
         document.getElementById('display-enterprise-name').innerText = farm;
-        document.getElementById('greeting').innerText = `Olá, ${farm}`;
-        document.getElementById('user-avatar-initials').innerText = farm.substring(0, 1).toUpperCase();
+        document.getElementById('greeting').innerText = `Olá, ${operator}`;
+        document.getElementById('user-avatar-initials').innerText = operator.substring(0, 1).toUpperCase();
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('pt-BR');
     }
 }
@@ -163,6 +164,7 @@ function showModal(id) {
     document.getElementById(`modal-${id}`).style.display = 'flex';
     if (id === 'settings') {
         document.getElementById('settings-enterprise').value = currentUser.user_metadata.farm_name || "";
+        document.getElementById('settings-operator').value = currentUser.user_metadata.operator_name || "";
         document.getElementById('settings-email').value = currentUser.email || "";
     }
 }
@@ -370,7 +372,12 @@ async function processForm(id, fd) {
     if (id === 'load') await saveItem('loads', { identificador: fd.get('identificador'), data: fd.get('data_carga'), hora: fd.get('hora_carga'), placa: fd.get('placa'), motorista: fd.get('motorista'), tipo_carvao: fd.get('tipo_carvao'), metragem: fd.get('metragem'), peso: fd.get('peso'), destino: fd.get('destino') });
     if (id === 'expense') await saveItem('expenses', { expense_date: fd.get('expense_date'), expense_category: fd.get('expense_category'), expense_desc: fd.get('expense_desc'), expense_value: fd.get('expense_value') });
     if (id === 'settings') {
-        await supabase.auth.updateUser({ data: { farm_name: fd.get('enterprise_name') } });
+        await supabase.auth.updateUser({ 
+            data: { 
+                farm_name: fd.get('enterprise_name'),
+                operator_name: fd.get('operator_name')
+            } 
+        });
         location.reload();
     }
 }
