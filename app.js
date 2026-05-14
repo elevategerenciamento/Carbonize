@@ -537,17 +537,22 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Produção Estimada", value: `${totalProd.toFixed(1)} t` },
                 { label: "Unidades Operantes", value: unidades.length }
             ],
-            headers: ["Data", "Responsável", "Unidade / Forno", "Vazios", "Cheios", "Carbonizando", "Esfriando", "Observações"],
-            rows: filtered.map(h => [
-                formatDateBR(h.data),
-                h.responsavel || '-',
-                h.praca || '-',
-                h.vazios || '0',
-                h.cheios || '0',
-                h.carbonizando || '0',
-                h.esfriando || '0',
-                h.obs || '-'
-            ]),
+            headers: ["Data", "Praça", "Responsável", "Modelo Forno", "Vazios", "Cheios", "Carbonizando", "Esfriando", "Obs/Manutenção"],
+            rows: filtered.map(h => {
+                const kilnObj = kilns.find(k => k.praca === h.praca);
+                const modelo = kilnObj ? kilnObj.modelo : '-';
+                return [
+                    formatDateBR(h.data),
+                    h.praca || '-',
+                    h.responsavel || '-',
+                    modelo,
+                    h.vazios || '0',
+                    h.cheios || '0',
+                    h.carbonizando || '0',
+                    h.esfriando || '0',
+                    h.obs || '-'
+                ];
+            }),
             footer: `Produção Estimada no Período: ${totalProd.toFixed(1)} toneladas`
         };
     }
@@ -609,43 +614,27 @@ window.generateReport = async (type, format = 'pdf') => {
     }
 
     // ════════════════════════════════════
-    //  EXPORTAÇÃO XLS (PADRÃO PLANILHA PROFISSIONAL)
+    //  EXPORTAÇÃO CSV (PLANILHA NATIVA E LIMPA)
     // ════════════════════════════════════
     if (format === 'excel') {
-        // Criamos uma tabela HTML para o Excel reconhecer as colunas e estilos básicos
-        let tableHtml = `
-            <meta charset="utf-8">
-            <style>
-                table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
-                th { background-color: #E6002E; color: #FFFFFF; font-weight: bold; border: 1px solid #000000; padding: 8px; }
-                td { border: 1px solid #000000; padding: 6px; text-align: left; }
-                .title { font-size: 16pt; font-weight: bold; color: #E6002E; }
-                .subtitle { font-size: 10pt; color: #666666; margin-bottom: 20px; }
-            </style>
-            <table>
-                <tr><td colspan="${reportConfig.headers.length}" class="title">CARBONIZE - ${reportConfig.title}</td></tr>
-                <tr><td colspan="${reportConfig.headers.length}" class="subtitle">Fazenda: ${farmName} | Gerado em: ${generatedAt}</td></tr>
-                <tr><td colspan="${reportConfig.headers.length}"></td></tr>
-                <thead>
-                    <tr>
-                        ${reportConfig.headers.map(h => `<th>${h}</th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${reportConfig.rows.map(row => `
-                        <tr>
-                            ${row.map(cell => `<td>${cell}</td>`).join('')}
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
+        const BOM = '\uFEFF';
+        const separator = ';';
+        let csvRows = [];
+        
+        // Cabeçalho da planilha
+        csvRows.push(reportConfig.headers.join(separator));
+        
+        // Dados
+        reportConfig.rows.forEach(row => {
+            csvRows.push(row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(separator));
+        });
 
-        const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel' });
+        const csvContent = BOM + csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `Carbonize_${type}_${formatDateBR(start)}_a_${formatDateBR(end)}.xls`;
+        link.download = `Carbonize_${type}_${formatDateBR(start)}_a_${formatDateBR(end)}.csv`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
