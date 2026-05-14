@@ -174,7 +174,10 @@
                         <form id="form-kiln-daily">
                             <div class="form-field">
                                 <label>Data</label>
-                                <input type="date" name="data_lancamento" id="daily-date" required>
+                                <div class="date-input-wrapper">
+                                    <i data-lucide="calendar"></i>
+                                    <input type="text" name="data_lancamento" id="daily-date" class="date-picker" placeholder="Selecionar data" required>
+                                </div>
                             </div>
                             <div class="form-field">
                                 <label>Responsável</label>
@@ -240,7 +243,13 @@
                     <div class="glass">
                         <h4 class="card-title">Nova Despesa</h4>
                         <form id="form-expense" style="margin-top: 24px;">
-                            <div class="form-field"><label>Data</label><input type="date" name="expense_date" required></div>
+                            <div class="form-field">
+                                <label>Data</label>
+                                <div class="date-input-wrapper">
+                                    <i data-lucide="calendar"></i>
+                                    <input type="text" name="expense_date" class="date-picker" placeholder="Selecionar data" required>
+                                </div>
+                            </div>
                             <div class="form-field">
                                 <label>Categoria</label>
                                 <select name="expense_category">
@@ -281,7 +290,17 @@
                         <h4 class="card-title">Ordem de Reparo</h4>
                         <form id="form-maintenance" style="margin-top: 24px;">
                             <div class="form-field"><label>Forno</label><select name="kiln_target" id="maint-kiln-select" required></select></div>
-                            <div class="form-field"><label>Data</label><input type="date" name="repair_date" required></div>
+                            <div class="form-field">
+                                <label>Data</label>
+                                <div class="date-input-wrapper">
+                                    <i data-lucide="calendar"></i>
+                                    <input type="text" name="repair_date" class="date-picker" placeholder="Selecionar data" required>
+                                </div>
+                            </div>
+                            <div class="form-field">
+                                <label>Descrição do Serviço</label>
+                                <textarea name="problema" rows="2" placeholder="Descreva o que foi feito..." required></textarea>
+                            </div>
                             <div class="form-field"><label>Custo (R$)</label><input type="number" step="0.01" name="cost" value="0"></div>
                             <button type="submit" class="btn-save">Finalizar Registro</button>
                         </form>
@@ -438,7 +457,13 @@
                     <div class="form-field"><label>Veículo / Placa</label><input type="text" name="placa" required></div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                    <div class="form-field"><label>Data</label><input type="date" name="data_carga" id="load-date-manual" required></div>
+                    <div class="form-field">
+                        <label>Data</label>
+                        <div class="date-input-wrapper">
+                            <i data-lucide="calendar"></i>
+                            <input type="text" name="data_carga" id="load-date-manual" class="date-picker" placeholder="Selecionar data" required>
+                        </div>
+                    </div>
                     <div class="form-field"><label>Hora</label><input type="time" name="hora_carga" id="load-time-manual" required></div>
                 </div>
                 <div class="form-field"><label>Motorista</label><input type="text" name="motorista" required></div>

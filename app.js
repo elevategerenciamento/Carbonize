@@ -371,6 +371,7 @@ async function processForm(id, fd) {
     }
     if (id === 'load') await saveItem('loads', { identificador: fd.get('identificador'), data: fd.get('data_carga'), hora: fd.get('hora_carga'), placa: fd.get('placa'), motorista: fd.get('motorista'), tipo_carvao: fd.get('tipo_carvao'), metragem: fd.get('metragem'), peso: fd.get('peso'), destino: fd.get('destino') });
     if (id === 'expense') await saveItem('expenses', { expense_date: fd.get('expense_date'), expense_category: fd.get('expense_category'), expense_desc: fd.get('expense_desc'), expense_value: fd.get('expense_value') });
+    if (id === 'maintenance') await saveItem('maintenance', { forno: fd.get('kiln_target'), problema: fd.get('problema'), data: fd.get('repair_date'), cost: fd.get('cost'), resolved: false });
     if (id === 'settings') {
         await supabase.auth.updateUser({ 
             data: { 
