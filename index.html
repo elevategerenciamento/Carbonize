@@ -293,6 +293,12 @@
                                 <tbody id="expense-history-list"></tbody>
                             </table>
                         </div>
+                        <!-- Paginação -->
+                        <div class="pagination-controls" style="display:flex; justify-content: space-between; align-items:center; margin-top:20px;">
+                            <button class="btn-save" onclick="changeExpensesPage(-1)" style="padding: 8px 16px; font-size:12px; width:auto; margin:0;"><i data-lucide="chevron-left"></i> Anterior</button>
+                            <span id="expenses-page-info" class="text-dim" style="font-size:13px;">Página 1</span>
+                            <button class="btn-save" onclick="changeExpensesPage(1)" style="padding: 8px 16px; font-size:12px; width:auto; margin:0;">Próximo <i data-lucide="chevron-right"></i></button>
+                        </div>
                     </div>
                 </div>
             </section>

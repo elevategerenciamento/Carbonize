@@ -13,6 +13,8 @@ let history = [];
 let maintenance = [];
 let expenses = [];
 let currentUser = null;
+let expensesPage = 1;
+const ITEMS_PER_PAGE = 9;
 
 const PRIMARY_COLOR = '#e6002e';
 const TOAST_DURATION = 2000;
@@ -332,26 +334,49 @@ function renderExpenses() {
     const totalEl = document.getElementById('kpi-custo-mes');
     const total = expenses.reduce((acc, e) => acc + Number(e.expense_value || 0), 0);
     if (totalEl) totalEl.innerText = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    
     if (list) {
         if (expenses.length === 0) {
-            list.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-dim);">Nenhum lançamento encontrado.</td></tr>';
-        } else {
-            list.innerHTML = expenses.map(e => `
-                <tr>
-                    <td>${e.expense_date}</td>
-                    <td>${e.expense_desc || '-'}</td>
-                    <td>${e.payment_method || '-'}</td>
-                    <td>${Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
-                    <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
-                    <td>
-                        <div style="display:flex; gap:8px;">
-                            <button onclick="editExpense('${e.id}')" style="background:none; border:none; color:var(--text-dim); cursor:pointer;"><i data-lucide="edit-3" style="width:16px;"></i></button>
-                            <button onclick="deleteExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
+            list.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-dim);">Nenhum lançamento encontrado.</td></tr>';
+            return;
         }
+
+        const totalPages = Math.ceil(expenses.length / ITEMS_PER_PAGE);
+        if (expensesPage > totalPages) expensesPage = totalPages || 1;
+
+        const start = (expensesPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        const pageItems = expenses.slice(start, end);
+
+        list.innerHTML = pageItems.map(e => `
+            <tr>
+                <td>${e.expense_date}</td>
+                <td>${e.expense_desc || '-'}</td>
+                <td>${e.payment_method || '-'}</td>
+                <td>${Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
+                <td>
+                    <div style="display:flex; gap:8px;">
+                        <button onclick="editExpense('${e.id}')" style="background:none; border:none; color:var(--text-dim); cursor:pointer;"><i data-lucide="edit-3" style="width:16px;"></i></button>
+                        <button onclick="deleteExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        const info = document.getElementById('expenses-page-info');
+        if (info) info.innerText = `Página ${expensesPage} de ${totalPages}`;
+        
+        if (window.lucide) window.lucide.createIcons();
+    }
+}
+
+function changeExpensesPage(dir) {
+    const totalPages = Math.ceil(expenses.length / ITEMS_PER_PAGE);
+    const next = expensesPage + dir;
+    if (next >= 1 && next <= totalPages) {
+        expensesPage = next;
+        renderExpenses();
     }
 }
 
@@ -540,6 +565,7 @@ window.logout = logout;
 window.resolveMaint = resolveMaint;
 window.deleteExpense = deleteExpense;
 window.editExpense = editExpense;
+window.changeExpensesPage = changeExpensesPage;
 // 9. PREMIUM REPORT ENGINE
 function formatDateBR(dateStr) {
     if (!dateStr) return '-';
