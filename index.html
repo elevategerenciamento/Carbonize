@@ -261,7 +261,10 @@
                                 </select>
                             </div>
                             <div class="form-field"><label>Descrição</label><input type="text" name="expense_desc" placeholder="Ex: Pagamento Frete" required></div>
-                            <div class="form-field"><label>Valor (R$)</label><input type="number" step="0.01" name="expense_value" required></div>
+                            <div style="display:grid; grid-template-columns:1fr 2fr; gap:12px;">
+                                <div class="form-field"><label>Quantidade</label><input type="number" name="expense_quantity" value="1" min="1"></div>
+                                <div class="form-field"><label>Valor Total (R$)</label><input type="number" step="0.01" name="expense_value" required></div>
+                            </div>
                             <button type="submit" class="btn-save">Salvar Lançamento</button>
                         </form>
                     </div>
@@ -271,7 +274,7 @@
                         <h4 class="card-title" style="margin-bottom: 24px;">Fluxo de Custos</h4>
                         <div class="table-wrapper">
                             <table class="modern-table">
-                                <thead><tr><th>DATA</th><th>CATEGORIA</th><th>VALOR</th><th>AÇÃO</th></tr></thead>
+                                <thead><tr><th>DATA</th><th>CATEGORIA</th><th>QTD</th><th>VALOR</th><th>AÇÃO</th></tr></thead>
                                 <tbody id="expense-history-list"></tbody>
                             </table>
                         </div>

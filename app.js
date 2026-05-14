@@ -308,6 +308,7 @@ function renderExpenses() {
                 <tr>
                     <td>${e.expense_date}</td>
                     <td>${e.expense_category}</td>
+                    <td>${e.expense_quantity || 1}</td>
                     <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
                     <td><button onclick="deleteExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button></td>
                 </tr>
@@ -370,7 +371,13 @@ async function processForm(id, fd) {
         if (item.obs) await saveItem('maintenance', { forno: item.praca, problema: item.obs, data: item.data, resolved: false });
     }
     if (id === 'load') await saveItem('loads', { identificador: fd.get('identificador'), data: fd.get('data_carga'), hora: fd.get('hora_carga'), placa: fd.get('placa'), motorista: fd.get('motorista'), tipo_carvao: fd.get('tipo_carvao'), metragem: fd.get('metragem'), peso: fd.get('peso'), destino: fd.get('destino') });
-    if (id === 'expense') await saveItem('expenses', { expense_date: fd.get('expense_date'), expense_category: fd.get('expense_category'), expense_desc: fd.get('expense_desc'), expense_value: fd.get('expense_value') });
+    if (id === 'expense') await saveItem('expenses', { 
+        expense_date: fd.get('expense_date'), 
+        expense_category: fd.get('expense_category'), 
+        expense_desc: fd.get('expense_desc'), 
+        expense_value: fd.get('expense_value'),
+        expense_quantity: fd.get('expense_quantity') || 1
+    });
     if (id === 'maintenance') await saveItem('maintenance', { forno: fd.get('kiln_target'), problema: fd.get('problema'), data: fd.get('repair_date'), cost: fd.get('cost'), resolved: false });
     if (id === 'settings') {
         await supabase.auth.updateUser({ 
@@ -607,11 +614,12 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Total de Lançamentos", value: filtered.length },
                 { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
             ],
-            headers: ["Data", "Categoria", "Descrição", "Valor (R$)"],
+            headers: ["Data", "Categoria", "Descrição", "Qtd", "Valor (R$)"],
             rows: filtered.map(e => [
                 formatDateBR(e.expense_date),
                 e.expense_category || '-',
                 e.expense_desc || '-',
+                e.expense_quantity || '1',
                 `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
             ]),
             footer: `Valor Total no Período: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
