@@ -343,7 +343,12 @@ function renderExpenses() {
                     <td>${e.payment_method || '-'}</td>
                     <td>${Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                     <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
-                    <td><button onclick="deleteExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button></td>
+                    <td>
+                        <div style="display:flex; gap:8px;">
+                            <button onclick="editExpense('${e.id}')" style="background:none; border:none; color:var(--text-dim); cursor:pointer;"><i data-lucide="edit-3" style="width:16px;"></i></button>
+                            <button onclick="deleteExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button>
+                        </div>
+                    </td>
                 </tr>
             `).join('');
         }
@@ -355,6 +360,26 @@ async function deleteExpense(id) {
         await supabase.from('expenses').delete().eq('id', id);
         await loadAllData();
     }
+}
+
+function editExpense(id) {
+    const e = expenses.find(item => item.id === id);
+    if (!e) return;
+    
+    const form = document.getElementById('form-expense');
+    form.querySelector('[name="expense_date"]')._flatpickr.setDate(e.expense_date);
+    form.querySelector('[name="expense_category"]').value = e.expense_category;
+    form.querySelector('[name="payment_method"]').value = e.payment_method;
+    form.querySelector('[name="expense_desc"]').value = e.expense_desc;
+    form.querySelector('[name="expense_quantity"]').value = e.expense_quantity;
+    form.querySelector('[name="expense_value"]').value = e.expense_value;
+    form.querySelector('[name="expense_id"]').value = e.id;
+    
+    const btn = document.getElementById('btn-save-expense');
+    btn.innerText = "Atualizar Lançamento";
+    btn.style.background = "#2563eb"; // Blue for edit mode
+    
+    window.scrollTo({ top: form.offsetTop - 100, behavior: 'smooth' });
 }
 
 // 8. FORMS & CHARTS
@@ -404,14 +429,26 @@ async function processForm(id, fd) {
         if (item.obs) await saveItem('maintenance', { forno: item.praca, problema: item.obs, data: item.data, resolved: false });
     }
     if (id === 'load') await saveItem('loads', { identificador: fd.get('identificador'), data: fd.get('data_carga'), hora: fd.get('hora_carga'), placa: fd.get('placa'), motorista: fd.get('motorista'), tipo_carvao: fd.get('tipo_carvao'), metragem: fd.get('metragem'), peso: fd.get('peso'), destino: fd.get('destino') });
-    if (id === 'expense') await saveItem('expenses', { 
-        expense_date: fd.get('expense_date'), 
-        expense_category: fd.get('expense_category'), 
-        expense_desc: fd.get('expense_desc'), 
-        expense_value: fd.get('expense_value'),
-        expense_quantity: fd.get('expense_quantity') || 1,
-        payment_method: fd.get('payment_method')
-    });
+    if (id === 'expense') {
+        const expenseId = fd.get('expense_id');
+        const item = { 
+            expense_date: fd.get('expense_date'), 
+            expense_category: fd.get('expense_category'), 
+            expense_desc: fd.get('expense_desc'), 
+            expense_value: fd.get('expense_value'),
+            expense_quantity: fd.get('expense_quantity') || 1,
+            payment_method: fd.get('payment_method')
+        };
+
+        if (expenseId) {
+            await supabase.from('expenses').update(item).eq('id', expenseId);
+            document.getElementById('edit-expense-id').value = '';
+            document.getElementById('btn-save-expense').innerText = "Salvar Lançamento";
+            document.getElementById('btn-save-expense').style.background = ""; 
+        } else {
+            await saveItem('expenses', item);
+        }
+    }
     if (id === 'maintenance') await saveItem('maintenance', { forno: fd.get('kiln_target'), problema: fd.get('problema'), data: fd.get('repair_date'), cost: fd.get('cost'), resolved: false });
     if (id === 'settings') {
         await supabase.auth.updateUser({ 
@@ -502,6 +539,7 @@ window.toggleUserDropdown = toggleUserDropdown;
 window.logout = logout;
 window.resolveMaint = resolveMaint;
 window.deleteExpense = deleteExpense;
+window.editExpense = editExpense;
 // 9. PREMIUM REPORT ENGINE
 function formatDateBR(dateStr) {
     if (!dateStr) return '-';

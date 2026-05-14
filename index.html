@@ -279,7 +279,8 @@
                                 <div class="form-field"><label>Quantidade</label><input type="number" step="0.01" name="expense_quantity" value="1" min="0"></div>
                                 <div class="form-field"><label>Valor Total (R$)</label><input type="number" step="0.01" name="expense_value" required></div>
                             </div>
-                            <button type="submit" class="btn-save">Salvar Lançamento</button>
+                            <input type="hidden" name="expense_id" id="edit-expense-id">
+                            <button type="submit" class="btn-save" id="btn-save-expense">Salvar Lançamento</button>
                         </form>
                     </div>
 
