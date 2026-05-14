@@ -484,6 +484,13 @@ window.generateReport = async (type, format = 'pdf') => {
         return;
     }
 
+    const typeLabel = {
+        'loads': 'EXPEDICAO',
+        'pracas': 'PRODUCAO',
+        'maint': 'MANUTENCAO',
+        'expenses': 'GASTOS'
+    }[type] || type.toUpperCase();
+
     const farmName = currentUser?.user_metadata?.farm_name || "Fazenda";
     const now = new Date();
     const generatedAt = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}`;
@@ -676,7 +683,7 @@ window.generateReport = async (type, format = 'pdf') => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `Carbonize_${type}_${formatDateBR(start)}_a_${formatDateBR(end)}.xls`;
+        link.download = `CARBONIZE_${typeLabel}_${formatDateBR(start)}_a_${formatDateBR(end)}.xls`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -827,7 +834,7 @@ window.generateReport = async (type, format = 'pdf') => {
 
 
 
-    doc.save(`Carbonize_${type}_${formatDateBR(start)}_a_${formatDateBR(end)}.pdf`);
+    doc.save(`CARBONIZE_${typeLabel}_${formatDateBR(start)}_a_${formatDateBR(end)}.pdf`);
     showToast();
 };
 
