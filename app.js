@@ -648,10 +648,9 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Total de Lançamentos", value: filtered.length },
                 { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
             ],
-            headers: ["Data", "Categoria", "Descrição", "Pagamento", "Qtd", "Valor (R$)"],
+            headers: ["Data", "Descrição", "Pagamento", "Qtd", "Valor (R$)"],
             rows: filtered.map(e => [
                 formatDateBR(e.expense_date),
-                e.expense_category || '-',
                 e.expense_desc || '-',
                 e.payment_method || '-',
                 e.expense_quantity || '1',
