@@ -36,6 +36,20 @@ async function init() {
     }
 
     if (window.lucide) window.lucide.createIcons();
+    
+    // Initialize Flatpickr
+    if (window.flatpickr) {
+        flatpickr(".date-picker", {
+            locale: "pt",
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            allowInput: true,
+            disableMobile: "true",
+            theme: "dark"
+        });
+    }
+
     setupEventListeners();
     renderCharts();
     updateUI();

@@ -14,6 +14,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
     <link rel="icon" type="image/png" href="logo_premium.png">
 </head>
 <body>
@@ -337,8 +341,14 @@
                     <div class="report-card">
                         <h4><i data-lucide="truck"></i> Expedição</h4>
                         <div class="filter-group">
-                            <input type="date" id="report-loads-start">
-                            <input type="date" id="report-loads-end">
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-loads-start" class="date-picker" placeholder="Data Início">
+                            </div>
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-loads-end" class="date-picker" placeholder="Data Fim">
+                            </div>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button class="btn-primary" onclick="generateReport('loads')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
@@ -350,8 +360,14 @@
                     <div class="report-card">
                         <h4><i data-lucide="container"></i> Produção</h4>
                         <div class="filter-group">
-                            <input type="date" id="report-pracas-start">
-                            <input type="date" id="report-pracas-end">
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-pracas-start" class="date-picker" placeholder="Data Início">
+                            </div>
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-pracas-end" class="date-picker" placeholder="Data Fim">
+                            </div>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button class="btn-primary" onclick="generateReport('pracas')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
@@ -363,8 +379,14 @@
                     <div class="report-card">
                         <h4><i data-lucide="wrench"></i> Manutenção</h4>
                         <div class="filter-group">
-                            <input type="date" id="report-maint-start">
-                            <input type="date" id="report-maint-end">
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-maint-start" class="date-picker" placeholder="Data Início">
+                            </div>
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-maint-end" class="date-picker" placeholder="Data Fim">
+                            </div>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button class="btn-primary" onclick="generateReport('maint')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
@@ -376,8 +398,14 @@
                     <div class="report-card">
                         <h4><i data-lucide="wallet"></i> Custos</h4>
                         <div class="filter-group">
-                            <input type="date" id="report-expenses-start">
-                            <input type="date" id="report-expenses-end">
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-expenses-start" class="date-picker" placeholder="Data Início">
+                            </div>
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-expenses-end" class="date-picker" placeholder="Data Fim">
+                            </div>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button class="btn-primary" onclick="generateReport('expenses')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
