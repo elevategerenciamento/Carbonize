@@ -505,7 +505,7 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Metragem Total", value: `${totalMetragem.toFixed(1)} m³` },
                 { label: "Destinos Únicos", value: [...new Set(filtered.map(l => l.destino))].length }
             ],
-            headers: ["Nº Identificador", "Data", "Hora", "Placa", "Motorista", "Tipo de Carvão", "Metragem (m3)", "Peso (kg)", "Destino"],
+            headers: ["Nº ID", "Data", "Hora", "Veículo / Placa", "Motorista", "Tipo de Carvão", "Metragem (m³)", "Peso (kg)", "Destino"],
             rows: filtered.map(l => [
                 l.identificador || '-',
                 formatDateBR(l.data),
@@ -537,22 +537,17 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Produção Estimada", value: `${totalProd.toFixed(1)} t` },
                 { label: "Unidades Operantes", value: unidades.length }
             ],
-            headers: ["Data", "Praça", "Responsável", "Modelo Forno", "Vazios", "Cheios", "Carbonizando", "Esfriando", "Obs/Manutenção"],
-            rows: filtered.map(h => {
-                const kilnObj = kilns.find(k => k.praca === h.praca);
-                const modelo = kilnObj ? kilnObj.modelo : '-';
-                return [
-                    formatDateBR(h.data),
-                    h.praca || '-',
-                    h.responsavel || '-',
-                    modelo,
-                    h.vazios || '0',
-                    h.cheios || '0',
-                    h.carbonizando || '0',
-                    h.esfriando || '0',
-                    h.obs || '-'
-                ];
-            }),
+            headers: ["Data", "Responsável", "Unidade / Forno", "Vazios", "Cheios", "Carbon.", "Esfria", "Observações / Manutenção"],
+            rows: filtered.map(h => [
+                formatDateBR(h.data),
+                h.responsavel || '-',
+                h.praca || '-',
+                h.vazios || '0',
+                h.cheios || '0',
+                h.carbonizando || '0',
+                h.esfriando || '0',
+                h.obs || '-'
+            ]),
             footer: `Produção Estimada no Período: ${totalProd.toFixed(1)} toneladas`
         };
     }
@@ -573,7 +568,7 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Resolvidos", value: resolvidos },
                 { label: "Custo Total", value: `R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
             ],
-            headers: ["Data", "Forno / Unidade", "Problema Relatado", "Custo (R$)", "Status"],
+            headers: ["Data", "Forno", "Problema", "Custo (R$)", "Status"],
             rows: filtered.map(m => [
                 formatDateBR(m.data),
                 m.forno || '-',
