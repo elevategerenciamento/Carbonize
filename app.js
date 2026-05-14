@@ -53,6 +53,10 @@ async function init() {
     setupEventListeners();
     renderCharts();
     updateUI();
+
+    // Sync offline data if connection returns
+    window.addEventListener('online', syncOfflineData);
+    if (navigator.onLine) syncOfflineData();
 }
 
 // 4. AUTHENTICATION
@@ -124,19 +128,47 @@ async function loadAllData() {
 }
 
 async function saveItem(table, item) {
-    if (!currentUser) {
-        alert("Sessão expirada. Faça login novamente.");
-        return;
-    }
-    console.log(`Saving to ${table}:`, item);
-    const { data, error } = await supabase.from(table).insert([{ ...item, user_id: currentUser.id }]);
+    if (!currentUser) return;
+    const payload = { ...item, user_id: currentUser.id };
     
-    if (error) {
-        console.error(`Error saving to ${table}:`, error);
-        throw new Error(error.message || `Erro ao salvar em ${table}`);
+    try {
+        const { error } = await supabase.from(table).insert([payload]);
+        if (error) throw error;
+        await loadAllData();
+    } catch (err) {
+        console.warn("Modo Offline: Salvando localmente...", err);
+        saveOffline(table, payload);
+        showToast("Salvo localmente (Modo Offline)");
+        
+        // Atualiza estado local para feedback imediato
+        if (table === 'production_history') history.unshift({ ...payload, id: 'temp-' + Date.now() });
+        if (table === 'loads') loads.unshift({ ...payload, id: 'temp-' + Date.now() });
+        if (table === 'expenses') expenses.unshift({ ...payload, id: 'temp-' + Date.now() });
+        if (table === 'maintenance') maintenance.unshift({ ...payload, id: 'temp-' + Date.now() });
+        updateUI();
     }
+}
+
+function saveOffline(table, data) {
+    const queue = JSON.parse(localStorage.getItem('carbonize_offline_queue') || '[]');
+    queue.push({ table, data, timestamp: Date.now() });
+    localStorage.setItem('carbonize_offline_queue', JSON.stringify(queue));
+}
+
+async function syncOfflineData() {
+    const queue = JSON.parse(localStorage.getItem('carbonize_offline_queue') || '[]');
+    if (queue.length === 0) return;
     
-    console.log(`Saved to ${table} successfully:`, data);
+    console.log(`Carbonize: Sincronizando ${queue.length} itens offline...`);
+    for (const item of queue) {
+        try {
+            await supabase.from(item.table).insert([item.data]);
+        } catch (err) {
+            console.error("Erro na sincronização:", err);
+        }
+    }
+    localStorage.removeItem('carbonize_offline_queue');
+    showToast("Dados sincronizados com o servidor!");
     await loadAllData();
 }
 
