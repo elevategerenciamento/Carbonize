@@ -339,7 +339,7 @@ function renderExpenses() {
             list.innerHTML = expenses.map(e => `
                 <tr>
                     <td>${e.expense_date}</td>
-                    <td>${e.expense_category}</td>
+                    <td>${e.expense_desc || '-'}</td>
                     <td>${e.payment_method || '-'}</td>
                     <td>${e.expense_quantity || 1}</td>
                     <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
