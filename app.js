@@ -609,27 +609,74 @@ window.generateReport = async (type, format = 'pdf') => {
     }
 
     // ════════════════════════════════════
-    //  EXPORTAÇÃO CSV (PLANILHA NATIVA E LIMPA)
+    //  EXPORTAÇÃO XLS (SpreadsheetML com estilo)
     // ════════════════════════════════════
     if (format === 'excel') {
-        const BOM = '\uFEFF';
-        const separator = ';';
-        let csvRows = [];
-        
-        // Cabeçalho da planilha
-        csvRows.push(reportConfig.headers.join(separator));
-        
-        // Dados
-        reportConfig.rows.forEach(row => {
-            csvRows.push(row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(separator));
-        });
+        const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-        const csvContent = BOM + csvRows.join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        // Estilos: 0=normal, 1=cabeçalho (azul/branco/negrito), 2=zebra clara
+        const styles = `
+        <Styles>
+            <Style ss:ID="s0">
+                <Alignment ss:Vertical="Center" ss:WrapText="0"/>
+                <Borders>
+                    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
+                    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
+                </Borders>
+                <Font ss:FontName="Calibri" ss:Size="11"/>
+            </Style>
+            <Style ss:ID="s1">
+                <Alignment ss:Vertical="Center" ss:Horizontal="Center" ss:WrapText="0"/>
+                <Borders>
+                    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#000000"/>
+                    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FFFFFF"/>
+                </Borders>
+                <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
+                <Interior ss:Color="#1E3A5F" ss:Pattern="Solid"/>
+            </Style>
+            <Style ss:ID="s2">
+                <Alignment ss:Vertical="Center" ss:WrapText="0"/>
+                <Borders>
+                    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
+                    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
+                </Borders>
+                <Font ss:FontName="Calibri" ss:Size="11"/>
+                <Interior ss:Color="#EEF3F8" ss:Pattern="Solid"/>
+            </Style>
+        </Styles>`;
+
+        // Linha de cabeçalho
+        const headerRow = `<Row ss:Height="22">
+            ${reportConfig.headers.map(h => `<Cell ss:StyleID="s1"><Data ss:Type="String">${esc(h)}</Data></Cell>`).join('')}
+        </Row>`;
+
+        // Linhas de dados (alternadas)
+        const dataRows = reportConfig.rows.map((row, i) => {
+            const style = i % 2 === 1 ? 's2' : 's0';
+            return `<Row ss:Height="18">
+                ${row.map(cell => `<Cell ss:StyleID="${style}"><Data ss:Type="String">${esc(cell)}</Data></Cell>`).join('')}
+            </Row>`;
+        }).join('');
+
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+          xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+    ${styles}
+    <Worksheet ss:Name="${esc(reportConfig.title.slice(0,31))}">
+        <Table>
+            ${reportConfig.headers.map(() => '<Column ss:Width="120"/>').join('')}
+            ${headerRow}
+            ${dataRows}
+        </Table>
+    </Worksheet>
+</Workbook>`;
+
+        const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `Carbonize_${type}_${formatDateBR(start)}_a_${formatDateBR(end)}.csv`;
+        link.download = `Carbonize_${type}_${formatDateBR(start)}_a_${formatDateBR(end)}.xls`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
