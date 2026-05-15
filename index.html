@@ -267,11 +267,16 @@
                                 </div>
                                 <div class="form-field">
                                     <label>Pagamento</label>
-                                    <select name="payment_method">
+                                    <select name="payment_method" id="payment-method-select">
                                         <option value="Pix">Pix</option>
                                         <option value="Dinheiro">Dinheiro</option>
                                         <option value="Cartão">Cartão</option>
+                                        <option value="A Prazo">A Prazo</option>
                                     </select>
+                                </div>
+                                <div class="form-field" id="installments-field" style="display: none;">
+                                    <label>Parcelas</label>
+                                    <input type="number" name="installments" min="1" value="1">
                                 </div>
                             </div>
                             <div class="form-field"><label>Descrição</label><input type="text" name="expense_desc" placeholder="Ex: Pagamento Frete" required></div>

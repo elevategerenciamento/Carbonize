@@ -352,7 +352,7 @@ function renderExpenses() {
             <tr>
                 <td>${e.expense_date}</td>
                 <td>${e.expense_desc || '-'}</td>
-                <td>${e.payment_method || '-'}</td>
+                <td>${e.payment_method}${e.payment_method === 'Cartão' && e.installments ? ` (${e.installments}x)` : ''}</td>
                 <td>${Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                 <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
                 <td>
@@ -399,6 +399,14 @@ function editExpense(id) {
     form.querySelector('[name="expense_quantity"]').value = e.expense_quantity;
     form.querySelector('[name="expense_value"]').value = e.expense_value;
     form.querySelector('[name="expense_id"]').value = e.id;
+
+    const installmentsField = document.getElementById('installments-field');
+    if (e.payment_method === 'Cartão') {
+        installmentsField.style.display = 'block';
+        form.querySelector('[name="installments"]').value = e.installments || 1;
+    } else {
+        installmentsField.style.display = 'none';
+    }
     
     const btn = document.getElementById('btn-save-expense');
     btn.innerText = "Atualizar Lançamento";
@@ -444,6 +452,18 @@ function setupEventListeners() {
             });
         }
     });
+
+    const paymentSelect = document.getElementById('payment-method-select');
+    const installmentsField = document.getElementById('installments-field');
+    if (paymentSelect && installmentsField) {
+        paymentSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'Cartão') {
+                installmentsField.style.display = 'block';
+            } else {
+                installmentsField.style.display = 'none';
+            }
+        });
+    }
 }
 
 async function processForm(id, fd) {
@@ -462,7 +482,8 @@ async function processForm(id, fd) {
             expense_desc: fd.get('expense_desc'), 
             expense_value: fd.get('expense_value'),
             expense_quantity: fd.get('expense_quantity') || 1,
-            payment_method: fd.get('payment_method')
+            payment_method: fd.get('payment_method'),
+            installments: fd.get('payment_method') === 'Cartão' ? fd.get('installments') : null
         };
 
         if (expenseId) {
@@ -716,7 +737,7 @@ window.generateReport = async (type, format = 'pdf') => {
             rows: filtered.map(e => [
                 formatDateBR(e.expense_date),
                 e.expense_desc || '-',
-                e.payment_method || '-',
+                e.payment_method === 'Cartão' && e.installments ? `${e.payment_method} (${e.installments}x)` : (e.payment_method || '-'),
                 Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
                 `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
             ]),
