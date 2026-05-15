@@ -324,7 +324,7 @@ async function resolveMaint(id) {
 
 function renderStock() {
     const bal = history.reduce((acc, h) => acc + (Number(h.carbonizando || 0) * 1.5), 0) - (loads.reduce((acc, l) => acc + Number(l.peso || 0), 0) / 1000);
-    const balanceEl = document.getElementById('stock-balance');
+    const balanceEl = document.getElementById('kpi-stock-balance');
     if (balanceEl) balanceEl.innerText = `${bal.toFixed(1)} t`;
 }
 
