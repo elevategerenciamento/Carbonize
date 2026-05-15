@@ -1193,21 +1193,45 @@ async function viewFiscalDoc(id) {
     let filePreview = '';
     if (doc.file_path) {
         const ext = (doc.file_name || '').split('.').pop().toLowerCase();
-        const { data: urlData } = supabase.storage.from('fiscal-docs').createSignedUrl(doc.file_path, 3600);
+        const { data: urlData } = await supabase.storage.from('fiscal-docs').createSignedUrl(doc.file_path, 3600);
         const fileUrl = urlData?.signedUrl || '#';
 
         if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
-            filePreview = `<img src="${fileUrl}" style="width:100%; border-radius:12px; margin-top:16px;" alt="Preview">`;
+            filePreview = `
+                <div style="margin-top:20px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.06);">
+                    <div style="padding:10px 16px; background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:space-between;">
+                        <span style="font-size:12px; color:var(--text-dim); font-weight:600;">📎 PREVIEW DO ARQUIVO</span>
+                        <a href="${fileUrl}" target="_blank" style="color:var(--primary); font-size:12px; text-decoration:none; font-weight:700;">Abrir em nova aba →</a>
+                    </div>
+                    <img src="${fileUrl}" style="width:100%; display:block; max-height:500px; object-fit:contain; background:#111;" alt="Preview">
+                </div>`;
         } else if (ext === 'pdf') {
-            filePreview = `<iframe src="${fileUrl}" style="width:100%; height:400px; border:none; border-radius:12px; margin-top:16px;"></iframe>`;
+            filePreview = `
+                <div style="margin-top:20px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.06);">
+                    <div style="padding:10px 16px; background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:space-between;">
+                        <span style="font-size:12px; color:var(--text-dim); font-weight:600;">📄 PREVIEW DO ARQUIVO</span>
+                        <a href="${fileUrl}" target="_blank" style="color:var(--primary); font-size:12px; text-decoration:none; font-weight:700;">Abrir em nova aba →</a>
+                    </div>
+                    <iframe src="${fileUrl}" style="width:100%; height:500px; border:none; display:block; background:#fff;"></iframe>
+                </div>`;
         } else {
             filePreview = `
-                <div style="text-align:center; margin-top:16px; padding:24px; background:rgba(0,0,0,0.2); border-radius:12px;">
-                    <i data-lucide="file" style="width:40px; height:40px; color:var(--text-dim);"></i>
-                    <p style="margin-top:8px; color:var(--text-dim);">${doc.file_name}</p>
-                    <a href="${fileUrl}" target="_blank" style="color:var(--primary); font-weight:700; text-decoration:none;">Abrir arquivo →</a>
+                <div style="text-align:center; margin-top:20px; padding:32px; background:rgba(0,0,0,0.2); border-radius:12px; border:1px solid rgba(255,255,255,0.06);">
+                    <div style="padding:10px 16px; background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; margin-bottom:16px; border-radius:8px;">
+                        <span style="font-size:12px; color:var(--text-dim); font-weight:600;">📎 ARQUIVO ANEXADO</span>
+                    </div>
+                    <i data-lucide="file" style="width:48px; height:48px; color:var(--text-dim);"></i>
+                    <p style="margin-top:12px; color:#fff; font-weight:600;">${doc.file_name}</p>
+                    <p style="margin-top:4px; color:var(--text-dim); font-size:12px;">Tipo: ${ext.toUpperCase()}</p>
+                    <a href="${fileUrl}" target="_blank" style="display:inline-block; margin-top:16px; padding:10px 24px; background:var(--primary); color:#fff; font-weight:700; text-decoration:none; border-radius:8px;">Abrir Arquivo →</a>
                 </div>`;
         }
+    } else {
+        filePreview = `
+            <div style="text-align:center; margin-top:20px; padding:32px; background:rgba(0,0,0,0.15); border-radius:12px; border:1px dashed rgba(255,255,255,0.1);">
+                <i data-lucide="file-x" style="width:40px; height:40px; color:var(--text-dim); opacity:0.5;"></i>
+                <p style="margin-top:12px; color:var(--text-dim); font-size:13px;">Nenhum arquivo anexado a este documento.</p>
+            </div>`;
     }
 
     document.getElementById('fiscal-view-content').innerHTML = `
@@ -1230,11 +1254,24 @@ async function downloadFiscalDoc(id) {
     const doc = fiscalDocs.find(d => d.id === id);
     if (!doc || !doc.file_path) return;
 
-    const { data: urlData } = supabase.storage.from('fiscal-docs').createSignedUrl(doc.file_path, 3600);
-    if (urlData?.signedUrl) {
-        window.open(urlData.signedUrl, '_blank');
-    } else {
-        alert('Erro ao gerar link de download.');
+    try {
+        const { data: urlData, error } = await supabase.storage.from('fiscal-docs').createSignedUrl(doc.file_path, 3600);
+        if (error) throw error;
+        if (urlData?.signedUrl) {
+            // Cria link de download real
+            const link = document.createElement('a');
+            link.href = urlData.signedUrl;
+            link.target = '_blank';
+            link.download = doc.file_name || 'download';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else {
+            alert('Erro ao gerar link de download.');
+        }
+    } catch (err) {
+        console.error('Download error:', err);
+        alert('Erro ao gerar link de download: ' + err.message);
     }
 }
 
