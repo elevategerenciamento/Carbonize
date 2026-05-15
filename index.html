@@ -351,14 +351,113 @@
             <!-- SECTION: DADOS FISCAIS -->
             <section id="section-dados_fiscais" class="content-section" style="display: none;">
                 <div class="header-action">
-                    <h2 class="page-title">Módulo Fiscal</h2>
+                    <h2 class="page-title">Nuvem Fiscal</h2>
+                    <button class="btn-primary" onclick="showModal('fiscal-upload')"><i data-lucide="upload-cloud"></i> Enviar Documento</button>
                 </div>
-                <div class="glass" style="text-align: center; padding: 60px;">
-                    <div style="width: 80px; height: 80px; background: var(--primary-dim); border-radius: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
-                        <i data-lucide="shield-check" style="width: 40px; height: 40px; color: var(--primary);"></i>
+
+                <!-- KPIs Resumo Fiscal -->
+                <div class="kpi-grid" style="margin-bottom: 32px;">
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background: rgba(0, 210, 255, 0.12); color: #00d2ff;"><i data-lucide="file-input"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">NF Entrada</span>
+                            <h2 class="kpi-value" id="kpi-nf-entrada">0</h2>
+                        </div>
                     </div>
-                    <h3 style="margin-bottom: 12px; color: #fff;">Dados Fiscais em Processamento</h3>
-                    <p class="text-dim" style="max-width: 400px; margin: 0 auto;">Este módulo está sendo configurado para integração automática com emissão de notas e controle tributário industrial.</p>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background: rgba(0, 230, 118, 0.12); color: #00e676;"><i data-lucide="file-output"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">NF Saída</span>
+                            <h2 class="kpi-value" id="kpi-nf-saida">0</h2>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background: rgba(255, 234, 0, 0.12); color: #ffea00;"><i data-lucide="receipt"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Comprovantes</span>
+                            <h2 class="kpi-value" id="kpi-comprovantes">0</h2>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background: rgba(230, 0, 46, 0.12); color: var(--primary);"><i data-lucide="files"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-label">Total Arquivos</span>
+                            <h2 class="kpi-value" id="kpi-total-docs">0</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categorias de Navegação -->
+                <div class="fiscal-categories" style="display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;">
+                    <button class="fiscal-cat-btn active" data-category="todos" onclick="filterFiscalDocs('todos', this)">
+                        <i data-lucide="layers"></i> Todos
+                    </button>
+                    <button class="fiscal-cat-btn" data-category="nf_entrada" onclick="filterFiscalDocs('nf_entrada', this)">
+                        <i data-lucide="file-input"></i> NF Entrada
+                    </button>
+                    <button class="fiscal-cat-btn" data-category="nf_saida" onclick="filterFiscalDocs('nf_saida', this)">
+                        <i data-lucide="file-output"></i> NF Saída
+                    </button>
+                    <button class="fiscal-cat-btn" data-category="comprovante_pagamento" onclick="filterFiscalDocs('comprovante_pagamento', this)">
+                        <i data-lucide="credit-card"></i> Pgto
+                    </button>
+                    <button class="fiscal-cat-btn" data-category="comprovante_recebimento" onclick="filterFiscalDocs('comprovante_recebimento', this)">
+                        <i data-lucide="banknote"></i> Recebimento
+                    </button>
+                    <button class="fiscal-cat-btn" data-category="folha_pagamento" onclick="filterFiscalDocs('folha_pagamento', this)">
+                        <i data-lucide="users"></i> Folha
+                    </button>
+                    <button class="fiscal-cat-btn" data-category="outros" onclick="filterFiscalDocs('outros', this)">
+                        <i data-lucide="folder"></i> Outros
+                    </button>
+                </div>
+
+                <!-- Filtros -->
+                <div class="glass" style="padding: 20px; margin-bottom: 24px;">
+                    <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                        <div class="form-field" style="margin: 0; flex: 1; min-width: 180px;">
+                            <label style="margin-bottom: 4px;">Cliente / Fornecedor</label>
+                            <select id="fiscal-filter-client" onchange="renderFiscalDocs()">
+                                <option value="todos">Todos</option>
+                            </select>
+                        </div>
+                        <div class="form-field" style="margin: 0; flex: 1; min-width: 180px;">
+                            <label style="margin-bottom: 4px;">Mês / Ano</label>
+                            <select id="fiscal-filter-month" onchange="renderFiscalDocs()">
+                                <option value="todos">Todos</option>
+                            </select>
+                        </div>
+                        <div class="form-field" style="margin: 0; flex: 2; min-width: 200px;">
+                            <label style="margin-bottom: 4px;">Buscar</label>
+                            <input type="text" id="fiscal-search" placeholder="Buscar por descrição, número, cliente..." oninput="renderFiscalDocs()" style="padding: 12px 18px;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Documentos -->
+                <div class="glass" style="padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h4 class="card-title" style="margin: 0;">Documentos Armazenados</h4>
+                        <span class="text-dim" style="font-size: 13px;" id="fiscal-docs-count">0 documentos</span>
+                    </div>
+
+                    <div id="fiscal-docs-grid" class="fiscal-docs-grid">
+                        <!-- Documentos renderizados aqui -->
+                        <div class="fiscal-empty-state" id="fiscal-empty">
+                            <div style="width: 80px; height: 80px; background: var(--primary-dim); border-radius: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                                <i data-lucide="cloud-off" style="width: 36px; height: 36px; color: var(--text-dim);"></i>
+                            </div>
+                            <h4 style="color: var(--text-dim); margin-bottom: 8px;">Nenhum documento encontrado</h4>
+                            <p style="color: var(--text-dim); font-size: 13px; opacity: 0.6;">Envie seu primeiro documento fiscal clicando no botão acima.</p>
+                        </div>
+                    </div>
+
+                    <!-- Paginação -->
+                    <div class="pagination-controls" id="fiscal-pagination" style="display:none; justify-content: space-between; align-items:center; margin-top:20px;">
+                        <button class="btn-save" onclick="changeFiscalPage(-1)" style="padding: 8px 16px; font-size:12px; width:auto; margin:0;"><i data-lucide="chevron-left"></i> Anterior</button>
+                        <span id="fiscal-page-info" class="text-dim" style="font-size:13px;">Página 1</span>
+                        <button class="btn-save" onclick="changeFiscalPage(1)" style="padding: 8px 16px; font-size:12px; width:auto; margin:0;">Próximo <i data-lucide="chevron-right"></i></button>
+                    </div>
                 </div>
             </section>
 
@@ -525,6 +624,90 @@
                 <div class="form-field"><label>E-mail</label><input type="email" id="settings-email" disabled></div>
                 <button type="submit" class="btn-save">Salvar</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal Upload Fiscal -->
+    <div id="modal-fiscal-upload" class="modal-overlay">
+        <div class="modal-glass" style="max-width: 560px;">
+            <div class="modal-header"><h3>Enviar Documento Fiscal</h3><button class="btn-primary" style="padding:8px;" onclick="hideModal('fiscal-upload')">✕</button></div>
+            <form id="form-fiscal-upload" style="margin-top:24px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-field">
+                        <label>Categoria</label>
+                        <select name="fiscal_category" required>
+                            <option value="nf_entrada">Nota Fiscal de Entrada</option>
+                            <option value="nf_saida">Nota Fiscal de Saída</option>
+                            <option value="comprovante_pagamento">Comprovante de Pagamento</option>
+                            <option value="comprovante_recebimento">Comprovante de Recebimento</option>
+                            <option value="folha_pagamento">Folha de Pagamento</option>
+                            <option value="outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Cliente / Fornecedor</label>
+                        <input type="text" name="fiscal_client" placeholder="Ex: Siderúrgica X" required>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-field">
+                        <label>Data de Referência</label>
+                        <div class="date-input-wrapper">
+                            <i data-lucide="calendar"></i>
+                            <input type="text" name="fiscal_date" class="date-picker" placeholder="Selecionar data" required>
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label>Nº Documento</label>
+                        <input type="text" name="fiscal_number" placeholder="Ex: NF 001234">
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Descrição</label>
+                    <input type="text" name="fiscal_desc" placeholder="Ex: Pagamento frete carvão vegetal" required>
+                </div>
+                <div class="form-field">
+                    <label>Valor (R$)</label>
+                    <input type="number" step="0.01" name="fiscal_value" placeholder="0,00">
+                </div>
+
+                <!-- Drag & Drop Zone -->
+                <div class="form-field">
+                    <label>Arquivo (PDF, Imagem, etc.)</label>
+                    <div class="fiscal-dropzone" id="fiscal-dropzone">
+                        <input type="file" id="fiscal-file-input" name="fiscal_file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx" style="display:none;">
+                        <div class="dropzone-content" id="dropzone-content">
+                            <i data-lucide="upload-cloud" style="width: 40px; height: 40px; color: var(--text-dim); margin-bottom: 12px;"></i>
+                            <p style="color: var(--text-dim); font-size: 14px; font-weight: 600;">Arraste o arquivo aqui</p>
+                            <p style="color: var(--text-dim); font-size: 12px; opacity: 0.5; margin-top: 4px;">ou clique para selecionar</p>
+                        </div>
+                        <div class="dropzone-file-info" id="dropzone-file-info" style="display:none;">
+                            <i data-lucide="file-check" style="width: 32px; height: 32px; color: var(--success); margin-right: 12px;"></i>
+                            <div>
+                                <p id="dropzone-filename" style="font-weight: 700; font-size: 14px; color: #fff;">arquivo.pdf</p>
+                                <p id="dropzone-filesize" style="font-size: 12px; color: var(--text-dim);">0 KB</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-save" id="btn-fiscal-submit">
+                    <span id="fiscal-submit-text">Salvar na Nuvem</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Visualizar Documento -->
+    <div id="modal-fiscal-view" class="modal-overlay">
+        <div class="modal-glass" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3 id="fiscal-view-title">Documento</h3>
+                <button class="btn-primary" style="padding:8px;" onclick="hideModal('fiscal-view')">✕</button>
+            </div>
+            <div id="fiscal-view-content" style="margin-top: 24px;">
+                <!-- Conteúdo dinâmico -->
+            </div>
         </div>
     </div>
 

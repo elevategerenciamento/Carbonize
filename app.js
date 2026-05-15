@@ -12,9 +12,13 @@ let loads = [];
 let history = [];
 let maintenance = [];
 let expenses = [];
+let fiscalDocs = [];
 let currentUser = null;
 let expensesPage = 1;
+let fiscalPage = 1;
+let fiscalCategoryFilter = 'todos';
 const ITEMS_PER_PAGE = 9;
+const FISCAL_ITEMS_PER_PAGE = 12;
 
 const PRIMARY_COLOR = '#e6002e';
 const TOAST_DURATION = 2000;
@@ -101,12 +105,13 @@ async function loadAllData() {
     console.log("Carbonize: Fetching data for UID:", uid);
 
     try {
-        const [k, l, h, m, e] = await Promise.all([
+        const [k, l, h, m, e, f] = await Promise.all([
             supabase.from('kilns').select('*').eq('user_id', uid),
             supabase.from('loads').select('*').eq('user_id', uid),
             supabase.from('production_history').select('*').eq('user_id', uid),
             supabase.from('maintenance').select('*').eq('user_id', uid),
-            supabase.from('expenses').select('*').eq('user_id', uid)
+            supabase.from('expenses').select('*').eq('user_id', uid),
+            supabase.from('fiscal_documents').select('*').eq('user_id', uid).order('created_at', { ascending: false })
         ]);
 
         if (k.error) console.warn("Erro Kilns:", k.error);
@@ -114,14 +119,16 @@ async function loadAllData() {
         if (h.error) console.warn("Erro History:", h.error);
         if (m.error) console.warn("Erro Maintenance:", m.error);
         if (e.error) console.warn("Erro Expenses:", e.error);
+        if (f.error) console.warn("Erro Fiscal Docs:", f.error);
 
         kilns = k.data || [];
         loads = l.data || [];
         history = h.data || [];
         maintenance = m.data || [];
         expenses = e.data || [];
+        fiscalDocs = f.data || [];
         
-        console.log("Data loaded:", { kilns, loads, history, maintenance, expenses });
+        console.log("Data loaded:", { kilns, loads, history, maintenance, expenses, fiscalDocs });
         renderAll();
     } catch (err) {
         console.error("Sync Error:", err);
@@ -218,13 +225,14 @@ function toggleUserDropdown() {
 
 // 7. RENDERERS
 function renderAll() {
-    console.log("Carbonize: Rendering UI...", { kilns, loads, history, maintenance, expenses });
+    console.log("Carbonize: Rendering UI...", { kilns, loads, history, maintenance, expenses, fiscalDocs });
     renderDashboard();
     renderKilns();
     renderLoads();
     renderMaintenance();
     renderStock();
     renderExpenses();
+    renderFiscalDocs();
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -587,6 +595,12 @@ window.resolveMaint = resolveMaint;
 window.deleteExpense = deleteExpense;
 window.editExpense = editExpense;
 window.changeExpensesPage = changeExpensesPage;
+window.filterFiscalDocs = filterFiscalDocs;
+window.renderFiscalDocs = renderFiscalDocs;
+window.changeFiscalPage = changeFiscalPage;
+window.viewFiscalDoc = viewFiscalDoc;
+window.deleteFiscalDoc = deleteFiscalDoc;
+window.downloadFiscalDoc = downloadFiscalDoc;
 // 9. PREMIUM REPORT ENGINE
 function formatDateBR(dateStr) {
     if (!dateStr) return '-';
@@ -973,3 +987,388 @@ window.generateReport = async (type, format = 'pdf') => {
     showToast();
 };
 
+// ═══════════════════════════════════════
+// 10. NUVEM FISCAL — Document Cloud Engine
+// ═══════════════════════════════════════
+
+const FISCAL_CATEGORY_LABELS = {
+    'nf_entrada': 'NF Entrada',
+    'nf_saida': 'NF Saída',
+    'comprovante_pagamento': 'Comprovante Pgto',
+    'comprovante_recebimento': 'Comprovante Receb.',
+    'folha_pagamento': 'Folha Pagamento',
+    'outros': 'Outros'
+};
+
+const FISCAL_CATEGORY_ICONS = {
+    'nf_entrada': 'file-input',
+    'nf_saida': 'file-output',
+    'comprovante_pagamento': 'credit-card',
+    'comprovante_recebimento': 'banknote',
+    'folha_pagamento': 'users',
+    'outros': 'folder'
+};
+
+function getMonthLabel(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length < 2) return dateStr;
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return `${months[parseInt(parts[1]) - 1]}/${parts[0]}`;
+}
+
+function getMonthValue(dateStr) {
+    if (!dateStr) return '';
+    return dateStr.substring(0, 7);
+}
+
+function filterFiscalDocs(category, btn) {
+    fiscalCategoryFilter = category;
+    fiscalPage = 1;
+    document.querySelectorAll('.fiscal-cat-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderFiscalDocs();
+}
+
+function getFilteredFiscalDocs() {
+    let filtered = [...fiscalDocs];
+
+    if (fiscalCategoryFilter !== 'todos') {
+        filtered = filtered.filter(d => d.category === fiscalCategoryFilter);
+    }
+
+    const clientFilter = document.getElementById('fiscal-filter-client');
+    if (clientFilter && clientFilter.value !== 'todos') {
+        filtered = filtered.filter(d => d.client === clientFilter.value);
+    }
+
+    const monthFilter = document.getElementById('fiscal-filter-month');
+    if (monthFilter && monthFilter.value !== 'todos') {
+        filtered = filtered.filter(d => getMonthValue(d.reference_date) === monthFilter.value);
+    }
+
+    const search = document.getElementById('fiscal-search');
+    if (search && search.value.trim()) {
+        const term = search.value.toLowerCase().trim();
+        filtered = filtered.filter(d =>
+            (d.description || '').toLowerCase().includes(term) ||
+            (d.client || '').toLowerCase().includes(term) ||
+            (d.doc_number || '').toLowerCase().includes(term) ||
+            (FISCAL_CATEGORY_LABELS[d.category] || '').toLowerCase().includes(term)
+        );
+    }
+
+    return filtered;
+}
+
+function renderFiscalDocs() {
+    const nfEntrada = document.getElementById('kpi-nf-entrada');
+    const nfSaida = document.getElementById('kpi-nf-saida');
+    const comprovantes = document.getElementById('kpi-comprovantes');
+    const totalDocs = document.getElementById('kpi-total-docs');
+
+    if (nfEntrada) nfEntrada.innerText = fiscalDocs.filter(d => d.category === 'nf_entrada').length;
+    if (nfSaida) nfSaida.innerText = fiscalDocs.filter(d => d.category === 'nf_saida').length;
+    if (comprovantes) comprovantes.innerText = fiscalDocs.filter(d => d.category === 'comprovante_pagamento' || d.category === 'comprovante_recebimento').length;
+    if (totalDocs) totalDocs.innerText = fiscalDocs.length;
+
+    const clientSelect = document.getElementById('fiscal-filter-client');
+    if (clientSelect) {
+        const currentVal = clientSelect.value;
+        const clients = [...new Set(fiscalDocs.map(d => d.client).filter(Boolean))].sort();
+        clientSelect.innerHTML = '<option value="todos">Todos</option>' + clients.map(c => `<option value="${c}">${c}</option>`).join('');
+        clientSelect.value = currentVal || 'todos';
+    }
+
+    const monthSelect = document.getElementById('fiscal-filter-month');
+    if (monthSelect) {
+        const currentVal = monthSelect.value;
+        const months = [...new Set(fiscalDocs.map(d => getMonthValue(d.reference_date)).filter(Boolean))].sort().reverse();
+        monthSelect.innerHTML = '<option value="todos">Todos</option>' + months.map(m => `<option value="${m}">${getMonthLabel(m + '-01')}</option>`).join('');
+        monthSelect.value = currentVal || 'todos';
+    }
+
+    const filtered = getFilteredFiscalDocs();
+    const grid = document.getElementById('fiscal-docs-grid');
+    const countEl = document.getElementById('fiscal-docs-count');
+
+    if (countEl) countEl.innerText = `${filtered.length} documento${filtered.length !== 1 ? 's' : ''}`;
+
+    if (!grid) return;
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div class="fiscal-empty-state">
+                <div style="width: 80px; height: 80px; background: var(--primary-dim); border-radius: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                    <i data-lucide="cloud-off" style="width: 36px; height: 36px; color: var(--text-dim);"></i>
+                </div>
+                <h4 style="color: var(--text-dim); margin-bottom: 8px;">Nenhum documento encontrado</h4>
+                <p style="color: var(--text-dim); font-size: 13px; opacity: 0.6;">Envie seu primeiro documento fiscal clicando no botão acima.</p>
+            </div>`;
+        const pagination = document.getElementById('fiscal-pagination');
+        if (pagination) pagination.style.display = 'none';
+        if (window.lucide) window.lucide.createIcons();
+        return;
+    }
+
+    const totalPages = Math.ceil(filtered.length / FISCAL_ITEMS_PER_PAGE);
+    if (fiscalPage > totalPages) fiscalPage = totalPages || 1;
+    const start = (fiscalPage - 1) * FISCAL_ITEMS_PER_PAGE;
+    const pageItems = filtered.slice(start, start + FISCAL_ITEMS_PER_PAGE);
+
+    grid.innerHTML = pageItems.map(doc => {
+        const icon = FISCAL_CATEGORY_ICONS[doc.category] || 'file';
+        const label = FISCAL_CATEGORY_LABELS[doc.category] || 'Documento';
+        const dateFormatted = formatDateBR(doc.reference_date);
+        const value = doc.value ? `R$ ${Number(doc.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '';
+        const hasFile = doc.file_path && doc.file_path.length > 0;
+        const fileName = doc.file_name || 'Sem arquivo';
+        const fileExt = fileName.split('.').pop().toUpperCase();
+
+        return `
+            <div class="fiscal-doc-card" data-cat="${doc.category}">
+                <div class="fiscal-doc-header">
+                    <div class="fiscal-doc-icon ${doc.category}">
+                        <i data-lucide="${icon}"></i>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <p style="font-weight:700; font-size:14px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${doc.description || 'Sem descrição'}</p>
+                        <p style="font-size:12px; color:var(--text-dim); margin-top:2px;">${label}</p>
+                    </div>
+                </div>
+
+                <div class="fiscal-doc-meta">
+                    <span><i data-lucide="user" style="width:12px;"></i> ${doc.client || '-'}</span>
+                    <span><i data-lucide="calendar" style="width:12px;"></i> ${dateFormatted}</span>
+                    ${doc.doc_number ? `<span><i data-lucide="hash" style="width:12px;"></i> ${doc.doc_number}</span>` : ''}
+                    ${value ? `<span style="color: var(--success); font-weight:700;">${value}</span>` : ''}
+                </div>
+
+                ${hasFile ? `
+                <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(0,0,0,0.2); border-radius:10px; font-size:12px;">
+                    <i data-lucide="file" style="width:14px; color:var(--text-dim);"></i>
+                    <span style="color:var(--text-dim); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${fileName}</span>
+                    <span style="color:var(--primary); font-weight:700; font-size:10px;">${fileExt}</span>
+                </div>` : ''}
+
+                <div class="fiscal-doc-actions">
+                    <button onclick="viewFiscalDoc('${doc.id}')"><i data-lucide="eye" style="width:14px;"></i> Ver</button>
+                    ${hasFile ? `<button onclick="downloadFiscalDoc('${doc.id}')"><i data-lucide="download" style="width:14px;"></i> Baixar</button>` : ''}
+                    <button class="delete-btn" onclick="deleteFiscalDoc('${doc.id}')"><i data-lucide="trash-2" style="width:14px;"></i></button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const pagination = document.getElementById('fiscal-pagination');
+    if (pagination) {
+        pagination.style.display = totalPages > 1 ? 'flex' : 'none';
+        const info = document.getElementById('fiscal-page-info');
+        if (info) info.innerText = `Página ${fiscalPage} de ${totalPages}`;
+    }
+
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function changeFiscalPage(dir) {
+    const filtered = getFilteredFiscalDocs();
+    const totalPages = Math.ceil(filtered.length / FISCAL_ITEMS_PER_PAGE);
+    const next = fiscalPage + dir;
+    if (next >= 1 && next <= totalPages) {
+        fiscalPage = next;
+        renderFiscalDocs();
+    }
+}
+
+async function viewFiscalDoc(id) {
+    const doc = fiscalDocs.find(d => d.id === id);
+    if (!doc) return;
+
+    const label = FISCAL_CATEGORY_LABELS[doc.category] || 'Documento';
+    const dateFormatted = formatDateBR(doc.reference_date);
+    const value = doc.value ? `R$ ${Number(doc.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'Não informado';
+
+    document.getElementById('fiscal-view-title').innerText = doc.description || label;
+
+    let filePreview = '';
+    if (doc.file_path) {
+        const ext = (doc.file_name || '').split('.').pop().toLowerCase();
+        const { data: urlData } = supabase.storage.from('fiscal-docs').createSignedUrl(doc.file_path, 3600);
+        const fileUrl = urlData?.signedUrl || '#';
+
+        if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
+            filePreview = `<img src="${fileUrl}" style="width:100%; border-radius:12px; margin-top:16px;" alt="Preview">`;
+        } else if (ext === 'pdf') {
+            filePreview = `<iframe src="${fileUrl}" style="width:100%; height:400px; border:none; border-radius:12px; margin-top:16px;"></iframe>`;
+        } else {
+            filePreview = `
+                <div style="text-align:center; margin-top:16px; padding:24px; background:rgba(0,0,0,0.2); border-radius:12px;">
+                    <i data-lucide="file" style="width:40px; height:40px; color:var(--text-dim);"></i>
+                    <p style="margin-top:8px; color:var(--text-dim);">${doc.file_name}</p>
+                    <a href="${fileUrl}" target="_blank" style="color:var(--primary); font-weight:700; text-decoration:none;">Abrir arquivo →</a>
+                </div>`;
+        }
+    }
+
+    document.getElementById('fiscal-view-content').innerHTML = `
+        <div class="fiscal-detail-grid">
+            <div class="fiscal-detail-item"><label>Categoria</label><p>${label}</p></div>
+            <div class="fiscal-detail-item"><label>Cliente / Fornecedor</label><p>${doc.client || '-'}</p></div>
+            <div class="fiscal-detail-item"><label>Data de Referência</label><p>${dateFormatted}</p></div>
+            <div class="fiscal-detail-item"><label>Nº Documento</label><p>${doc.doc_number || '-'}</p></div>
+            <div class="fiscal-detail-item"><label>Valor</label><p>${value}</p></div>
+            <div class="fiscal-detail-item"><label>Arquivo</label><p>${doc.file_name || 'Nenhum'}</p></div>
+        </div>
+        ${filePreview}
+    `;
+
+    showModal('fiscal-view');
+    if (window.lucide) window.lucide.createIcons();
+}
+
+async function downloadFiscalDoc(id) {
+    const doc = fiscalDocs.find(d => d.id === id);
+    if (!doc || !doc.file_path) return;
+
+    const { data: urlData } = supabase.storage.from('fiscal-docs').createSignedUrl(doc.file_path, 3600);
+    if (urlData?.signedUrl) {
+        window.open(urlData.signedUrl, '_blank');
+    } else {
+        alert('Erro ao gerar link de download.');
+    }
+}
+
+async function deleteFiscalDoc(id) {
+    if (!confirm('Deseja excluir este documento fiscal?')) return;
+
+    const doc = fiscalDocs.find(d => d.id === id);
+    if (doc && doc.file_path) {
+        await supabase.storage.from('fiscal-docs').remove([doc.file_path]);
+    }
+
+    await supabase.from('fiscal_documents').delete().eq('id', id);
+    await loadAllData();
+    showToast();
+}
+
+// ─── FISCAL UPLOAD FORM & DRAG/DROP ───
+function setupFiscalUpload() {
+    const dropzone = document.getElementById('fiscal-dropzone');
+    const fileInput = document.getElementById('fiscal-file-input');
+    const form = document.getElementById('form-fiscal-upload');
+
+    if (!dropzone || !fileInput || !form) return;
+
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('drag-over');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            showSelectedFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            showSelectedFile(fileInput.files[0]);
+        }
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btn-fiscal-submit');
+        const textEl = document.getElementById('fiscal-submit-text');
+        const originalText = textEl.innerText;
+        textEl.innerText = 'Enviando...';
+        btn.disabled = true;
+
+        try {
+            const fd = new FormData(form);
+            const file = fileInput.files[0];
+            let filePath = null;
+            let fileName = null;
+
+            if (file) {
+                const ext = file.name.split('.').pop();
+                const safeName = `${Date.now()}_${Math.random().toString(36).substr(2, 6)}.${ext}`;
+                filePath = `${currentUser.id}/${fd.get('fiscal_category')}/${safeName}`;
+                fileName = file.name;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('fiscal-docs')
+                    .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+                if (uploadError) {
+                    console.warn('Upload warning:', uploadError);
+                    filePath = null;
+                    fileName = null;
+                }
+            }
+
+            const metadata = {
+                user_id: currentUser.id,
+                category: fd.get('fiscal_category'),
+                client: fd.get('fiscal_client'),
+                reference_date: fd.get('fiscal_date'),
+                doc_number: fd.get('fiscal_number') || null,
+                description: fd.get('fiscal_desc'),
+                value: fd.get('fiscal_value') || null,
+                file_path: filePath,
+                file_name: fileName
+            };
+
+            const { error: dbError } = await supabase.from('fiscal_documents').insert([metadata]);
+            if (dbError) throw dbError;
+
+            hideModal('fiscal-upload');
+            form.reset();
+            resetDropzone();
+            await loadAllData();
+            showToast();
+
+        } catch (err) {
+            console.error('Fiscal upload error:', err);
+            alert('Erro ao salvar documento: ' + err.message);
+        } finally {
+            textEl.innerText = originalText;
+            btn.disabled = false;
+        }
+    });
+}
+
+function showSelectedFile(file) {
+    const contentEl = document.getElementById('dropzone-content');
+    const infoEl = document.getElementById('dropzone-file-info');
+    const nameEl = document.getElementById('dropzone-filename');
+    const sizeEl = document.getElementById('dropzone-filesize');
+
+    if (contentEl) contentEl.style.display = 'none';
+    if (infoEl) infoEl.style.display = 'flex';
+    if (nameEl) nameEl.innerText = file.name;
+    if (sizeEl) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        const sizeKB = (file.size / 1024).toFixed(0);
+        sizeEl.innerText = file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+    }
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function resetDropzone() {
+    const contentEl = document.getElementById('dropzone-content');
+    const infoEl = document.getElementById('dropzone-file-info');
+    if (contentEl) contentEl.style.display = 'block';
+    if (infoEl) infoEl.style.display = 'none';
+    if (window.lucide) window.lucide.createIcons();
+}
+
+// Initialize fiscal upload after DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(setupFiscalUpload, 500);
+});
