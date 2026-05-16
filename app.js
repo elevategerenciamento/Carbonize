@@ -605,6 +605,7 @@ window.changeFiscalPage = changeFiscalPage;
 window.viewFiscalDoc = viewFiscalDoc;
 window.deleteFiscalDoc = deleteFiscalDoc;
 window.downloadFiscalDoc = downloadFiscalDoc;
+window.updateFiscalStatus = updateFiscalStatus;
 // 9. PREMIUM REPORT ENGINE
 function formatDateBR(dateStr) {
     if (!dateStr) return '-';
@@ -1263,7 +1264,14 @@ async function viewFiscalDoc(id) {
             <div class="fiscal-detail-item"><label>Data de Referência</label><p>${dateFormatted}</p></div>
             <div class="fiscal-detail-item"><label>Nº Documento</label><p>${doc.doc_number || '-'}</p></div>
             <div class="fiscal-detail-item"><label>Valor</label><p>${value}</p></div>
-            <div class="fiscal-detail-item"><label>Situação</label><p>${statusLabel}</p></div>
+            <div class="fiscal-detail-item">
+                <label>Situação</label>
+                <select onchange="updateFiscalStatus('${doc.id}', this.value)" style="margin-top:4px; padding:8px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:8px; color:#fff; width:100%; cursor:pointer;">
+                    <option value="pago" ${doc.status === 'pago' ? 'selected' : ''}>Liquidado / Pago</option>
+                    <option value="aberto" ${doc.status === 'aberto' ? 'selected' : ''}>Em Aberto</option>
+                    <option value="analise" ${doc.status === 'analise' ? 'selected' : ''}>Em Análise / Pendente</option>
+                </select>
+            </div>
             <div class="fiscal-detail-item"><label>Arquivo</label><p>${doc.file_name || 'Nenhum'}</p></div>
         </div>
         ${filePreview}
@@ -1271,6 +1279,29 @@ async function viewFiscalDoc(id) {
 
     showModal('fiscal-view');
     if (window.lucide) window.lucide.createIcons();
+}
+
+async function updateFiscalStatus(id, newStatus) {
+    try {
+        const { error } = await supabase
+            .from('fiscal_documents')
+            .update({ status: newStatus })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        // Atualiza localmente para feedback rápido
+        const docIndex = fiscalDocs.findIndex(d => d.id === id);
+        if (docIndex !== -1) {
+            fiscalDocs[docIndex].status = newStatus;
+        }
+
+        showToast("Situação atualizada!");
+        renderFiscalDocs();
+    } catch (err) {
+        console.error('Update status error:', err);
+        alert('Erro ao atualizar status: ' + err.message);
+    }
 }
 
 async function downloadFiscalDoc(id) {
