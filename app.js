@@ -763,6 +763,35 @@ window.generateReport = async (type, format = 'pdf') => {
             footer: `Valor Total no Período: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
         };
     }
+    
+    // ─── FISCAL ───
+    else if (type === 'fiscal') {
+        const filtered = filterByDateRange(fiscalDocs, 'reference_date', start, end);
+        const totalValue = filtered.reduce((a, d) => a + Number(d.value || 0), 0);
+        const statusLabels = { 'pago': 'Liquidado / Pago', 'aberto': 'Em Aberto', 'analise': 'Em Análise' };
+
+        reportConfig = {
+            title: "RELATÓRIO DE GESTÃO FISCAL E DOCUMENTAL",
+            subtitle: "Nuvem Fiscal e Controle de Recebimentos",
+            summaryItems: [
+                { label: "Total de Documentos", value: filtered.length },
+                { label: "Valor Total", value: `R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` },
+                { label: "Clientes / Fornecedores", value: [...new Set(filtered.map(d => d.client))].length },
+                { label: "Documentos em Aberto", value: filtered.filter(d => d.status === 'aberto').length }
+            ],
+            headers: ["Data", "Categoria", "Cliente / Fornecedor", "Nº Doc", "Descrição", "Valor (R$)", "Situação"],
+            rows: filtered.map(d => [
+                formatDateBR(d.reference_date),
+                FISCAL_CATEGORY_LABELS[d.category] || d.category,
+                d.client || '-',
+                d.doc_number || '-',
+                d.description || '-',
+                `R$ ${Number(d.value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+                statusLabels[d.status] || 'Em Aberto'
+            ]),
+            footer: `Valor Total no Período: R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+        };
+    }
 
     if (reportConfig.rows.length === 0) {
         alert("Nenhum registro encontrado no período selecionado.");

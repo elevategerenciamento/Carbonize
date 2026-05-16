@@ -575,6 +575,25 @@
                             <button class="btn-primary" onclick="generateReport('expenses', 'excel')" style="flex:1; background:#1D6F42; border:none;"><i data-lucide="file-spreadsheet"></i> XLS</button>
                         </div>
                     </div>
+
+                    <!-- Relatório 5: Nuvem Fiscal -->
+                    <div class="report-card">
+                        <h4><i data-lucide="cloud"></i> Nuvem Fiscal</h4>
+                        <div class="filter-group">
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-fiscal-start" class="date-picker" placeholder="Data Início">
+                            </div>
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-fiscal-end" class="date-picker" placeholder="Data Fim">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-primary" onclick="generateReport('fiscal')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
+                            <button class="btn-primary" onclick="generateReport('fiscal', 'excel')" style="flex:1; background:#1D6F42; border:none;"><i data-lucide="file-spreadsheet"></i> XLS</button>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
