@@ -427,6 +427,15 @@
                                 <option value="todos">Todos</option>
                             </select>
                         </div>
+                        <div class="form-field" style="margin: 0; flex: 1; min-width: 150px;">
+                            <label style="margin-bottom: 4px;">Status</label>
+                            <select id="fiscal-filter-status" onchange="renderFiscalDocs()">
+                                <option value="todos">Todos</option>
+                                <option value="aberto">Em Aberto</option>
+                                <option value="pago">Pago</option>
+                                <option value="analise">Em Análise</option>
+                            </select>
+                        </div>
                         <div class="form-field" style="margin: 0; flex: 2; min-width: 200px;">
                             <label style="margin-bottom: 4px;">Buscar</label>
                             <input type="text" id="fiscal-search" placeholder="Buscar..." oninput="renderFiscalDocs()" style="padding: 12px 18px;">
@@ -666,9 +675,19 @@
                     <label>Descrição</label>
                     <input type="text" name="fiscal_desc" placeholder="Ex: Pagamento frete carvão vegetal" required>
                 </div>
-                <div class="form-field">
-                    <label>Valor (R$)</label>
-                    <input type="number" step="0.01" name="fiscal_value" placeholder="0,00">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-field">
+                        <label>Valor (R$)</label>
+                        <input type="number" step="0.01" name="fiscal_value" placeholder="0,00">
+                    </div>
+                    <div class="form-field">
+                        <label>Situação / Status</label>
+                        <select name="fiscal_status">
+                            <option value="pago">Liquidado / Pago</option>
+                            <option value="aberto" selected>Em Aberto</option>
+                            <option value="analise">Em Análise / Pendente</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Drag & Drop Zone -->

@@ -1051,6 +1051,11 @@ function getFilteredFiscalDocs() {
         filtered = filtered.filter(d => getMonthValue(d.reference_date) === monthFilter.value);
     }
 
+    const statusFilter = document.getElementById('fiscal-filter-status');
+    if (statusFilter && statusFilter.value !== 'todos') {
+        filtered = filtered.filter(d => d.status === statusFilter.value);
+    }
+
     const search = document.getElementById('fiscal-search');
     if (search && search.value.trim()) {
         const term = search.value.toLowerCase().trim();
@@ -1058,7 +1063,8 @@ function getFilteredFiscalDocs() {
             (d.description || '').toLowerCase().includes(term) ||
             (d.client || '').toLowerCase().includes(term) ||
             (d.doc_number || '').toLowerCase().includes(term) ||
-            (FISCAL_CATEGORY_LABELS[d.category] || '').toLowerCase().includes(term)
+            (FISCAL_CATEGORY_LABELS[d.category] || '').toLowerCase().includes(term) ||
+            (d.status || '').toLowerCase().includes(term)
         );
     }
 
@@ -1128,6 +1134,12 @@ function renderFiscalDocs() {
         const hasFile = doc.file_path && doc.file_path.length > 0;
         const fileName = doc.file_name || 'Sem arquivo';
         const fileExt = fileName.split('.').pop().toUpperCase();
+        
+        const statusConfig = {
+            'pago': { label: 'Pago', class: 'success' },
+            'aberto': { label: 'Em Aberto', class: 'warning' },
+            'analise': { label: 'Em Análise', class: 'danger' }
+        }[doc.status || 'aberto'] || { label: 'Em Aberto', class: 'warning' };
 
         return `
             <div class="fiscal-doc-card" data-cat="${doc.category}">
@@ -1136,7 +1148,10 @@ function renderFiscalDocs() {
                         <i data-lucide="${icon}"></i>
                     </div>
                     <div style="flex:1; min-width:0;">
-                        <p style="font-weight:700; font-size:14px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${doc.description || 'Sem descrição'}</p>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                            <p style="font-weight:700; font-size:14px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;">${doc.description || 'Sem descrição'}</p>
+                            <span class="status-badge ${statusConfig.class}" style="font-size:9px; padding:2px 6px; border-radius:6px; flex-shrink:0;">${statusConfig.label}</span>
+                        </div>
                         <p style="font-size:12px; color:var(--text-dim); margin-top:2px;">${label}</p>
                     </div>
                 </div>
@@ -1238,6 +1253,9 @@ async function viewFiscalDoc(id) {
             </div>`;
     }
 
+    const statusLabels = { 'pago': 'Liquidado / Pago', 'aberto': 'Em Aberto', 'analise': 'Em Análise' };
+    const statusLabel = statusLabels[doc.status] || 'Em Aberto';
+
     document.getElementById('fiscal-view-content').innerHTML = `
         <div class="fiscal-detail-grid">
             <div class="fiscal-detail-item"><label>Categoria</label><p>${label}</p></div>
@@ -1245,6 +1263,7 @@ async function viewFiscalDoc(id) {
             <div class="fiscal-detail-item"><label>Data de Referência</label><p>${dateFormatted}</p></div>
             <div class="fiscal-detail-item"><label>Nº Documento</label><p>${doc.doc_number || '-'}</p></div>
             <div class="fiscal-detail-item"><label>Valor</label><p>${value}</p></div>
+            <div class="fiscal-detail-item"><label>Situação</label><p>${statusLabel}</p></div>
             <div class="fiscal-detail-item"><label>Arquivo</label><p>${doc.file_name || 'Nenhum'}</p></div>
         </div>
         ${filePreview}
@@ -1361,6 +1380,7 @@ function setupFiscalUpload() {
                 doc_number: fd.get('fiscal_number') || null,
                 description: fd.get('fiscal_desc'),
                 value: fd.get('fiscal_value') || null,
+                status: fd.get('fiscal_status') || 'aberto',
                 file_path: filePath,
                 file_name: fileName
             };
