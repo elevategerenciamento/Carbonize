@@ -650,7 +650,14 @@
                 <div class="form-field"><label>Nome do Empreendimento</label><input type="text" name="enterprise_name" id="settings-enterprise" required></div>
                 <div class="form-field"><label>Operador do Sistema</label><input type="text" name="operator_name" id="settings-operator" placeholder="Seu nome" required></div>
                 <div class="form-field"><label>E-mail</label><input type="email" id="settings-email" disabled></div>
-                <button type="submit" class="btn-save">Salvar</button>
+                <button type="submit" class="btn-save">Salvar Alterações</button>
+                
+                <div id="install-app-container" style="display: none; margin-top: 32px; border-top: 1px solid var(--border); pt: 24px;">
+                    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 16px;">Tenha acesso rápido ao Carbonize na sua tela de início.</p>
+                    <button type="button" id="btn-install-pwa" class="btn-primary" style="width: 100%; background: linear-gradient(135deg, #e6002e 0%, #ff4d71 100%); border: none;">
+                        <i data-lucide="download-cloud"></i> Instalar Aplicativo
+                    </button>
+                </div>
             </form>
         </div>
     </div>

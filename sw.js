@@ -1,4 +1,4 @@
-const CACHE_NAME = 'carbonize-cache-v1';
+const CACHE_NAME = 'carbonize-cache-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -13,15 +13,35 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
 });
 
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+    ))
+  );
+});
+
 self.addEventListener('fetch', event => {
+  // Ignora chamadas de API do Supabase para não cachear dados dinâmicos
+  if (event.request.url.includes('supabase.co')) return;
+
   event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.match(event.request).then(cachedResponse => {
+        const fetchedResponse = fetch(event.request).then(networkResponse => {
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        }).catch(() => cachedResponse);
+
+        return cachedResponse || fetchedResponse;
+      });
     })
   );
 });
+

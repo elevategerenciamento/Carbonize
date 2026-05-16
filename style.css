@@ -746,3 +746,21 @@ td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
     }
 }
 
+/* PWA Install Button Premium Animation */
+#btn-install-pwa {
+    position: relative;
+    overflow: hidden;
+    animation: pulse-glow 3s infinite;
+}
+
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 0 0 rgba(230, 0, 46, 0.4); }
+    70% { box-shadow: 0 0 0 15px rgba(230, 0, 46, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(230, 0, 46, 0); }
+}
+
+#btn-install-pwa:active {
+    transform: scale(0.98);
+}
+
+

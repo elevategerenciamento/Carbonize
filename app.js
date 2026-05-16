@@ -1493,3 +1493,58 @@ function resetDropzone() {
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(setupFiscalUpload, 500);
 });
+
+// 10. PWA INSTALLATION LOGIC
+let deferredPrompt;
+const installContainer = document.getElementById('install-app-container');
+const installBtn = document.getElementById('btn-install-pwa');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Impede que o mini-infobar apareça no mobile
+    e.preventDefault();
+    // Salva o evento para ser acionado depois
+    deferredPrompt = e;
+    // Mostra o botão de instalação (que está escondido por padrão)
+    if (installContainer) {
+        installContainer.style.display = 'block';
+    }
+    console.log("PWA: App está pronto para ser instalado.");
+});
+
+if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) {
+            alert("O aplicativo já está instalado ou não é suportado neste navegador.");
+            return;
+        }
+        
+        // Mostra o prompt de instalação nativo
+        deferredPrompt.prompt();
+        
+        // Aguarda a resposta do usuário
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`PWA: Usuário escolheu: ${outcome}`);
+        
+        // Limpa o prompt para não ser usado novamente
+        deferredPrompt = null;
+        
+        // Esconde o botão se o usuário instalou
+        if (outcome === 'accepted') {
+            if (installContainer) installContainer.style.display = 'none';
+        }
+    });
+}
+
+// Oculta o botão se o app já estiver instalado
+window.addEventListener('appinstalled', (event) => {
+    console.log('PWA: App instalado com sucesso!');
+    if (installContainer) installContainer.style.display = 'none';
+    showToast("Aplicativo instalado com sucesso!");
+});
+
+// Verifica se já está rodando como PWA
+if (window.matchMedia('(display-mode: standalone)').matches) {
+    console.log("PWA: Rodando em modo standalone.");
+    if (installContainer) installContainer.style.display = 'none';
+}
+
