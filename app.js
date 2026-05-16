@@ -265,9 +265,12 @@ function renderKilns() {
     
     if (list) {
         list.innerHTML = kilns.map(k => `
-            <div class="kpi-card" style="padding: 12px; gap: 10px; border-radius: 12px;">
-                <div class="kpi-icon" style="width: 32px; height: 32px; font-size: 14px;"><i data-lucide="container"></i></div>
-                <div><h6 style="font-size: 12px;">${k.praca}</h6><span style="font-size: 10px; color:var(--text-dim);">${k.modelo}</span></div>
+            <div class="asset-pill">
+                <i data-lucide="container"></i>
+                <div class="info">
+                    <h6>${k.praca}</h6>
+                    <span>${k.modelo}</span>
+                </div>
             </div>
         `).join('');
     }

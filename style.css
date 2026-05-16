@@ -207,6 +207,29 @@ body { background-color: var(--bg-dark); color: var(--text); font-family: 'Outfi
     align-items: start;
 }
 
+/* Assets List (Small Cards) */
+.asset-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: 0.3s;
+}
+.asset-pill:hover {
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+.asset-pill i {
+    width: 14px;
+    height: 14px;
+    color: var(--primary);
+}
+.asset-pill .info h6 { font-size: 12px; color: #fff; }
+.asset-pill .info span { font-size: 10px; color: var(--text-dim); }
+
 /* Reports Grid - 4 Columns */
 .reports-grid {
     display: grid;
@@ -264,7 +287,34 @@ body { background-color: var(--bg-dark); color: var(--text); font-family: 'Outfi
 }
 
 /* KPI Cards Refinement */
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+.kpi-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+    gap: 24px; 
+}
+@media (max-width: 600px) {
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    .kpi-card {
+        padding: 16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .kpi-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+    .kpi-value {
+        font-size: 20px;
+    }
+    .kpi-label {
+        font-size: 11px;
+    }
+}
 .kpi-card { 
     background: var(--surface-glass); border: 1px solid var(--border); padding: 28px; 
     border-radius: var(--radius-lg); display: flex; align-items: center; gap: 20px; 
@@ -320,8 +370,25 @@ option {
 input:focus, select:focus { border-color: var(--primary); outline: none; background: rgba(0,0,0,0.6); box-shadow: 0 0 0 4px var(--primary-dim); }
 
 /* Tables */
-.table-wrapper { border-radius: 16px; border: 1px solid var(--border); overflow: hidden; background: rgba(0,0,0,0.2); }
-table { width: 100%; border-collapse: collapse; }
+.table-wrapper { 
+    border-radius: 16px; 
+    border: 1px solid var(--border); 
+    overflow-x: auto; 
+    background: rgba(0,0,0,0.2);
+    -webkit-overflow-scrolling: touch;
+}
+.table-wrapper::-webkit-scrollbar {
+    height: 4px;
+}
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+}
+table { width: 100%; border-collapse: collapse; min-width: 600px; }
+@media (max-width: 600px) {
+    table { min-width: 500px; }
+    th, td { padding: 12px 10px; font-size: 12px; }
+}
 th { text-align: left; padding: 16px; font-size: 10px; text-transform: uppercase; color: var(--text-dim); background: rgba(255,255,255,0.02); }
 td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
 
@@ -334,7 +401,42 @@ td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
 }
 .modal-glass { 
     background: var(--surface); border: 1px solid var(--border); border-radius: 32px; 
-    padding: 40px; width: 90%; max-width: 500px; 
+    padding: 40px; width: 90%; max-width: 500px; position: relative;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.modal-header h3 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+}
+
+.close-modal-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--primary);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: 0.3s;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.close-modal-btn:hover {
+    transform: rotate(90deg) scale(1.1);
+    box-shadow: 0 0 15px var(--primary-dim);
 }
 
 /* User Dropdown */
@@ -377,11 +479,25 @@ td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
 }
 
 @media (max-width: 768px) {
-    .main-content { padding: 20px; }
-    .top-nav { padding: 0 15px; }
+    .main-content { padding: 16px; gap: 20px; }
+    .top-nav { padding: 0 15px; height: 70px; }
+    .brand { font-size: 18px; }
+    .unit { font-size: 9px; }
+    .brand-logo-img { height: 32px; }
+    .avatar { width: 36px; height: 36px; font-size: 14px; }
+    .nav-user { gap: 12px; }
+    
     .nav-user .user-info { display: none; }
     .reports-grid { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .page-title { font-size: 20px; }
+    .header-action { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .header-action .btn-primary { width: 100%; justify-content: center; }
+}
+
+@media (max-width: 480px) {
     .kpi-grid { grid-template-columns: 1fr; }
+    .modal-glass { padding: 24px; width: 95%; }
 }
 
 /* DATE PICKER PREMIUM */
@@ -454,6 +570,14 @@ td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
 /* ═══ NUVEM FISCAL MODULE ═══ */
 .text-success { color: var(--success); }
 
+.fiscal-categories {
+    display: flex; gap: 8px; margin-bottom: 24px; 
+    overflow-x: auto; padding-bottom: 8px;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+.fiscal-categories::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
 .fiscal-cat-btn {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 18px; border-radius: 12px;
@@ -462,6 +586,7 @@ td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
     color: var(--text-dim); font-weight: 600; font-size: 13px;
     cursor: pointer; transition: all 0.3s ease;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 .fiscal-cat-btn:hover { 
     background: rgba(255, 255, 255, 0.08); 
@@ -606,5 +731,18 @@ td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
 @media (max-width: 768px) {
     .fiscal-docs-grid { grid-template-columns: 1fr; }
     .fiscal-detail-grid { grid-template-columns: 1fr; }
+    
+    .fiscal-doc-card { padding: 16px; }
+    .fiscal-doc-header h4 { font-size: 14px; }
+    .fiscal-doc-meta { gap: 8px; }
+    
+    .fiscal-filter-container {
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+    .fiscal-filter-container .form-field {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
 }
 

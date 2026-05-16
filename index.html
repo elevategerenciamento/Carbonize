@@ -388,7 +388,7 @@
                 </div>
 
                 <!-- Categorias de Navegação -->
-                <div class="fiscal-categories" style="display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;">
+                <div class="fiscal-categories">
                     <button class="fiscal-cat-btn active" data-category="todos" onclick="filterFiscalDocs('todos', this)">
                         <i data-lucide="layers"></i> Todos
                     </button>
@@ -414,14 +414,14 @@
 
                 <!-- Filtros -->
                 <div class="glass" style="padding: 20px; margin-bottom: 24px;">
-                    <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
-                        <div class="form-field" style="margin: 0; flex: 1; min-width: 180px;">
+                    <div class="fiscal-filter-container" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+                        <div class="form-field" style="margin: 0; flex: 1; min-width: 150px;">
                             <label style="margin-bottom: 4px;">Cliente / Fornecedor</label>
                             <select id="fiscal-filter-client" onchange="renderFiscalDocs()">
                                 <option value="todos">Todos</option>
                             </select>
                         </div>
-                        <div class="form-field" style="margin: 0; flex: 1; min-width: 180px;">
+                        <div class="form-field" style="margin: 0; flex: 1; min-width: 150px;">
                             <label style="margin-bottom: 4px;">Mês / Ano</label>
                             <select id="fiscal-filter-month" onchange="renderFiscalDocs()">
                                 <option value="todos">Todos</option>
@@ -429,7 +429,7 @@
                         </div>
                         <div class="form-field" style="margin: 0; flex: 2; min-width: 200px;">
                             <label style="margin-bottom: 4px;">Buscar</label>
-                            <input type="text" id="fiscal-search" placeholder="Buscar por descrição, número, cliente..." oninput="renderFiscalDocs()" style="padding: 12px 18px;">
+                            <input type="text" id="fiscal-search" placeholder="Buscar..." oninput="renderFiscalDocs()" style="padding: 12px 18px;">
                         </div>
                     </div>
                 </div>
@@ -574,7 +574,7 @@
     <!-- MODALS -->
     <div id="modal-kiln" class="modal-overlay">
         <div class="modal-glass">
-            <div class="modal-header"><h3>Novo Ativo</h3><button class="btn-primary" style="padding:8px;" onclick="hideModal('kiln')">✕</button></div>
+            <div class="modal-header"><h3>Novo Ativo</h3><button class="close-modal-btn" onclick="hideModal('kiln')">✕</button></div>
             <form id="form-kiln" style="margin-top:24px;">
                 <div class="form-field"><label>Identificação</label><input type="text" name="praca" required></div>
                 <div class="form-field"><label>Modelo</label><select name="modelo"><option value="Forno JG">Forno JG</option><option value="Circular 5m">Circular 5m</option></select></div>
@@ -585,7 +585,7 @@
 
     <div id="modal-load" class="modal-overlay">
         <div class="modal-glass" style="max-width: 600px;">
-            <div class="modal-header"><h3>Novo Romaneio</h3><button class="btn-primary" style="padding:8px;" onclick="hideModal('load')">✕</button></div>
+            <div class="modal-header"><h3>Novo Romaneio</h3><button class="close-modal-btn" onclick="hideModal('load')">✕</button></div>
             <form id="form-load" style="margin-top:24px;">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="form-field"><label>Nº ID</label><input type="text" name="identificador" id="load-id-auto" required></div>
@@ -617,7 +617,7 @@
 
     <div id="modal-settings" class="modal-overlay">
         <div class="modal-glass">
-            <div class="modal-header"><h3>Configurações</h3><button class="btn-primary" style="padding:8px;" onclick="hideModal('settings')">✕</button></div>
+            <div class="modal-header"><h3>Configurações</h3><button class="close-modal-btn" onclick="hideModal('settings')">✕</button></div>
             <form id="form-settings" style="margin-top:24px;">
                 <div class="form-field"><label>Nome do Empreendimento</label><input type="text" name="enterprise_name" id="settings-enterprise" required></div>
                 <div class="form-field"><label>Operador do Sistema</label><input type="text" name="operator_name" id="settings-operator" placeholder="Seu nome" required></div>
@@ -630,7 +630,7 @@
     <!-- Modal Upload Fiscal -->
     <div id="modal-fiscal-upload" class="modal-overlay">
         <div class="modal-glass" style="max-width: 560px;">
-            <div class="modal-header"><h3>Enviar Documento Fiscal</h3><button class="btn-primary" style="padding:8px;" onclick="hideModal('fiscal-upload')">✕</button></div>
+            <div class="modal-header"><h3>Enviar Documento Fiscal</h3><button class="close-modal-btn" onclick="hideModal('fiscal-upload')">✕</button></div>
             <form id="form-fiscal-upload" style="margin-top:24px;">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="form-field">
@@ -703,7 +703,7 @@
         <div class="modal-glass" style="max-width: 700px; max-height: 90vh; display: flex; flex-direction: column;">
             <div class="modal-header" style="flex-shrink: 0;">
                 <h3 id="fiscal-view-title">Documento</h3>
-                <button class="btn-primary" style="padding:8px;" onclick="hideModal('fiscal-view')">✕</button>
+                <button class="close-modal-btn" onclick="hideModal('fiscal-view')">✕</button>
             </div>
             <div id="fiscal-view-content" style="margin-top: 24px; overflow-y: auto; flex: 1; padding-bottom: 16px;">
                 <!-- Conteúdo dinâmico -->
