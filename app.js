@@ -568,8 +568,9 @@ function renderCharts() {
                 labels: ['Lenha', 'Mão de Obra', 'Logística', 'Manutenção'],
                 datasets: [{
                     data: [45, 25, 20, 10],
-                    backgroundColor: [PRIMARY_COLOR, '#8a001c', '#ff4d6d', '#590011'],
-                    borderWidth: 0
+                    backgroundColor: ['#e6002e', '#00d2ff', '#00e676', '#ffea00'],
+                    borderWidth: 2,
+                    borderColor: '#0f0f12'
                 }]
             },
             options: {
