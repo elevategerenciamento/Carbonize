@@ -677,7 +677,18 @@ window.generateReport = async (type, format = 'pdf') => {
                 Number(l.peso || 0).toLocaleString('pt-BR'),
                 l.destino || '-'
             ]),
-            footer: `Peso Total Expedido: ${totalPeso.toLocaleString('pt-BR')} kg | Metragem Total: ${totalMetragem.toFixed(1)} m³`
+            footer: `Peso Total Expedido: ${totalPeso.toLocaleString('pt-BR')} kg | Metragem Total: ${totalMetragem.toFixed(1)} m³`,
+            totalRow: [
+                "TOTAL",
+                "",
+                "",
+                "",
+                "",
+                "",
+                totalMetragem.toFixed(1),
+                totalPeso.toLocaleString('pt-BR'),
+                ""
+            ]
         };
     }
 
@@ -687,6 +698,9 @@ window.generateReport = async (type, format = 'pdf') => {
         const totalCarbonizando = filtered.reduce((a, h) => a + Number(h.carbonizando || 0), 0);
         const totalProd = totalCarbonizando * 1.5;
         const unidades = [...new Set(filtered.map(h => h.praca))];
+        const totalVazios = filtered.reduce((a, h) => a + Number(h.vazios || 0), 0);
+        const totalCheios = filtered.reduce((a, h) => a + Number(h.cheios || 0), 0);
+        const totalEsfriando = filtered.reduce((a, h) => a + Number(h.esfriando || 0), 0);
 
         reportConfig = {
             title: "RELATÓRIO DE PRODUÇÃO E CICLOS",
@@ -708,7 +722,17 @@ window.generateReport = async (type, format = 'pdf') => {
                 h.esfriando || '0',
                 h.obs || '-'
             ]),
-            footer: `Produção Estimada no Período: ${totalProd.toFixed(1)} toneladas`
+            footer: `Produção Estimada no Período: ${totalProd.toFixed(1)} toneladas`,
+            totalRow: [
+                "TOTAL",
+                "",
+                "",
+                totalVazios,
+                totalCheios,
+                totalCarbonizando,
+                totalEsfriando,
+                `Prod. Est.: ${totalProd.toFixed(1)} t`
+            ]
         };
     }
 
@@ -736,7 +760,14 @@ window.generateReport = async (type, format = 'pdf') => {
                 `R$ ${Number(m.cost || 0).toFixed(2)}`,
                 m.resolved ? '✓ Resolvido' : '⚠ Pendente'
             ]),
-            footer: `Custo Total de Manutenção: R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            footer: `Custo Total de Manutenção: R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            totalRow: [
+                "TOTAL",
+                "",
+                "",
+                `R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+                ""
+            ]
         };
     }
 
@@ -744,6 +775,7 @@ window.generateReport = async (type, format = 'pdf') => {
     else if (type === 'expenses') {
         const filtered = filterByDateRange(expenses, 'expense_date', start, end);
         const total = filtered.reduce((a, e) => a + Number(e.expense_value || 0), 0);
+        const totalQtd = filtered.reduce((a, e) => a + Number(e.expense_quantity || 1), 0);
         
         reportConfig = {
             title: "RELATÓRIO DE CUSTOS OPERACIONAIS",
@@ -760,7 +792,14 @@ window.generateReport = async (type, format = 'pdf') => {
                 Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
                 `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
             ]),
-            footer: `Valor Total no Período: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            footer: `Valor Total no Período: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            totalRow: [
+                "TOTAL",
+                "",
+                "",
+                totalQtd.toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
+                `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            ]
         };
     }
     
@@ -789,7 +828,16 @@ window.generateReport = async (type, format = 'pdf') => {
                 `R$ ${Number(d.value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
                 statusLabels[d.status] || 'Em Aberto'
             ]),
-            footer: `Valor Total no Período: R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            footer: `Valor Total no Período: R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            totalRow: [
+                "TOTAL",
+                "",
+                "",
+                "",
+                "",
+                `R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+                ""
+            ]
         };
     }
 
@@ -804,7 +852,7 @@ window.generateReport = async (type, format = 'pdf') => {
     if (format === 'excel') {
         const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-        // Estilos: 0=normal, 1=cabeçalho (azul/branco/negrito), 2=zebra clara
+        // Estilos: 0=normal, 1=cabeçalho (azul/branco/negrito), 2=zebra clara, 3=total (negrito, bordas e fundo cinza claro)
         const styles = `
         <Styles>
             <Style ss:ID="s0">
@@ -833,6 +881,17 @@ window.generateReport = async (type, format = 'pdf') => {
                 <Font ss:FontName="Calibri" ss:Size="11"/>
                 <Interior ss:Color="#EEF3F8" ss:Pattern="Solid"/>
             </Style>
+            <Style ss:ID="s3">
+                <Alignment ss:Vertical="Center" ss:WrapText="0"/>
+                <Borders>
+                    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
+                    <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="2" ss:Color="#000000"/>
+                    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
+                    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
+                </Borders>
+                <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>
+                <Interior ss:Color="#EAEAEA" ss:Pattern="Solid"/>
+            </Style>
         </Styles>`;
 
         // Linha de cabeçalho
@@ -848,6 +907,14 @@ window.generateReport = async (type, format = 'pdf') => {
             </Row>`;
         }).join('');
 
+        // Linha de total
+        let totalRowXml = '';
+        if (reportConfig.totalRow) {
+            totalRowXml = `<Row ss:Height="20">
+                ${reportConfig.totalRow.map(cell => `<Cell ss:StyleID="s3"><Data ss:Type="String">${esc(cell)}</Data></Cell>`).join('')}
+            </Row>`;
+        }
+
         const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
@@ -858,6 +925,7 @@ window.generateReport = async (type, format = 'pdf') => {
             ${reportConfig.headers.map(() => '<Column ss:Width="120"/>').join('')}
             ${headerRow}
             ${dataRows}
+            ${totalRowXml}
         </Table>
     </Worksheet>
 </Workbook>`;
