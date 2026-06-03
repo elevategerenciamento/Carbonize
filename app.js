@@ -818,13 +818,17 @@ window.generateReport = async (type, format = 'pdf') => {
         const filtered = filterByDateRange(expenses, 'expense_date', start, end);
         const total = filtered.reduce((a, e) => a + Number(e.expense_value || 0), 0);
         const totalQtd = filtered.reduce((a, e) => a + Number(e.expense_quantity || 1), 0);
+        const totalQuitados = filtered.filter(e => (e.expense_status || 'Quitado') === 'Quitado').reduce((a, e) => a + Number(e.expense_value || 0), 0);
+        const totalPendentes = filtered.filter(e => e.expense_status === 'Pendente').reduce((a, e) => a + Number(e.expense_value || 0), 0);
         
         reportConfig = {
             title: "RELATÓRIO DE CUSTOS OPERACIONAIS",
             subtitle: "Análise Financeira e Fluxo de Despesas",
             summaryItems: [
                 { label: "Total de Lançamentos", value: filtered.length },
-                { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
+                { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` },
+                { label: "Total Quitado", value: `R$ ${totalQuitados.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` },
+                { label: "Total Pendente", value: `R$ ${totalPendentes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
             ],
             headers: ["Data", "Descrição", "Pagamento", "Status", "Qtd", "Valor (R$)"],
             rows: filtered.map(e => [
@@ -835,14 +839,17 @@ window.generateReport = async (type, format = 'pdf') => {
                 Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
                 `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
             ]),
-            footer: `Valor Total no Período: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
-            totalRow: [
-                "TOTAL",
-                "",
-                "",
-                "",
-                totalQtd.toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
-                `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            footer: `Total: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})} | Quitados: R$ ${totalQuitados.toLocaleString('pt-BR', {minimumFractionDigits: 2})} | Pendentes: R$ ${totalPendentes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            totalRows: [
+                [
+                    "TOTAL GERAL", "", "", "", totalQtd.toLocaleString('pt-BR', { maximumFractionDigits: 2 }), `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                ],
+                [
+                    "SUBTOTAL QUITADOS", "", "", "", "", `R$ ${totalQuitados.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                ],
+                [
+                    "SUBTOTAL PENDENTES", "", "", "", "", `R$ ${totalPendentes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                ]
             ]
         };
     }
@@ -953,7 +960,11 @@ window.generateReport = async (type, format = 'pdf') => {
 
         // Linha de total
         let totalRowXml = '';
-        if (reportConfig.totalRow) {
+        if (reportConfig.totalRows) {
+            totalRowXml = reportConfig.totalRows.map(row => 
+                `<Row ss:Height="20">${row.map(cell => `<Cell ss:StyleID="s3"><Data ss:Type="String">${esc(cell)}</Data></Cell>`).join('')}</Row>`
+            ).join('');
+        } else if (reportConfig.totalRow) {
             totalRowXml = `<Row ss:Height="20">
                 ${reportConfig.totalRow.map(cell => `<Cell ss:StyleID="s3"><Data ss:Type="String">${esc(cell)}</Data></Cell>`).join('')}
             </Row>`;
