@@ -35,6 +35,12 @@ async function init() {
         currentUser = session.user;
         document.getElementById('login-screen').style.display = 'none';
         document.querySelector('.app-container').style.display = 'flex';
+        
+        // Ativar o PIN Lock Modal com Blur
+        document.querySelector('.app-container').classList.add('blur-background');
+        document.getElementById('modal-pin-unlock').style.display = 'flex';
+        initPinLogic(); // Iniciar lógica dos quadrados de PIN
+
         await loadAllData();
     } else {
         document.getElementById('login-screen').style.display = 'flex';
@@ -193,12 +199,40 @@ function updateUI() {
     }
 }
 
+// RBAC Definitions
+const PINS = {
+    'operacional': '111111',
+    'contabil': '111111',
+    'financeiro': '111111',
+    'admin': '111111'
+};
+
+const PERMISSIONS = {
+    'operacional': ['dashboard', 'fornos', 'cargas', 'manutencao', 'analise'],
+    'financeiro': ['dashboard', 'dados_fiscais', 'analise', 'relatorios', 'custos'],
+    'contabil': ['dashboard', 'dados_fiscais', 'analise', 'relatorios'],
+    'admin': ['dashboard', 'fornos', 'cargas', 'manutencao', 'dados_fiscais', 'analise', 'custos', 'relatorios']
+};
+
 function switchTab(tabId) {
+    const role = (currentUser && currentUser.user_metadata && currentUser.user_metadata.role) ? currentUser.user_metadata.role : 'admin';
+    const allowedTabs = PERMISSIONS[role] || PERMISSIONS['admin'];
+    
+    let targetSection = tabId;
+    if (!allowedTabs.includes(tabId)) {
+        targetSection = 'acesso-negado';
+    }
+
     document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
-    document.getElementById(`section-${tabId}`).style.display = 'block';
+    const sectionEl = document.getElementById(`section-${targetSection}`);
+    if (sectionEl) sectionEl.style.display = 'block';
+
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    document.querySelectorAll('.mobile-nav-link').forEach(l => l.classList.remove('active'));
     document.querySelectorAll(`button[onclick*="switchTab('${tabId}')"]`).forEach(l => l.classList.add('active'));
-    if (tabId === 'analise' || tabId === 'dashboard') renderCharts();
+
+    if (targetSection === 'analise' || targetSection === 'dashboard') renderCharts();
+    if (targetSection === 'acesso-negado' && window.lucide) window.lucide.createIcons();
 }
 
 function showModal(id) {
@@ -206,6 +240,8 @@ function showModal(id) {
     if (id === 'settings') {
         document.getElementById('settings-enterprise').value = currentUser.user_metadata.farm_name || "";
         document.getElementById('settings-operator').value = currentUser.user_metadata.operator_name || "";
+        const roleSelect = document.getElementById('settings-role');
+        if (roleSelect) roleSelect.value = currentUser.user_metadata.role || "admin";
         document.getElementById('settings-email').value = currentUser.email || "";
     }
 }
@@ -364,6 +400,7 @@ function renderExpenses() {
                 <td>${e.expense_date}</td>
                 <td>${e.expense_desc || '-'}</td>
                 <td>${e.payment_method}${e.payment_method === 'Cartão' && e.installments ? ` (${e.installments}x)` : ''}</td>
+                <td><span class="status-badge ${e.expense_status === 'Pendente' ? 'warning' : 'success'}" style="font-size:9px; padding:2px 6px; border-radius:6px;">${e.expense_status || 'Quitado'}</span></td>
                 <td>${Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                 <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
                 <td>
@@ -410,6 +447,9 @@ function editExpense(id) {
     form.querySelector('[name="expense_quantity"]').value = e.expense_quantity;
     form.querySelector('[name="expense_value"]').value = e.expense_value;
     form.querySelector('[name="expense_id"]').value = e.id;
+    if (form.querySelector('[name="expense_status"]')) {
+        form.querySelector('[name="expense_status"]').value = e.expense_status || 'Quitado';
+    }
 
     const installmentsField = document.getElementById('installments-field');
     if (e.payment_method === 'Cartão') {
@@ -494,7 +534,8 @@ async function processForm(id, fd) {
             expense_value: fd.get('expense_value'),
             expense_quantity: fd.get('expense_quantity') || 1,
             payment_method: fd.get('payment_method'),
-            installments: fd.get('payment_method') === 'Cartão' ? fd.get('installments') : null
+            installments: fd.get('payment_method') === 'Cartão' ? fd.get('installments') : null,
+            expense_status: fd.get('expense_status') || 'Quitado'
         };
 
         if (expenseId) {
@@ -511,7 +552,8 @@ async function processForm(id, fd) {
         await supabase.auth.updateUser({ 
             data: { 
                 farm_name: fd.get('enterprise_name'),
-                operator_name: fd.get('operator_name')
+                operator_name: fd.get('operator_name'),
+                role: fd.get('user_role')
             } 
         });
         location.reload();
@@ -784,17 +826,19 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Total de Lançamentos", value: filtered.length },
                 { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
             ],
-            headers: ["Data", "Descrição", "Pagamento", "Qtd", "Valor (R$)"],
+            headers: ["Data", "Descrição", "Pagamento", "Status", "Qtd", "Valor (R$)"],
             rows: filtered.map(e => [
                 formatDateBR(e.expense_date),
                 e.expense_desc || '-',
                 e.payment_method === 'Cartão' && e.installments ? `${e.payment_method} (${e.installments}x)` : (e.payment_method || '-'),
+                e.expense_status || 'Quitado',
                 Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
                 `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
             ]),
             footer: `Valor Total no Período: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
             totalRow: [
                 "TOTAL",
+                "",
                 "",
                 "",
                 totalQtd.toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
@@ -1614,5 +1658,71 @@ window.addEventListener('appinstalled', (event) => {
 if (window.matchMedia('(display-mode: standalone)').matches) {
     console.log("PWA: Rodando em modo standalone.");
     if (installContainer) installContainer.style.display = 'none';
+}
+
+
+// 10. PIN AUTHENTICATION SYSTEM
+
+
+function initPinLogic() {
+    const inputs = document.querySelectorAll('.pin-input');
+    const select = document.getElementById('pin-role-select');
+    
+    // Auto-focus next input
+    inputs.forEach((input, idx) => {
+        input.addEventListener('input', (e) => {
+            if(e.target.value.length > 1) {
+                e.target.value = e.target.value.slice(0,1);
+            }
+            if(e.target.value.length === 1 && idx < inputs.length - 1) {
+                inputs[idx + 1].focus();
+            }
+            checkPinSubmit();
+        });
+        input.addEventListener('keydown', (e) => {
+            if(e.key === 'Backspace' && e.target.value === '' && idx > 0) {
+                inputs[idx - 1].focus();
+                inputs[idx - 1].value = '';
+            }
+        });
+    });
+
+    function checkPinSubmit() {
+        const val = Array.from(inputs).map(i => i.value).join('');
+        if(val.length === 6) {
+            const role = select.value;
+            if(!role) {
+                showPinError('Selecione um perfil primeiro!');
+                return;
+            }
+            if(val === PINS[role]) {
+                // Success - Unlock
+                document.getElementById('modal-pin-unlock').style.display = 'none';
+                document.querySelector('.app-container').classList.remove('blur-background');
+                
+                // Override currentUser role for this session
+                if(!currentUser.user_metadata) currentUser.user_metadata = {};
+                currentUser.user_metadata.role = role;
+                
+                // Apply permissions
+                switchTab('dashboard');
+                updateUI();
+            } else {
+                showPinError('PIN incorreto. Tente novamente.');
+            }
+        }
+    }
+    
+    function showPinError(msg) {
+        document.getElementById('pin-error-msg').innerText = msg;
+        const container = document.getElementById('pin-inputs-container');
+        container.classList.add('shake');
+        inputs.forEach(i => i.value = '');
+        inputs[0].focus();
+        setTimeout(() => {
+            container.classList.remove('shake');
+            document.getElementById('pin-error-msg').innerText = '';
+        }, 1500);
+    }
 }
 
