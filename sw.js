@@ -1,4 +1,4 @@
-const CACHE_NAME = 'carbonize-cache-v2';
+const CACHE_NAME = 'carbonize-cache-v3';
 const ASSETS = [
   './',
   './index.html',
