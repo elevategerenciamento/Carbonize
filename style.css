@@ -35,6 +35,15 @@ body { background-color: var(--bg-dark); color: var(--text); font-family: 'Outfi
     border: 1px solid var(--border); text-align: center;
     box-shadow: 0 40px 100px rgba(0,0,0,0.8);
 }
+
+/* PIN Unlock CSS */
+.blur-background { filter: blur(8px); pointer-events: none; user-select: none; transition: filter 0.3s; }
+.pin-grid { display: flex; gap: 10px; justify-content: center; margin-bottom: 24px; }
+.pin-input { width: 45px; height: 55px; font-size: 24px; text-align: center; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: #fff; }
+.pin-input:focus { border-color: var(--primary); outline: none; }
+.shake { animation: shake 0.4s; }
+@keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); } }
+
 .login-logo { height: 64px; margin-bottom: 32px; filter: drop-shadow(0 0 20px var(--primary-dim)); }
 .btn-login { 
     width: 100%; background: var(--primary); color: #fff; border: none; 
