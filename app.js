@@ -365,7 +365,8 @@ function renderMaintenance() {
 }
 
 async function resolveMaint(id) {
-    await supabase.from('maintenance').update({ resolved: true }).eq('id', id);
+    const { error } = await supabase.from('maintenance').update({ resolved: true }).eq('id', id).eq('user_id', currentUser.id);
+    if (error) throw error;
     await loadAllData();
 }
 
@@ -430,7 +431,8 @@ function changeExpensesPage(dir) {
 
 async function deleteExpense(id) {
     if (confirm("Deseja excluir?")) {
-        await supabase.from('expenses').delete().eq('id', id);
+        const { error } = await supabase.from('expenses').delete().eq('id', id).eq('user_id', currentUser.id);
+        if (error) throw error;
         await loadAllData();
     }
 }
@@ -539,10 +541,12 @@ async function processForm(id, fd) {
         };
 
         if (expenseId) {
-            await supabase.from('expenses').update(item).eq('id', expenseId);
+            const { error } = await supabase.from('expenses').update(item).eq('id', expenseId).eq('user_id', currentUser.id);
+            if (error) throw error;
             document.getElementById('edit-expense-id').value = '';
             document.getElementById('btn-save-expense').innerText = "Salvar Lançamento";
             document.getElementById('btn-save-expense').style.background = ""; 
+            await loadAllData();
         } else {
             await saveItem('expenses', item);
         }
@@ -1486,10 +1490,12 @@ async function deleteFiscalDoc(id) {
 
     const doc = fiscalDocs.find(d => d.id === id);
     if (doc && doc.file_path) {
-        await supabase.storage.from('fiscal-docs').remove([doc.file_path]);
+        const { error: storageError } = await supabase.storage.from('fiscal-docs').remove([doc.file_path]);
+        if (storageError) console.warn('Erro ao remover arquivo do storage:', storageError);
     }
 
-    await supabase.from('fiscal_documents').delete().eq('id', id);
+    const { error } = await supabase.from('fiscal_documents').delete().eq('id', id).eq('user_id', currentUser.id);
+    if (error) throw error;
     await loadAllData();
     showToast();
 }
