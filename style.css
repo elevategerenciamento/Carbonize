@@ -415,6 +415,16 @@ option {
 }
 input:focus, select:focus { border-color: var(--primary); outline: none; background: rgba(0,0,0,0.6); box-shadow: 0 0 0 4px var(--primary-dim); }
 
+/* Remove Spin Buttons for Number Inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
 /* Tables */
 .table-wrapper { 
     border-radius: 16px; 
