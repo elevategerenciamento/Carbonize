@@ -160,6 +160,7 @@ async function saveItem(table, item) {
         if (table === 'loads') loads.unshift({ ...payload, id: 'temp-' + Date.now() });
         if (table === 'expenses') expenses.unshift({ ...payload, id: 'temp-' + Date.now() });
         if (table === 'maintenance') maintenance.unshift({ ...payload, id: 'temp-' + Date.now() });
+        renderAll();
         updateUI();
     }
 }
@@ -498,8 +499,13 @@ function setupEventListeners() {
                     alert("Erro operacional: " + err.message + "\n\nVerifique se as tabelas foram criadas corretamente no Supabase.");
                 } finally {
                     if (btn) {
-                        btn.innerText = originalText;
                         btn.disabled = false;
+                        if (id === 'expense') {
+                            const expenseId = document.getElementById('edit-expense-id').value;
+                            btn.innerText = expenseId ? "Atualizar Lançamento" : "Salvar Lançamento";
+                        } else {
+                            btn.innerText = originalText;
+                        }
                     }
                 }
             });

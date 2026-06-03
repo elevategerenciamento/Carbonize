@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS fiscal_documents (
     value NUMERIC(12,2),
     file_path TEXT,
     file_name TEXT,
+    status TEXT DEFAULT 'aberto' CHECK (status IN ('aberto', 'pago', 'analise')),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
