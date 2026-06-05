@@ -689,7 +689,7 @@ window.generateReport = async (type, format = 'pdf') => {
         return;
     }
 
-    const typeLabel = {
+    let typeLabel = {
         'loads': 'EXPEDICAO',
         'pracas': 'PRODUCAO',
         'maint': 'MANUTENCAO',
@@ -825,15 +825,24 @@ window.generateReport = async (type, format = 'pdf') => {
 
     // ─── CUSTOS ───
     else if (type === 'expenses') {
-        const filtered = filterByDateRange(expenses, 'expense_date', start, end);
+        const filterInput = document.getElementById('report-expenses-filter');
+        const filterText = filterInput ? filterInput.value.trim() : '';
+        
+        let filtered = filterByDateRange(expenses, 'expense_date', start, end);
+        if (filterText) {
+            const lowerFilterText = filterText.toLowerCase();
+            filtered = filtered.filter(e => e.expense_desc && e.expense_desc.toLowerCase().includes(lowerFilterText));
+            typeLabel = `GASTOS_${filterText.toUpperCase().replace(/\s+/g, '_')}`;
+        }
+        
         const total = filtered.reduce((a, e) => a + Number(e.expense_value || 0), 0);
         const totalQtd = filtered.reduce((a, e) => a + Number(e.expense_quantity || 1), 0);
         const totalQuitados = filtered.filter(e => (e.expense_status || 'Quitado') === 'Quitado').reduce((a, e) => a + Number(e.expense_value || 0), 0);
         const totalPendentes = filtered.filter(e => e.expense_status === 'Pendente').reduce((a, e) => a + Number(e.expense_value || 0), 0);
         
         reportConfig = {
-            title: "RELATÓRIO DE CUSTOS OPERACIONAIS",
-            subtitle: "Análise Financeira e Fluxo de Despesas",
+            title: filterText ? `RELATÓRIO DE CUSTOS: ${filterText.toUpperCase()}` : "RELATÓRIO DE CUSTOS OPERACIONAIS",
+            subtitle: filterText ? `Análise Filtrada por: "${filterText}"` : "Análise Financeira e Fluxo de Despesas",
             summaryItems: [
                 { label: "Total de Lançamentos", value: filtered.length },
                 { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` },
