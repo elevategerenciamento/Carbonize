@@ -246,8 +246,12 @@
             <section id="section-custos" class="content-section" style="display: none;">
                 <div class="header-action">
                     <h2 class="page-title">Gestão Financeira</h2>
-                    <h4 id="kpi-custo-mes" style="color:var(--primary); font-weight:800;">R$ 0,00</h4>
+                    <div style="display: flex; gap: 16px; align-items: center;">
+                        <button class="btn-primary" onclick="showModal('spreadsheets'); initSpreadsheetsModal();"><i data-lucide="table-properties"></i> Planilhas Rápidas</button>
+                        <h4 id="kpi-custo-mes" style="color:var(--primary); font-weight:800; margin: 0;">R$ 0,00</h4>
+                    </div>
                 </div>
+
 
                 <div class="split-layout">
                     <!-- Form Esquerdo -->
@@ -299,6 +303,12 @@
                             <div style="display:grid; grid-template-columns:1fr 2fr; gap:12px;">
                                 <div class="form-field"><label>Quantidade</label><input type="number" step="0.01" name="expense_quantity" value="1" min="0"></div>
                                 <div class="form-field"><label>Valor Total (R$)</label><input type="number" step="0.01" name="expense_value" required></div>
+                            </div>
+                            <div class="form-field">
+                                <label>Planilha Rápida (Opcional)</label>
+                                <select name="spreadsheet_name" id="expense-spreadsheet-select">
+                                    <option value="">Nenhuma (Custo Avulso)</option>
+                                </select>
                             </div>
                             <input type="hidden" name="expense_id" id="edit-expense-id">
                             <button type="submit" class="btn-save" id="btn-save-expense">Salvar Lançamento</button>
@@ -582,6 +592,12 @@
                                 <i data-lucide="search"></i>
                                 <input type="text" id="report-expenses-filter" placeholder="Termo na Descrição (ex: reforma)">
                             </div>
+                            <div class="date-input-wrapper">
+                                <i data-lucide="folder"></i>
+                                <select id="report-expenses-spreadsheet" style="background:transparent; border:none; color:#fff; font-size:12px; padding:10px 0; outline:none; width:100%; cursor:pointer;">
+                                    <option value="">Todas as Planilhas</option>
+                                </select>
+                            </div>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button class="btn-primary" onclick="generateReport('expenses')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
@@ -818,6 +834,114 @@
             </div>
             
             <p id="pin-error-msg" style="color: var(--primary); font-size: 13px; min-height: 20px; font-weight: 700;"></p>
+        </div>
+    </div>
+
+    <!-- Modal Planilhas Rápidas -->
+    <div id="modal-spreadsheets" class="modal-overlay">
+        <div class="modal-glass" style="max-width: 700px; width: 95%; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h3>Planilhas Rápidas</h3>
+                <button class="close-modal-btn" onclick="hideModal('spreadsheets')">✕</button>
+            </div>
+            
+            <!-- Listagem de planilhas criadas -->
+            <div id="spreadsheets-list-view">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <span class="text-dim" style="font-size: 13px;">Selecione uma planilha para gerenciar ou crie uma nova</span>
+                    <button class="btn-primary" onclick="showCreateSpreadsheet()" style="padding: 8px 16px; font-size: 12px; width:auto; margin:0;"><i data-lucide="plus"></i> Nova Planilha</button>
+                </div>
+                <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>NOME DA PLANILHA</th>
+                                <th>ITENS</th>
+                                <th>VALOR TOTAL</th>
+                                <th style="text-align: right;">AÇÕES</th>
+                            </tr>
+                        </thead>
+                        <tbody id="spreadsheets-table-body">
+                            <!-- Inserido dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Detalhes / Edição de uma planilha específica -->
+            <div id="spreadsheet-detail-view" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="btn-save" onclick="showSpreadsheetsList()" style="width: auto; margin: 0; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); font-size:12px;"><i data-lucide="arrow-left"></i> Voltar</button>
+                        <h4 id="current-spreadsheet-title" style="color: #fff; font-size: 16px; font-weight: 700; margin: 0;">Nome da Planilha</h4>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-primary" onclick="renameCurrentSpreadsheet()" style="padding: 8px 12px; font-size: 12px; background: #2563eb; width:auto; margin:0;"><i data-lucide="edit-3"></i> Renomear</button>
+                        <button class="btn-primary" onclick="deleteCurrentSpreadsheet()" style="padding: 8px 12px; font-size: 12px; background: var(--primary); width:auto; margin:0;"><i data-lucide="trash-2"></i> Excluir Planilha</button>
+                    </div>
+                </div>
+
+                <!-- Formulário rápido de adicionar custo dentro da planilha -->
+                <div class="glass" style="padding: 16px; margin-bottom: 20px; background: rgba(255,255,255,0.02); box-shadow:none; border-radius:16px;">
+                    <h5 style="font-size: 12px; color: #fff; text-transform: uppercase; margin-bottom: 12px;">Adicionar Lançamento na Planilha</h5>
+                    <form id="form-spreadsheet-expense">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">
+                            <div class="form-field" style="margin: 0;">
+                                <label style="font-size: 9px; margin-bottom: 4px;">Data</label>
+                                <div class="date-input-wrapper">
+                                    <i data-lucide="calendar"></i>
+                                    <input type="text" name="expense_date" id="sheet-expense-date" class="date-picker" placeholder="Data" required>
+                                </div>
+                            </div>
+                            <div class="form-field" style="margin: 0;">
+                                <label style="font-size: 9px; margin-bottom: 4px;">Categoria</label>
+                                <select name="expense_category" style="padding: 10px 14px; font-size: 12px; border-radius:10px;">
+                                    <option value="Lenha">Lenha / Matéria Prima</option>
+                                    <option value="Mão de Obra">Mão de Obra</option>
+                                    <option value="Manutenção">Manutenção</option>
+                                    <option value="Logística">Logística</option>
+                                    <option value="Outros">Outros</option>
+                                </select>
+                            </div>
+                            <div class="form-field" style="margin: 0;">
+                                <label style="font-size: 9px; margin-bottom: 4px;">Descrição</label>
+                                <input type="text" name="expense_desc" placeholder="Ex: Pagamento" required style="padding: 10px 14px; font-size: 12px; border-radius:10px;">
+                            </div>
+                            <div class="form-field" style="margin: 0;">
+                                <label style="font-size: 9px; margin-bottom: 4px;">Pagamento</label>
+                                <select name="payment_method" style="padding: 10px 14px; font-size: 12px; border-radius:10px;">
+                                    <option value="Pix">Pix</option>
+                                    <option value="Dinheiro">Dinheiro</option>
+                                    <option value="Cartão">Cartão</option>
+                                    <option value="A Prazo">A Prazo</option>
+                                </select>
+                            </div>
+                            <div class="form-field" style="margin: 0;">
+                                <label style="font-size: 9px; margin-bottom: 4px;">Valor Total</label>
+                                <input type="number" step="0.01" name="expense_value" required placeholder="R$" style="padding: 10px 14px; font-size: 12px; border-radius:10px;">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-save" style="margin-top: 12px; padding: 10px; font-size: 12px; width:auto; border-radius:10px;">Adicionar Lançamento</button>
+                    </form>
+                </div>
+
+                <div class="table-wrapper" style="max-height: 200px; overflow-y: auto;">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>DATA</th>
+                                <th>DESCRIÇÃO</th>
+                                <th>PAGAMENTO</th>
+                                <th>VALOR</th>
+                                <th style="text-align: right;">AÇÃO</th>
+                            </tr>
+                        </thead>
+                        <tbody id="spreadsheet-items-table-body">
+                            <!-- Itens da planilha inseridos dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 

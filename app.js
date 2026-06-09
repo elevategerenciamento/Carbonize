@@ -270,6 +270,7 @@ function renderAll() {
     renderStock();
     renderExpenses();
     renderFiscalDocs();
+    updateSpreadsheetSelects();
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -453,6 +454,9 @@ function editExpense(id) {
     if (form.querySelector('[name="expense_status"]')) {
         form.querySelector('[name="expense_status"]').value = e.expense_status || 'Quitado';
     }
+    if (form.querySelector('[name="spreadsheet_name"]')) {
+        form.querySelector('[name="spreadsheet_name"]').value = e.spreadsheet_name || '';
+    }
 
     const installmentsField = document.getElementById('installments-field');
     if (e.payment_method === 'Cartão') {
@@ -543,7 +547,8 @@ async function processForm(id, fd) {
             expense_quantity: fd.get('expense_quantity') || 1,
             payment_method: fd.get('payment_method'),
             installments: fd.get('payment_method') === 'Cartão' ? fd.get('installments') : null,
-            expense_status: fd.get('expense_status') || 'Quitado'
+            expense_status: fd.get('expense_status') || 'Quitado',
+            spreadsheet_name: fd.get('spreadsheet_name') || null
         };
 
         if (expenseId) {
@@ -552,6 +557,9 @@ async function processForm(id, fd) {
             document.getElementById('edit-expense-id').value = '';
             document.getElementById('btn-save-expense').innerText = "Salvar Lançamento";
             document.getElementById('btn-save-expense').style.background = ""; 
+            if (document.getElementById('expense-spreadsheet-select')) {
+                document.getElementById('expense-spreadsheet-select').value = '';
+            }
             await loadAllData();
         } else {
             await saveItem('expenses', item);
@@ -658,6 +666,14 @@ window.viewFiscalDoc = viewFiscalDoc;
 window.deleteFiscalDoc = deleteFiscalDoc;
 window.downloadFiscalDoc = downloadFiscalDoc;
 window.updateFiscalStatus = updateFiscalStatus;
+window.initSpreadsheetsModal = initSpreadsheetsModal;
+window.showSpreadsheetsList = showSpreadsheetsList;
+window.showCreateSpreadsheet = showCreateSpreadsheet;
+window.viewSpreadsheet = viewSpreadsheet;
+window.deleteSpreadsheetExpense = deleteSpreadsheetExpense;
+window.renameCurrentSpreadsheet = renameCurrentSpreadsheet;
+window.deleteCurrentSpreadsheet = deleteCurrentSpreadsheet;
+window.updateSpreadsheetSelects = updateSpreadsheetSelects;
 // 9. PREMIUM REPORT ENGINE
 function formatDateBR(dateStr) {
     if (!dateStr) return '-';
@@ -827,12 +843,19 @@ window.generateReport = async (type, format = 'pdf') => {
     else if (type === 'expenses') {
         const filterInput = document.getElementById('report-expenses-filter');
         const filterText = filterInput ? filterInput.value.trim() : '';
+        const sheetFilter = document.getElementById('report-expenses-spreadsheet').value;
         
         let filtered = filterByDateRange(expenses, 'expense_date', start, end);
+        if (sheetFilter) {
+            filtered = filtered.filter(e => e.spreadsheet_name === sheetFilter);
+            typeLabel = `GASTOS_${sheetFilter.toUpperCase().replace(/\s+/g, '_')}`;
+        }
         if (filterText) {
             const lowerFilterText = filterText.toLowerCase();
             filtered = filtered.filter(e => e.expense_desc && e.expense_desc.toLowerCase().includes(lowerFilterText));
-            typeLabel = `GASTOS_${filterText.toUpperCase().replace(/\s+/g, '_')}`;
+            if (!sheetFilter) {
+                typeLabel = `GASTOS_${filterText.toUpperCase().replace(/\s+/g, '_')}`;
+            }
         }
         
         const total = filtered.reduce((a, e) => a + Number(e.expense_value || 0), 0);
@@ -840,9 +863,19 @@ window.generateReport = async (type, format = 'pdf') => {
         const totalQuitados = filtered.filter(e => (e.expense_status || 'Quitado') === 'Quitado').reduce((a, e) => a + Number(e.expense_value || 0), 0);
         const totalPendentes = filtered.filter(e => e.expense_status === 'Pendente').reduce((a, e) => a + Number(e.expense_value || 0), 0);
         
+        let reportTitle = "RELATÓRIO DE CUSTOS OPERACIONAIS";
+        let reportSubtitle = "Análise Financeira e Fluxo de Despesas";
+        if (sheetFilter) {
+            reportTitle = `RELATÓRIO DE CUSTOS: ${sheetFilter.toUpperCase()}`;
+            reportSubtitle = `Planilha de Custos Vinculada: ${sheetFilter}`;
+        }
+        if (filterText) {
+            reportSubtitle += ` | Filtro: "${filterText}"`;
+        }
+
         reportConfig = {
-            title: filterText ? `RELATÓRIO DE CUSTOS: ${filterText.toUpperCase()}` : "RELATÓRIO DE CUSTOS OPERACIONAIS",
-            subtitle: filterText ? `Análise Filtrada por: "${filterText}"` : "Análise Financeira e Fluxo de Despesas",
+            title: reportTitle,
+            subtitle: reportSubtitle,
             summaryItems: [
                 { label: "Total de Lançamentos", value: filtered.length },
                 { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` },
@@ -1755,6 +1788,231 @@ function initPinLogic() {
             container.classList.remove('shake');
             document.getElementById('pin-error-msg').innerText = '';
         }, 1500);
+    }
+    
+    const sheetExpenseForm = document.getElementById('form-spreadsheet-expense');
+    if (sheetExpenseForm) {
+        sheetExpenseForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn ? btn.innerText : "Adicionar Lançamento";
+            if (btn) {
+                btn.innerText = "Processando...";
+                btn.disabled = true;
+            }
+
+            const fd = new FormData(e.target);
+            const item = {
+                expense_date: fd.get('expense_date'),
+                expense_category: fd.get('expense_category'),
+                expense_desc: fd.get('expense_desc'),
+                expense_value: fd.get('expense_value'),
+                expense_quantity: 1,
+                payment_method: fd.get('payment_method'),
+                expense_status: 'Quitado',
+                spreadsheet_name: currentSpreadsheetName
+            };
+
+            try {
+                await saveItem('expenses', item);
+                e.target.reset();
+                if (e.target.querySelector('[name="expense_date"]')._flatpickr) {
+                    e.target.querySelector('[name="expense_date"]')._flatpickr.setDate(new Date());
+                }
+                showToast("Lançamento adicionado com sucesso!");
+                renderSpreadsheetItems();
+                updateSpreadsheetSelects();
+            } catch (err) {
+                console.error("Sheet expense form error:", err);
+                alert("Erro operacional: " + err.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                }
+            }
+        });
+    }
+}
+
+// 11. SPREADSHEETS (PLANILHAS RÁPIDAS) ENGINE
+let currentSpreadsheetName = null;
+
+function initSpreadsheetsModal() {
+    showSpreadsheetsList();
+}
+
+function showSpreadsheetsList() {
+    document.getElementById('spreadsheets-list-view').style.display = 'block';
+    document.getElementById('spreadsheet-detail-view').style.display = 'none';
+    renderSpreadsheetsList();
+}
+
+function renderSpreadsheetsList() {
+    const tbody = document.getElementById('spreadsheets-table-body');
+    if (!tbody) return;
+    
+    const sheetsMap = {};
+    expenses.forEach(e => {
+        if (e.spreadsheet_name) {
+            if (!sheetsMap[e.spreadsheet_name]) {
+                sheetsMap[e.spreadsheet_name] = { count: 0, total: 0 };
+            }
+            sheetsMap[e.spreadsheet_name].count++;
+            sheetsMap[e.spreadsheet_name].total += Number(e.expense_value || 0);
+        }
+    });
+
+    const sheets = Object.keys(sheetsMap);
+    if (sheets.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-dim); padding:20px;">Nenhuma planilha cadastrada.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = sheets.map(sheet => `
+        <tr>
+            <td style="font-weight: 700; color: #fff;">${sheet}</td>
+            <td>${sheetsMap[sheet].count} item(ns)</td>
+            <td>R$ ${sheetsMap[sheet].total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+            <td style="text-align: right;">
+                <button onclick="viewSpreadsheet('${sheet.replace(/'/g, "\\'")}')" class="btn-primary" style="padding: 6px 12px; font-size: 11px; display: inline-flex; width: auto; margin: 0; justify-content:center;">Gerenciar</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function showCreateSpreadsheet() {
+    const name = prompt("Digite o nome da nova Planilha Rápida:");
+    if (!name || !name.trim()) return;
+    const trimmedName = name.trim();
+    
+    const exists = expenses.some(e => e.spreadsheet_name && e.spreadsheet_name.toLowerCase() === trimmedName.toLowerCase());
+    if (exists) {
+        alert("Já existe uma planilha com este nome!");
+        return;
+    }
+
+    viewSpreadsheet(trimmedName);
+}
+
+function viewSpreadsheet(name) {
+    currentSpreadsheetName = name;
+    document.getElementById('spreadsheets-list-view').style.display = 'none';
+    document.getElementById('spreadsheet-detail-view').style.display = 'block';
+    document.getElementById('current-spreadsheet-title').innerText = name;
+    
+    const form = document.getElementById('form-spreadsheet-expense');
+    if (form) {
+        form.reset();
+        if (form.querySelector('[name="expense_date"]')._flatpickr) {
+            form.querySelector('[name="expense_date"]')._flatpickr.setDate(new Date());
+        }
+    }
+    
+    renderSpreadsheetItems();
+}
+
+function renderSpreadsheetItems() {
+    const tbody = document.getElementById('spreadsheet-items-table-body');
+    if (!tbody) return;
+
+    const items = expenses.filter(e => e.spreadsheet_name === currentSpreadsheetName);
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-dim); padding:20px;">Nenhum lançamento nesta planilha.</td></tr>';
+        return;
+    }
+
+    const sorted = [...items].sort((a, b) => new Date(b.expense_date) - new Date(a.expense_date));
+
+    tbody.innerHTML = sorted.map(e => `
+        <tr>
+            <td>${formatDateBR(e.expense_date)}</td>
+            <td>${e.expense_desc || '-'}</td>
+            <td>${e.payment_method}</td>
+            <td>R$ ${Number(e.expense_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+            <td style="text-align: right;">
+                <button onclick="deleteSpreadsheetExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button>
+            </td>
+        </tr>
+    `).join('');
+
+    if (window.lucide) window.lucide.createIcons();
+}
+
+async function deleteSpreadsheetExpense(id) {
+    if (confirm("Deseja excluir este lançamento da planilha?")) {
+        const { error } = await supabase.from('expenses').delete().eq('id', id).eq('user_id', currentUser.id);
+        if (error) throw error;
+        await loadAllData();
+        renderSpreadsheetItems();
+        renderSpreadsheetsList();
+        updateSpreadsheetSelects();
+    }
+}
+
+async function renameCurrentSpreadsheet() {
+    const newName = prompt("Digite o novo nome para a planilha:", currentSpreadsheetName);
+    if (!newName || !newName.trim() || newName.trim() === currentSpreadsheetName) return;
+    const trimmedNewName = newName.trim();
+
+    const itemsToUpdate = expenses.filter(e => e.spreadsheet_name === currentSpreadsheetName);
+    if (itemsToUpdate.length > 0) {
+        const { error } = await supabase.from('expenses')
+            .update({ spreadsheet_name: trimmedNewName })
+            .eq('spreadsheet_name', currentSpreadsheetName)
+            .eq('user_id', currentUser.id);
+            
+        if (error) {
+            alert("Erro ao renomear planilha: " + error.message);
+            return;
+        }
+    }
+
+    currentSpreadsheetName = trimmedNewName;
+    document.getElementById('current-spreadsheet-title').innerText = trimmedNewName;
+    await loadAllData();
+    renderSpreadsheetItems();
+    updateSpreadsheetSelects();
+    showToast();
+}
+
+async function deleteCurrentSpreadsheet() {
+    if (confirm(`Deseja excluir a planilha "${currentSpreadsheetName}" e TODOS os seus lançamentos?`)) {
+        const { error } = await supabase.from('expenses')
+            .delete()
+            .eq('spreadsheet_name', currentSpreadsheetName)
+            .eq('user_id', currentUser.id);
+            
+        if (error) {
+            alert("Erro ao excluir planilha: " + error.message);
+            return;
+        }
+
+        await loadAllData();
+        showSpreadsheetsList();
+        updateSpreadsheetSelects();
+        showToast();
+    }
+}
+
+function updateSpreadsheetSelects() {
+    const expSelect = document.getElementById('expense-spreadsheet-select');
+    const repSelect = document.getElementById('report-expenses-spreadsheet');
+    if (!expSelect && !repSelect) return;
+    
+    const sheets = [...new Set(expenses.map(e => e.spreadsheet_name).filter(Boolean))].sort();
+
+    if (expSelect) {
+        const currentVal = expSelect.value;
+        expSelect.innerHTML = '<option value="">Nenhuma (Custo Avulso)</option>' + 
+            sheets.map(s => `<option value="${s}">${s}</option>`).join('');
+        expSelect.value = currentVal;
+    }
+    if (repSelect) {
+        const currentVal = repSelect.value;
+        repSelect.innerHTML = '<option value="">Todas as Planilhas</option>' + 
+            sheets.map(s => `<option value="${s}">${s}</option>`).join('');
+        repSelect.value = currentVal;
     }
 }
 
