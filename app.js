@@ -669,6 +669,7 @@ window.updateFiscalStatus = updateFiscalStatus;
 window.initSpreadsheetsModal = initSpreadsheetsModal;
 window.showSpreadsheetsList = showSpreadsheetsList;
 window.showCreateSpreadsheet = showCreateSpreadsheet;
+window.saveNewSpreadsheet = saveNewSpreadsheet;
 window.viewSpreadsheet = viewSpreadsheet;
 window.deleteSpreadsheetExpense = deleteSpreadsheetExpense;
 window.renameCurrentSpreadsheet = renameCurrentSpreadsheet;
@@ -1845,6 +1846,9 @@ function initSpreadsheetsModal() {
 function showSpreadsheetsList() {
     document.getElementById('spreadsheets-list-view').style.display = 'block';
     document.getElementById('spreadsheet-detail-view').style.display = 'none';
+    if (document.getElementById('spreadsheet-create-view')) {
+        document.getElementById('spreadsheet-create-view').style.display = 'none';
+    }
     renderSpreadsheetsList();
 }
 
@@ -1858,7 +1862,9 @@ function renderSpreadsheetsList() {
             if (!sheetsMap[e.spreadsheet_name]) {
                 sheetsMap[e.spreadsheet_name] = { count: 0, total: 0 };
             }
-            sheetsMap[e.spreadsheet_name].count++;
+            if (!(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha')) {
+                sheetsMap[e.spreadsheet_name].count++;
+            }
             sheetsMap[e.spreadsheet_name].total += Number(e.expense_value || 0);
         }
     });
@@ -1881,24 +1887,54 @@ function renderSpreadsheetsList() {
     `).join('');
 }
 
-async function showCreateSpreadsheet() {
-    const name = prompt("Digite o nome da nova Planilha Rápida:");
-    if (!name || !name.trim()) return;
-    const trimmedName = name.trim();
-    
-    const exists = expenses.some(e => e.spreadsheet_name && e.spreadsheet_name.toLowerCase() === trimmedName.toLowerCase());
+function showCreateSpreadsheet() {
+    document.getElementById('spreadsheets-list-view').style.display = 'none';
+    document.getElementById('spreadsheet-detail-view').style.display = 'none';
+    document.getElementById('spreadsheet-create-view').style.display = 'block';
+    document.getElementById('new-spreadsheet-name').value = '';
+    document.getElementById('new-spreadsheet-name').focus();
+}
+
+async function saveNewSpreadsheet() {
+    const input = document.getElementById('new-spreadsheet-name');
+    const name = input ? input.value.trim() : '';
+    if (!name) return;
+
+    const exists = expenses.some(e => e.spreadsheet_name && e.spreadsheet_name.toLowerCase() === name.toLowerCase());
     if (exists) {
         alert("Já existe uma planilha com este nome!");
         return;
     }
 
-    viewSpreadsheet(trimmedName);
+    const item = {
+        expense_date: new Date().toISOString().split('T')[0],
+        expense_category: 'Outros',
+        expense_desc: 'Inicialização da Planilha',
+        expense_value: 0,
+        expense_quantity: 0,
+        payment_method: 'Pix',
+        expense_status: 'Quitado',
+        spreadsheet_name: name
+    };
+
+    try {
+        await saveItem('expenses', item);
+        showToast("Planilha salva com sucesso!");
+        updateSpreadsheetSelects();
+        viewSpreadsheet(name);
+    } catch (err) {
+        console.error("Erro ao salvar planilha:", err);
+        alert("Erro operacional ao salvar planilha: " + err.message);
+    }
 }
 
 function viewSpreadsheet(name) {
     currentSpreadsheetName = name;
     document.getElementById('spreadsheets-list-view').style.display = 'none';
     document.getElementById('spreadsheet-detail-view').style.display = 'block';
+    if (document.getElementById('spreadsheet-create-view')) {
+        document.getElementById('spreadsheet-create-view').style.display = 'none';
+    }
     document.getElementById('current-spreadsheet-title').innerText = name;
     
     const form = document.getElementById('form-spreadsheet-expense');
@@ -1916,7 +1952,12 @@ function renderSpreadsheetItems() {
     const tbody = document.getElementById('spreadsheet-items-table-body');
     if (!tbody) return;
 
-    const items = expenses.filter(e => e.spreadsheet_name === currentSpreadsheetName);
+    let items = expenses.filter(e => e.spreadsheet_name === currentSpreadsheetName);
+    
+    if (items.length > 1) {
+        items = items.filter(e => !(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha'));
+    }
+
     if (items.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-dim); padding:20px;">Nenhum lançamento nesta planilha.</td></tr>';
         return;

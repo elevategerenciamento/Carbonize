@@ -844,6 +844,22 @@
                 <h3>Planilhas Rápidas</h3>
                 <button class="close-modal-btn" onclick="hideModal('spreadsheets')">✕</button>
             </div>
+
+            <!-- Criação de nova planilha -->
+            <div id="spreadsheet-create-view" style="display: none; margin-bottom: 20px;">
+                <h4 class="card-title" style="margin-bottom: 8px;">Nova Planilha Rápida</h4>
+                <p class="text-dim" style="font-size: 13px; margin-bottom: 24px;">Insira um nome identificador para esta planilha de custos.</p>
+                <form id="form-create-spreadsheet" onsubmit="event.preventDefault(); window.saveNewSpreadsheet();">
+                    <div class="form-field">
+                        <label>Nome da Planilha</label>
+                        <input type="text" id="new-spreadsheet-name" placeholder="Ex: Folha de Pagamento - Junho/2026" required style="padding: 14px 18px; border-radius:12px;">
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-top: 24px;">
+                        <button type="submit" class="btn-primary" style="flex: 1; justify-content: center; padding: 14px; border-radius:12px; margin:0; width: auto;"><i data-lucide="save"></i> Salvar Planilha</button>
+                        <button type="button" onclick="window.showSpreadsheetsList()" class="btn-save" style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; padding: 14px; border-radius:12px; margin:0; width: auto;">Cancelar</button>
+                    </div>
+                </form>
+            </div>
             
             <!-- Listagem de planilhas criadas -->
             <div id="spreadsheets-list-view">
