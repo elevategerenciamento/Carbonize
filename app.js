@@ -958,6 +958,14 @@ window.generateReport = async (type, format = 'pdf') => {
         return;
     }
 
+    // Perguntar ao usuário o nome do arquivo
+    let defaultFileName = `CARBONIZE_${typeLabel}_${formatDateBR(start)}_a_${formatDateBR(end)}`;
+    let finalFileName = defaultFileName;
+    const userFileName = prompt("Deseja definir um nome personalizado para o arquivo do relatório?\n(Deixe em branco ou cancele para usar o nome padrão)", "");
+    if (userFileName !== null && userFileName.trim() !== "") {
+        finalFileName = userFileName.trim();
+    }
+
     // ════════════════════════════════════
     //  EXPORTAÇÃO XLS (SpreadsheetML com estilo)
     // ════════════════════════════════════
@@ -1050,7 +1058,8 @@ window.generateReport = async (type, format = 'pdf') => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `CARBONIZE_${typeLabel}_${formatDateBR(start)}_a_${formatDateBR(end)}.xls`;
+        const extension = finalFileName.toLowerCase().endsWith('.xls') ? '' : '.xls';
+        link.download = `${finalFileName}${extension}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1201,7 +1210,8 @@ window.generateReport = async (type, format = 'pdf') => {
 
 
 
-    doc.save(`CARBONIZE_${typeLabel}_${formatDateBR(start)}_a_${formatDateBR(end)}.pdf`);
+    const extension = finalFileName.toLowerCase().endsWith('.pdf') ? '' : '.pdf';
+    doc.save(`${finalFileName}${extension}`);
     showToast();
 };
 
