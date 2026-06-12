@@ -964,6 +964,7 @@ window.generateReport = async (type, format = 'pdf') => {
     const userFileName = prompt("Deseja definir um nome personalizado para o arquivo do relatório?\n(Deixe em branco ou cancele para usar o nome padrão)", "");
     if (userFileName !== null && userFileName.trim() !== "") {
         finalFileName = userFileName.trim();
+        reportConfig.title = finalFileName.toUpperCase();
     }
 
     // ════════════════════════════════════
