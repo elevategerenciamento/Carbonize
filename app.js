@@ -382,21 +382,25 @@ function renderExpenses() {
     console.log("Rendering expenses...", expenses);
     const list = document.getElementById('expense-history-list');
     const totalEl = document.getElementById('kpi-custo-mes');
-    const total = expenses.reduce((acc, e) => acc + Number(e.expense_value || 0), 0);
+    
+    // Filtra para pegar apenas os gastos gerais (sem planilha rápida)
+    const generalExpenses = expenses.filter(e => !e.spreadsheet_name);
+    
+    const total = generalExpenses.reduce((acc, e) => acc + Number(e.expense_value || 0), 0);
     if (totalEl) totalEl.innerText = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     
     if (list) {
-        if (expenses.length === 0) {
-            list.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-dim);">Nenhum lançamento encontrado.</td></tr>';
+        if (generalExpenses.length === 0) {
+            list.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-dim);">Nenhum lançamento encontrado.</td></tr>';
             return;
         }
 
-        const totalPages = Math.ceil(expenses.length / ITEMS_PER_PAGE);
+        const totalPages = Math.ceil(generalExpenses.length / ITEMS_PER_PAGE);
         if (expensesPage > totalPages) expensesPage = totalPages || 1;
 
         const start = (expensesPage - 1) * ITEMS_PER_PAGE;
         const end = start + ITEMS_PER_PAGE;
-        const pageItems = expenses.slice(start, end);
+        const pageItems = generalExpenses.slice(start, end);
 
         list.innerHTML = pageItems.map(e => `
             <tr>
@@ -850,12 +854,16 @@ window.generateReport = async (type, format = 'pdf') => {
         if (sheetFilter) {
             filtered = filtered.filter(e => e.spreadsheet_name === sheetFilter);
             typeLabel = `GASTOS_${sheetFilter.toUpperCase().replace(/\s+/g, '_')}`;
+        } else {
+            // Se nenhuma planilha estiver selecionada, mostre apenas os custos avulsos (sem planilha)
+            filtered = filtered.filter(e => !e.spreadsheet_name);
+            typeLabel = `GASTOS_GERAIS`;
         }
         if (filterText) {
             const lowerFilterText = filterText.toLowerCase();
-            filtered = filtered.filter(e => e.expense_desc && e.expense_desc.toLowerCase().includes(lowerFilterText));
+            filtered = filtered.filter(e => e.expense_desc && e.expense_desc.toLowerCase().includes(filterText));
             if (!sheetFilter) {
-                typeLabel = `GASTOS_${filterText.toUpperCase().replace(/\s+/g, '_')}`;
+                typeLabel = `GASTOS_GERAIS_${filterText.toUpperCase().replace(/\s+/g, '_')}`;
             }
         }
         
@@ -864,8 +872,8 @@ window.generateReport = async (type, format = 'pdf') => {
         const totalQuitados = filtered.filter(e => (e.expense_status || 'Quitado') === 'Quitado').reduce((a, e) => a + Number(e.expense_value || 0), 0);
         const totalPendentes = filtered.filter(e => e.expense_status === 'Pendente').reduce((a, e) => a + Number(e.expense_value || 0), 0);
         
-        let reportTitle = "RELATÓRIO DE CUSTOS OPERACIONAIS";
-        let reportSubtitle = "Análise Financeira e Fluxo de Despesas";
+        let reportTitle = "RELATÓRIO DE GASTOS GERAIS";
+        let reportSubtitle = "Análise Financeira de Gastos Gerais (Sem Planilhas Rápidas)";
         if (sheetFilter) {
             reportTitle = `RELATÓRIO DE CUSTOS: ${sheetFilter.toUpperCase()}`;
             reportSubtitle = `Planilha de Custos Vinculada: ${sheetFilter}`;
@@ -1803,24 +1811,36 @@ function initPinLogic() {
             }
 
             const fd = new FormData(e.target);
+            const expenseId = fd.get('expense_id');
             const item = {
                 expense_date: fd.get('expense_date'),
                 expense_category: fd.get('expense_category'),
                 expense_desc: fd.get('expense_desc'),
                 expense_value: fd.get('expense_value'),
-                expense_quantity: 1,
+                expense_quantity: Number(fd.get('expense_quantity') || 1),
                 payment_method: fd.get('payment_method'),
-                expense_status: 'Quitado',
+                expense_status: fd.get('expense_status') || 'Quitado',
                 spreadsheet_name: currentSpreadsheetName
             };
 
             try {
-                await saveItem('expenses', item);
+                if (expenseId) {
+                    const { error } = await supabase.from('expenses').update(item).eq('id', expenseId).eq('user_id', currentUser.id);
+                    if (error) throw error;
+                    document.getElementById('edit-sheet-expense-id').value = '';
+                    document.getElementById('sheet-expense-form-title').innerText = "Adicionar Lançamento na Planilha";
+                    const saveBtn = document.getElementById('btn-save-sheet-expense');
+                    saveBtn.innerHTML = `<i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i> Adicionar`;
+                    saveBtn.style.background = "";
+                } else {
+                    await saveItem('expenses', item);
+                }
                 e.target.reset();
                 if (e.target.querySelector('[name="expense_date"]')._flatpickr) {
                     e.target.querySelector('[name="expense_date"]')._flatpickr.setDate(new Date());
                 }
-                showToast("Lançamento adicionado com sucesso!");
+                showToast(expenseId ? "Lançamento atualizado com sucesso!" : "Lançamento adicionado com sucesso!");
+                await loadAllData();
                 renderSpreadsheetItems();
                 updateSpreadsheetSelects();
             } catch (err) {
@@ -1959,7 +1979,7 @@ function renderSpreadsheetItems() {
     }
 
     if (items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-dim); padding:20px;">Nenhum lançamento nesta planilha.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-dim); padding:20px;">Nenhum lançamento nesta planilha.</td></tr>';
         return;
     }
 
@@ -1970,9 +1990,14 @@ function renderSpreadsheetItems() {
             <td>${formatDateBR(e.expense_date)}</td>
             <td>${e.expense_desc || '-'}</td>
             <td>${e.payment_method}</td>
+            <td><span class="status-badge ${e.expense_status === 'Pendente' ? 'warning' : 'success'}" style="font-size:9px; padding:2px 6px; border-radius:6px;">${e.expense_status || 'Quitado'}</span></td>
+            <td>${Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
             <td>R$ ${Number(e.expense_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
             <td style="text-align: right;">
-                <button onclick="deleteSpreadsheetExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button>
+                <div style="display:flex; gap:8px; justify-content: flex-end;">
+                    <button onclick="editSpreadsheetExpense('${e.id}')" style="background:none; border:none; color:var(--text-dim); cursor:pointer;"><i data-lucide="edit-3" style="width:16px;"></i></button>
+                    <button onclick="deleteSpreadsheetExpense('${e.id}')" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i data-lucide="trash-2" style="width:16px;"></i></button>
+                </div>
             </td>
         </tr>
     `).join('');
@@ -2051,9 +2076,33 @@ function updateSpreadsheetSelects() {
     }
     if (repSelect) {
         const currentVal = repSelect.value;
-        repSelect.innerHTML = '<option value="">Todas as Planilhas</option>' + 
+        repSelect.innerHTML = '<option value="">Custos Avulsos (Sem Planilha)</option>' + 
             sheets.map(s => `<option value="${s}">${s}</option>`).join('');
         repSelect.value = currentVal;
     }
 }
+
+function editSpreadsheetExpense(id) {
+    const e = expenses.find(item => item.id === id);
+    if (!e) return;
+
+    const form = document.getElementById('form-spreadsheet-expense');
+    form.querySelector('[name="expense_date"]')._flatpickr.setDate(e.expense_date);
+    form.querySelector('[name="expense_category"]').value = e.expense_category;
+    form.querySelector('[name="payment_method"]').value = e.payment_method;
+    form.querySelector('[name="expense_desc"]').value = e.expense_desc;
+    form.querySelector('[name="expense_quantity"]').value = e.expense_quantity || 1;
+    form.querySelector('[name="expense_value"]').value = e.expense_value;
+    form.querySelector('[name="expense_id"]').value = e.id;
+    form.querySelector('[name="expense_status"]').value = e.expense_status || 'Quitado';
+
+    document.getElementById('sheet-expense-form-title').innerText = "Editar Lançamento na Planilha";
+    const btn = document.getElementById('btn-save-sheet-expense');
+    btn.innerHTML = `<i data-lucide="save" style="width: 16px; height: 16px;"></i> Salvar Alterações`;
+    btn.style.background = "#2563eb"; // Blue for edit mode
+    
+    if (window.lucide) window.lucide.createIcons();
+}
+
+window.editSpreadsheetExpense = editSpreadsheetExpense;
 

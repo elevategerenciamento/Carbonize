@@ -307,7 +307,7 @@
                             <div class="form-field">
                                 <label>Planilha Rápida (Opcional)</label>
                                 <select name="spreadsheet_name" id="expense-spreadsheet-select">
-                                    <option value="">Nenhuma (Custo Avulso)</option>
+                                    <option value="">Gastos Gerais</option>
                                 </select>
                             </div>
                             <input type="hidden" name="expense_id" id="edit-expense-id">
@@ -595,7 +595,7 @@
                             <div class="date-input-wrapper">
                                 <i data-lucide="folder"></i>
                                 <select id="report-expenses-spreadsheet" style="background:transparent; border:none; color:#fff; font-size:12px; padding:10px 0; outline:none; width:100%; cursor:pointer;">
-                                    <option value="">Todas as Planilhas</option>
+                                    <option value="">Custos Avulsos (Sem Planilha)</option>
                                 </select>
                             </div>
                         </div>
@@ -905,10 +905,11 @@
 
                 <!-- Formulário rápido de adicionar custo dentro da planilha -->
                 <div class="glass" style="padding: 20px; margin-bottom: 20px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: none; border-radius: 16px; min-height: auto;">
-                    <h5 style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; font-weight: 700; margin-top: 0;">Adicionar Lançamento na Planilha</h5>
+                    <h5 style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; font-weight: 700; margin-top: 0;" id="sheet-expense-form-title">Adicionar Lançamento na Planilha</h5>
                     <form id="form-spreadsheet-expense">
-                        <!-- Linha 1: Data, Categoria, Pagamento -->
-                        <div style="display: grid; grid-template-columns: 1fr 1.2fr 1.2fr; gap: 12px; margin-bottom: 12px;">
+                        <input type="hidden" name="expense_id" id="edit-sheet-expense-id">
+                        <!-- Linha 1: Data, Categoria, Pagamento, Status -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                             <div class="form-field" style="margin: 0;">
                                 <label style="font-size: 9px; margin-bottom: 6px; color: var(--text-dim); display: block; text-transform: uppercase; font-weight: 700;">Data</label>
                                 <div class="date-input-wrapper" style="border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2); border-radius: 10px; padding: 0 10px; height: 38px;">
@@ -935,19 +936,30 @@
                                     <option value="A Prazo">A Prazo</option>
                                 </select>
                             </div>
+                            <div class="form-field" style="margin: 0;">
+                                <label style="font-size: 9px; margin-bottom: 6px; color: var(--text-dim); display: block; text-transform: uppercase; font-weight: 700;">Status</label>
+                                <select name="expense_status" style="padding: 8px 12px; font-size: 12px; border-radius: 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; height: 38px; width: 100%; cursor: pointer;">
+                                    <option value="Quitado">Quitado</option>
+                                    <option value="Pendente">Pendente</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <!-- Linha 2: Descrição, Valor Total, Botão Adicionar -->
-                        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; align-items: flex-end;">
+                        <!-- Linha 2: Descrição, Quantidade, Valor Total, Botão Adicionar -->
+                        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; align-items: flex-end;">
                             <div class="form-field" style="margin: 0;">
                                 <label style="font-size: 9px; margin-bottom: 6px; color: var(--text-dim); display: block; text-transform: uppercase; font-weight: 700;">Descrição</label>
                                 <input type="text" name="expense_desc" placeholder="Ex: Pagamento" required style="padding: 8px 12px; font-size: 12px; border-radius: 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; height: 38px; width: 100%;">
                             </div>
                             <div class="form-field" style="margin: 0;">
+                                <label style="font-size: 9px; margin-bottom: 6px; color: var(--text-dim); display: block; text-transform: uppercase; font-weight: 700;">Quantidade</label>
+                                <input type="number" step="0.01" name="expense_quantity" value="1" min="0" required style="padding: 8px 12px; font-size: 12px; border-radius: 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; height: 38px; width: 100%;">
+                            </div>
+                            <div class="form-field" style="margin: 0;">
                                 <label style="font-size: 9px; margin-bottom: 6px; color: var(--text-dim); display: block; text-transform: uppercase; font-weight: 700;">Valor Total</label>
                                 <input type="number" step="0.01" name="expense_value" required placeholder="R$" style="padding: 8px 12px; font-size: 12px; border-radius: 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; height: 38px; width: 100%;">
                             </div>
-                            <button type="submit" class="btn-primary" style="margin: 0; padding: 0; height: 38px; border-radius: 10px; font-size: 12px; justify-content: center; width: 100%; background: var(--primary); color: #fff; font-weight: 700; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.3s;">
+                            <button type="submit" id="btn-save-sheet-expense" class="btn-primary" style="margin: 0; padding: 0; height: 38px; border-radius: 10px; font-size: 12px; justify-content: center; width: 100%; background: var(--primary); color: #fff; font-weight: 700; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.3s;">
                                 <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i> Adicionar
                             </button>
                         </div>
@@ -961,6 +973,8 @@
                                 <th style="padding: 12px 16px; font-size: 10px; letter-spacing: 0.5px; color: var(--text-dim);">DATA</th>
                                 <th style="padding: 12px 16px; font-size: 10px; letter-spacing: 0.5px; color: var(--text-dim);">DESCRIÇÃO</th>
                                 <th style="padding: 12px 16px; font-size: 10px; letter-spacing: 0.5px; color: var(--text-dim);">PAGAMENTO</th>
+                                <th style="padding: 12px 16px; font-size: 10px; letter-spacing: 0.5px; color: var(--text-dim);">STATUS</th>
+                                <th style="padding: 12px 16px; font-size: 10px; letter-spacing: 0.5px; color: var(--text-dim);">QTD</th>
                                 <th style="padding: 12px 16px; font-size: 10px; letter-spacing: 0.5px; color: var(--text-dim);">VALOR</th>
                                 <th style="text-align: right; padding: 12px 16px; font-size: 10px; letter-spacing: 0.5px; color: var(--text-dim);">AÇÃO</th>
                             </tr>
