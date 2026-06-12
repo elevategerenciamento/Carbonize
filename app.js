@@ -406,7 +406,7 @@ function renderExpenses() {
             <tr>
                 <td>${e.expense_date}</td>
                 <td>${e.expense_desc || '-'}</td>
-                <td>${e.payment_method}${e.payment_method === 'Cartão' && e.installments ? ` (${e.installments}x)` : ''}</td>
+                <td>${e.payment_method}${e.payment_method === 'Cartão' && e.installments && Number(e.installments) > 1 ? ` (${e.installments}x)` : ''}</td>
                 <td><span class="status-badge ${e.expense_status === 'Pendente' ? 'warning' : 'success'}" style="font-size:9px; padding:2px 6px; border-radius:6px;">${e.expense_status || 'Quitado'}</span></td>
                 <td>${Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                 <td>R$ ${Number(e.expense_value).toFixed(2)}</td>
@@ -895,7 +895,7 @@ window.generateReport = async (type, format = 'pdf') => {
             rows: filtered.map(e => [
                 formatDateBR(e.expense_date),
                 e.expense_desc || '-',
-                e.payment_method === 'Cartão' && e.installments ? `${e.payment_method} (${e.installments}x)` : (e.payment_method || '-'),
+                e.payment_method === 'Cartão' && e.installments && Number(e.installments) > 1 ? `${e.payment_method} (${e.installments}x)` : (e.payment_method || '-'),
                 e.expense_status || 'Quitado',
                 Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
                 `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
