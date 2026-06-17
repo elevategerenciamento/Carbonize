@@ -850,7 +850,8 @@ window.generateReport = async (type, format = 'pdf') => {
         const filterText = filterInput ? filterInput.value.trim() : '';
         const sheetFilter = document.getElementById('report-expenses-spreadsheet').value;
         
-        let filtered = filterByDateRange(expenses, 'expense_date', start, end);
+        let filtered = filterByDateRange(expenses, 'expense_date', start, end)
+            .filter(e => !(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha'));
         if (sheetFilter) {
             filtered = filtered.filter(e => e.spreadsheet_name === sheetFilter);
             typeLabel = `GASTOS_${sheetFilter.toUpperCase().replace(/\s+/g, '_')}`;
