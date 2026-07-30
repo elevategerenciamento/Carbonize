@@ -74,15 +74,23 @@ async function init() {
 // 4. AUTHENTICATION
 async function handleLogin(e) {
     e.preventDefault();
+    console.log("Carbonize: handleLogin disparado");
     const fd = new FormData(e.target);
     const farmName = fd.get('farm_name');
     const password = fd.get('password');
-    const action = e.target.dataset.action;
+    const action = e.submitter ? e.submitter.dataset.action : e.target.dataset.action;
+    console.log("Carbonize: Ação de autenticação:", action, "Empreendimento:", farmName);
+    
+    if (!farmName || !password) {
+        alert("Por favor, preencha todos os campos.");
+        return;
+    }
     
     const email = `${farmName.toLowerCase().replace(/\s+/g, '')}@carbonize.com`;
 
     try {
         if (action === 'signup') {
+            console.log("Carbonize: Iniciando signUp para email:", email);
             const { error } = await supabase.auth.signUp({
                 email, password,
                 options: { data: { farm_name: farmName } }
@@ -90,11 +98,13 @@ async function handleLogin(e) {
             if (error) throw error;
             alert("Conta criada! Tente entrar agora.");
         } else {
+            console.log("Carbonize: Iniciando signIn para email:", email);
             const { error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
             location.reload();
         }
     } catch (err) {
+        console.error("Carbonize: Erro de autenticação:", err);
         alert("Erro: " + err.message);
     }
 }
