@@ -601,63 +601,315 @@ let prodChartInstance = null;
 let loadsChartInstance = null;
 let efficiencyChartInstance = null;
 let costsDistChartInstance = null;
+let cashFlowChartInstance = null;
+let cashFlowChartDashInstance = null;
+
+// ── Helpers de data para os gráficos ─────────────────────────────
+function getLastNDaysISO(n) {
+    const days = [];
+    for (let i = n - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        days.push(d.toISOString().split('T')[0]);
+    }
+    return days;
+}
+
+function weekdayLabelShort(dateStr) {
+    const labels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const parts = dateStr.split('-').map(Number);
+    return labels[new Date(parts[0], parts[1] - 1, parts[2]).getDay()];
+}
+
+function getLastNWeeksRanges(n) {
+    const weeks = [];
+    const now = new Date();
+    for (let i = n - 1; i >= 0; i--) {
+        const end = new Date(now);
+        end.setDate(end.getDate() - i * 7);
+        const start = new Date(end);
+        start.setDate(start.getDate() - 6);
+        weeks.push({
+            label: 'S' + (n - i),
+            start: start.toISOString().split('T')[0],
+            end: end.toISOString().split('T')[0]
+        });
+    }
+    return weeks;
+}
+
+function buildCashFlowConfig(last7, despesasPorDia, receitasPorDia) {
+    return {
+        type: 'line',
+        data: {
+            labels: last7.map(weekdayLabelShort),
+            datasets: [
+                {
+                    label: 'Receitas (est.)',
+                    data: receitasPorDia,
+                    borderColor: '#00e676',
+                    backgroundColor: 'rgba(0, 230, 118, 0.12)',
+                    fill: true, tension: 0.45,
+                    pointBackgroundColor: '#00e676', pointRadius: 4, pointHoverRadius: 7
+                },
+                {
+                    label: 'Despesas',
+                    data: despesasPorDia,
+                    borderColor: PRIMARY_COLOR,
+                    backgroundColor: 'rgba(230, 0, 46, 0.12)',
+                    fill: true, tension: 0.45,
+                    pointBackgroundColor: PRIMARY_COLOR, pointRadius: 4, pointHoverRadius: 7
+                }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, labels: { color: '#94949e', font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: function(c) {
+                            return c.dataset.label + ': R$ ' + c.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94949e' } },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        color: '#94949e',
+                        callback: function(v) {
+                            return 'R$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : Number(v).toFixed(0));
+                        }
+                    },
+                    beginAtZero: true
+                }
+            }
+        }
+    };
+}
 
 function renderCharts() {
-    const ctx1 = document.getElementById('prodChart');
-    const ctx2 = document.getElementById('loadsChart');
-    const ctx3 = document.getElementById('efficiencyChart');
-    const ctx4 = document.getElementById('costsDistChart');
+    var ctx1 = document.getElementById('prodChart');
+    var ctx2 = document.getElementById('loadsChart');
+    var ctx3 = document.getElementById('efficiencyChart');
+    var ctx4 = document.getElementById('costsDistChart');
+    var ctxCash = document.getElementById('cashFlowChart');
+    var ctxCashDash = document.getElementById('cashFlowChartDash');
 
-    if (prodChartInstance) prodChartInstance.destroy();
-    if (loadsChartInstance) loadsChartInstance.destroy();
-    if (efficiencyChartInstance) efficiencyChartInstance.destroy();
-    if (costsDistChartInstance) costsDistChartInstance.destroy();
+    if (prodChartInstance) { prodChartInstance.destroy(); prodChartInstance = null; }
+    if (loadsChartInstance) { loadsChartInstance.destroy(); loadsChartInstance = null; }
+    if (efficiencyChartInstance) { efficiencyChartInstance.destroy(); efficiencyChartInstance = null; }
+    if (costsDistChartInstance) { costsDistChartInstance.destroy(); costsDistChartInstance = null; }
+    if (cashFlowChartInstance) { cashFlowChartInstance.destroy(); cashFlowChartInstance = null; }
+    if (cashFlowChartDashInstance) { cashFlowChartDashInstance.destroy(); cashFlowChartDashInstance = null; }
 
-    if (ctx1) prodChartInstance = new Chart(ctx1, { type: 'line', data: { labels: ['S1', 'S2', 'S3', 'S4'], datasets: [{ label: 'Produção', data: [15, 22, 18, 25], borderColor: PRIMARY_COLOR, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-    if (ctx2) loadsChartInstance = new Chart(ctx2, { type: 'bar', data: { labels: ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'], datasets: [{ label: 'Cargas', data: [2, 5, 3, 6, 8, 4, 2], backgroundColor: PRIMARY_COLOR }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-    
+    // ── 1. PRODUÇÃO REAL — últimas 4 semanas ─────────────────
+    if (ctx1) {
+        var weeks = getLastNWeeksRanges(4);
+        var prodData = weeks.map(function(w) {
+            return history
+                .filter(function(h) { return h && h.data && h.data >= w.start && h.data <= w.end; })
+                .reduce(function(acc, h) { return acc + Number(h.carbonizando || 0) * 1.5; }, 0);
+        });
+        prodChartInstance = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: weeks.map(function(w) { return w.label; }),
+                datasets: [{
+                    label: 'Produção (t)',
+                    data: prodData,
+                    borderColor: PRIMARY_COLOR,
+                    backgroundColor: 'rgba(230, 0, 46, 0.12)',
+                    fill: true, tension: 0.4,
+                    pointBackgroundColor: PRIMARY_COLOR,
+                    pointRadius: 4, pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(c) { return c.parsed.y.toFixed(2) + ' t'; } } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94949e' } },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94949e', callback: function(v) { return Number(v).toFixed(0) + 't'; } }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // ── 2. CARGAS REAIS — últimos 7 dias ────────────────────
+    if (ctx2) {
+        var last7 = getLastNDaysISO(7);
+        var loadsData = last7.map(function(day) {
+            return loads.filter(function(l) { return l && l.data === day; }).length;
+        });
+        loadsChartInstance = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: last7.map(weekdayLabelShort),
+                datasets: [{
+                    label: 'Cargas',
+                    data: loadsData,
+                    backgroundColor: 'rgba(230, 0, 46, 0.7)',
+                    borderColor: PRIMARY_COLOR,
+                    borderWidth: 1, borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(c) { return c.parsed.y + (c.parsed.y !== 1 ? ' cargas' : ' carga'); } } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94949e' } },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94949e', stepSize: 1, precision: 0 }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // ── 3. RADAR DE EFICIÊNCIA REAL ──────────────────────────
     if (ctx3) {
+        var totalDays = Math.max(1, history.map(function(h) { return h.data; }).filter(Boolean).filter(function(v, i, a) { return a.indexOf(v) === i; }).length);
+        var totalCarb = history.reduce(function(a, h) { return a + Number(h.carbonizando || 0); }, 0);
+        var avgCarb = totalCarb / totalDays;
+        var velocidade = Math.min(100, Math.round((avgCarb / 20) * 100));
+
+        var totalStatus = history.reduce(function(a, h) {
+            return a + Number(h.vazios || 0) + Number(h.cheios || 0) + Number(h.carbonizando || 0) + Number(h.esfriando || 0);
+        }, 0);
+        var qualidade = totalStatus > 0 ? Math.min(100, Math.round((totalCarb / totalStatus) * 200)) : 0;
+
+        var totalExp = expenses.filter(function(e) { return !(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha'); })
+            .reduce(function(a, e) { return a + Number(e.expense_value || 0); }, 0);
+        var totalProd = history.reduce(function(a, h) { return a + Number(h.carbonizando || 0) * 1.5; }, 0);
+        var custoPorTon = totalProd > 0 ? totalExp / totalProd : 0;
+        var custoScore = Math.min(100, Math.max(0, Math.round(100 - (custoPorTon / 300) * 100)));
+
+        var totalMaint = maintenance.length;
+        var resolved = maintenance.filter(function(m) { return m.resolved; }).length;
+        var manutScore = totalMaint > 0 ? Math.round((resolved / totalMaint) * 100) : 100;
+
+        var pendentes = maintenance.filter(function(m) { return !m.resolved; }).length;
+        var segScore = Math.min(100, Math.max(0, Math.round(100 - (pendentes / 10) * 100)));
+
         efficiencyChartInstance = new Chart(ctx3, {
             type: 'radar',
             data: {
                 labels: ['Velocidade', 'Qualidade', 'Custo', 'Manutenção', 'Segurança'],
                 datasets: [{
                     label: 'Score Atual',
-                    data: [85, 92, 78, 88, 95],
+                    data: [velocidade, qualidade, custoScore, manutScore, segScore],
                     backgroundColor: 'rgba(230, 0, 46, 0.2)',
                     borderColor: PRIMARY_COLOR,
-                    pointBackgroundColor: PRIMARY_COLOR
+                    pointBackgroundColor: PRIMARY_COLOR, pointRadius: 4
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
                 scales: {
-                    r: { grid: { color: 'rgba(255,255,255,0.1)' }, angleLines: { color: 'rgba(255,255,255,0.1)' }, pointLabels: { color: '#94949e' } }
+                    r: {
+                        min: 0, max: 100,
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        angleLines: { color: 'rgba(255,255,255,0.1)' },
+                        pointLabels: { color: '#94949e', font: { size: 11 } },
+                        ticks: { display: false }
+                    }
                 },
-                plugins: { legend: { display: false } }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(c) { return c.label + ': ' + c.parsed.r + '%'; } } }
+                }
             }
         });
     }
 
+    // ── 4. DISTRIBUIÇÃO DE CUSTOS REAL por categoria ─────────
     if (ctx4) {
+        var catMap = { 'Lenha': 0, 'Mão de Obra': 0, 'Logística': 0, 'Manutenção': 0, 'Outros': 0 };
+        expenses.forEach(function(e) {
+            if (e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha') return;
+            var cat = e.expense_category || 'Outros';
+            if (!catMap.hasOwnProperty(cat)) cat = 'Outros';
+            catMap[cat] += Number(e.expense_value || 0);
+        });
+        maintenance.forEach(function(m) { catMap['Manutenção'] += Number(m.cost || 0); });
+
+        var catLabels = Object.keys(catMap).filter(function(k) { return catMap[k] > 0; });
+        var catData = catLabels.map(function(k) { return catMap[k]; });
+        var catColors = ['#e6002e', '#00d2ff', '#00e676', '#ffea00', '#ff6b35'];
+
         costsDistChartInstance = new Chart(ctx4, {
             type: 'doughnut',
             data: {
-                labels: ['Lenha', 'Mão de Obra', 'Logística', 'Manutenção'],
+                labels: catLabels.length > 0 ? catLabels : ['Sem dados'],
                 datasets: [{
-                    data: [45, 25, 20, 10],
-                    backgroundColor: ['#e6002e', '#00d2ff', '#00e676', '#ffea00'],
-                    borderWidth: 2,
-                    borderColor: '#0f0f12'
+                    data: catData.length > 0 ? catData : [1],
+                    backgroundColor: catData.length > 0 ? catColors.slice(0, catLabels.length) : ['rgba(255,255,255,0.05)'],
+                    borderWidth: 2, borderColor: '#0f0f12'
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'right', labels: { color: '#94949e', font: { size: 10 } } } }
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: '#94949e', font: { size: 10 },
+                            generateLabels: function(chart) {
+                                var ds = chart.data.datasets[0];
+                                return chart.data.labels.map(function(lbl, i) {
+                                    return {
+                                        text: catData.length > 0
+                                            ? lbl + ': R$' + ds.data[i].toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                                            : lbl,
+                                        fillStyle: ds.backgroundColor[i],
+                                        hidden: false, index: i
+                                    };
+                                });
+                            }
+                        }
+                    },
+                    tooltip: {
+                        enabled: catData.length > 0,
+                        callbacks: {
+                            label: function(c) {
+                                var total = c.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                                var pct = total > 0 ? ((c.parsed / total) * 100).toFixed(1) : 0;
+                                return ' R$ ' + c.parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
             }
         });
+    }
+
+    // ── 5 & 6. FLUXO DE CAIXA REAL — últimos 7 dias ─────────
+    var last7cf = getLastNDaysISO(7);
+    var despesasPorDia = last7cf.map(function(day) {
+        return expenses
+            .filter(function(e) { return e && e.expense_date === day && !(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha'); })
+            .reduce(function(a, e) { return a + Number(e.expense_value || 0); }, 0);
+    });
+    var receitasPorDia = last7cf.map(function(day) {
+        return loads
+            .filter(function(l) { return l && l.data === day; })
+            .reduce(function(a, l) { return a + (Number(l.peso || 0) / 1000) * 500; }, 0);
+    });
+
+    if (ctxCash) {
+        cashFlowChartInstance = new Chart(ctxCash, buildCashFlowConfig(last7cf, despesasPorDia, receitasPorDia));
+    }
+    if (ctxCashDash) {
+        cashFlowChartDashInstance = new Chart(ctxCashDash, buildCashFlowConfig(last7cf, despesasPorDia, receitasPorDia));
     }
 }
 

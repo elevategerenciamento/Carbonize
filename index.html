@@ -159,12 +159,21 @@
 
                 <div class="charts-grid" style="margin-top: 32px;">
                     <div class="chart-card glass">
-                        <h4 style="margin-bottom: 16px; font-size:14px;">Produção (t)</h4>
+                        <h4 style="margin-bottom: 4px; font-size:14px;">Produção (t)</h4>
+                        <p style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">Toneladas estimadas nas últimas 4 semanas</p>
                         <div style="height: 220px;"><canvas id="prodChart"></canvas></div>
                     </div>
                     <div class="chart-card glass">
-                        <h4 style="margin-bottom: 16px; font-size:14px;">Logística</h4>
+                        <h4 style="margin-bottom: 4px; font-size:14px;">Logística</h4>
+                        <p style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">Cargas expedidas nos últimos 7 dias</p>
                         <div style="height: 220px;"><canvas id="loadsChart"></canvas></div>
+                    </div>
+                </div>
+                <div style="margin-top: 24px;">
+                    <div class="chart-card glass">
+                        <h4 style="margin-bottom: 4px; font-size:14px;">Fluxo de Caixa</h4>
+                        <p style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">Últimos 7 dias — receitas (est.) vs despesas lançadas</p>
+                        <div style="height: 240px;"><canvas id="cashFlowChartDash"></canvas></div>
                     </div>
                 </div>
             </section>
@@ -489,19 +498,27 @@
                 </div>
             </section>
 
-            <!-- SECTION: ANÁLISE -->
             <section id="section-analise" class="content-section" style="display: none;">
                 <div class="header-action">
                     <h2 class="page-title">Análise de Performance</h2>
                 </div>
                 <div class="charts-grid">
                     <div class="chart-card glass">
-                        <h4 style="margin-bottom: 16px; font-size:14px;">Eficiência por Unidade</h4>
+                        <h4 style="margin-bottom: 4px; font-size:14px;">Eficiência por Unidade</h4>
+                        <p style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">Scores calculados a partir dos dados reais</p>
                         <div style="height: 250px;"><canvas id="efficiencyChart"></canvas></div>
                     </div>
                     <div class="chart-card glass">
-                        <h4 style="margin-bottom: 16px; font-size:14px;">Distribuição de Custos</h4>
+                        <h4 style="margin-bottom: 4px; font-size:14px;">Distribuição de Custos</h4>
+                        <p style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">Total lançado por categoria</p>
                         <div style="height: 250px;"><canvas id="costsDistChart"></canvas></div>
+                    </div>
+                </div>
+                <div style="margin-top: 24px;">
+                    <div class="chart-card glass">
+                        <h4 style="margin-bottom: 4px; font-size:14px;">Fluxo de Caixa</h4>
+                        <p style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">Últimos 7 dias — receitas estimadas por expedição vs despesas lançadas</p>
+                        <div style="height: 260px;"><canvas id="cashFlowChart"></canvas></div>
                     </div>
                 </div>
                 <div class="glass" style="margin-top: 32px;">
