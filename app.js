@@ -86,7 +86,12 @@ async function handleLogin(e) {
         return;
     }
     
-    const email = `${farmName.toLowerCase().replace(/\s+/g, '')}@carbonize.com`;
+    const sanitizedFarmName = farmName
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+    const email = `${sanitizedFarmName}@carbonize.com`;
 
     try {
         if (action === 'signup') {
