@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
     console.log("Carbonize: DOM Ready");
+    protectDevTools();
     
     // Auth Check
     const { data: { session } } = await supabase.auth.getSession();
@@ -216,11 +217,11 @@ function updateUI() {
 }
 
 // RBAC Definitions
-const PINS = {
-    'operacional': '259471',
-    'contabil': '618302',
-    'financeiro': '472915',
-    'admin': '839204'
+const PIN_HASHES = {
+    'operacional': 'f795433afccabfcda36925de8c0158c2dca4ccd79a538daadebd206fcce4d3f2',
+    'contabil': 'b1bffc9f62cbc5a72c4b6867211fa884d1a8f557f5c7885f8a2f7fa0c211f3f9',
+    'financeiro': '0168578f353f7bb90e3b46f17d336232469a3c602c04d058fe1ab62920bce1b5',
+    'admin': '16e01095a53cc5fd7040dd37bdcff310cc0c721e99bc24671e0017ebe63ee11d'
 };
 
 const PERMISSIONS = {
@@ -2016,6 +2017,34 @@ if (window.matchMedia('(display-mode: standalone)').matches) {
 
 // 10. PIN AUTHENTICATION SYSTEM
 
+async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function protectDevTools() {
+    // Disable right click
+    document.addEventListener('contextmenu', e => e.preventDefault());
+
+    // Disable F12 and keyboard shortcuts for inspection
+    document.addEventListener('keydown', e => {
+        if (e.key === 'F12') {
+            e.preventDefault();
+        }
+        if (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) {
+            e.preventDefault();
+        }
+        if (e.ctrlKey && e.key.toUpperCase() === 'U') {
+            e.preventDefault();
+        }
+        // Mac shortcuts (Cmd + Opt + I / J / C)
+        if (e.metaKey && e.altKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) {
+            e.preventDefault();
+        }
+    });
+}
 
 function initPinLogic() {
     const inputs = document.querySelectorAll('.pin-input');
@@ -2040,7 +2069,7 @@ function initPinLogic() {
         });
     });
 
-    function checkPinSubmit() {
+    async function checkPinSubmit() {
         const val = Array.from(inputs).map(i => i.value).join('');
         if(val.length === 6) {
             const role = select.value;
@@ -2048,7 +2077,8 @@ function initPinLogic() {
                 showPinError('Selecione um perfil primeiro!');
                 return;
             }
-            if(val === PINS[role]) {
+            const hash = await sha256(val);
+            if(hash === PIN_HASHES[role]) {
                 // Success - Unlock
                 document.getElementById('modal-pin-unlock').style.display = 'none';
                 document.querySelector('.app-container').classList.remove('blur-background');
