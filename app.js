@@ -217,10 +217,10 @@ function updateUI() {
 
 // RBAC Definitions
 const PINS = {
-    'operacional': '111111',
-    'contabil': '111111',
-    'financeiro': '111111',
-    'admin': '111111'
+    'operacional': '259471',
+    'contabil': '618302',
+    'financeiro': '472915',
+    'admin': '839204'
 };
 
 const PERMISSIONS = {
