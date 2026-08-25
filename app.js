@@ -354,10 +354,13 @@ function renderLoads() {
         tbody.innerHTML = loads.map(l => `
             <tr>
                 <td>#${l.identificador}</td>
-                <td>${l.data} ${l.hora}</td>
-                <td>${l.placa}</td>
-                <td>${l.peso} kg</td>
-                <td>${l.destino}</td>
+                <td>${l.data ? formatDateBR(l.data) : ''} ${l.hora || ''}</td>
+                <td>${l.destino || '-'}</td>
+                <td>${l.data_descarregamento ? formatDateBR(l.data_descarregamento) : '-'}</td>
+                <td>${l.metragem ? l.metragem + ' m³' : '-'}</td>
+                <td>${l.peso ? Number(l.peso).toLocaleString('pt-BR') + ' kg' : '-'}</td>
+                <td>${l.motorista || '-'}</td>
+                <td>${l.placa || '-'}</td>
             </tr>
         `).join('');
     }
@@ -556,7 +559,18 @@ async function processForm(id, fd) {
         await saveItem('production_history', item);
         if (item.obs) await saveItem('maintenance', { forno: item.praca, problema: item.obs, data: item.data, resolved: false });
     }
-    if (id === 'load') await saveItem('loads', { identificador: fd.get('identificador'), data: fd.get('data_carga'), hora: fd.get('hora_carga'), placa: fd.get('placa'), motorista: fd.get('motorista'), tipo_carvao: fd.get('tipo_carvao'), metragem: fd.get('metragem'), peso: fd.get('peso'), destino: fd.get('destino') });
+    if (id === 'load') await saveItem('loads', { 
+        identificador: fd.get('identificador'), 
+        data: fd.get('data_carga'), 
+        hora: fd.get('hora_carga'), 
+        placa: fd.get('placa'), 
+        motorista: fd.get('motorista'), 
+        tipo_carvao: fd.get('tipo_carvao'), 
+        metragem: fd.get('metragem'), 
+        peso: fd.get('peso'), 
+        destino: fd.get('destino'),
+        data_descarregamento: fd.get('data_descarregamento')
+    });
     if (id === 'expense') {
         const expenseId = fd.get('expense_id');
         const item = { 
@@ -1006,7 +1020,7 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Metragem Total", value: `${totalMetragem.toFixed(1)} m³` },
                 { label: "Destinos Únicos", value: [...new Set(filtered.map(l => l.destino))].length }
             ],
-            headers: ["Nº ID", "Data", "Hora", "Veículo / Placa", "Motorista", "Tipo de Carvão", "Metragem (m³)", "Peso (kg)", "Destino"],
+            headers: ["Nº ID", "Data", "Hora", "Veículo / Placa", "Motorista", "Tipo de Carvão", "Metragem (m³)", "Peso (kg)", "Destino", "Descarregamento"],
             rows: filtered.map(l => [
                 l.identificador || '-',
                 formatDateBR(l.data),
@@ -1016,7 +1030,8 @@ window.generateReport = async (type, format = 'pdf') => {
                 l.tipo_carvao || 'Eucalipto',
                 l.metragem || '0',
                 Number(l.peso || 0).toLocaleString('pt-BR'),
-                l.destino || '-'
+                l.destino || '-',
+                l.data_descarregamento ? formatDateBR(l.data_descarregamento) : '-'
             ]),
             footer: `Peso Total Expedido: ${totalPeso.toLocaleString('pt-BR')} kg | Metragem Total: ${totalMetragem.toFixed(1)} m³`,
             totalRow: [
@@ -1028,6 +1043,7 @@ window.generateReport = async (type, format = 'pdf') => {
                 "",
                 totalMetragem.toFixed(1),
                 totalPeso.toLocaleString('pt-BR'),
+                "",
                 ""
             ]
         };

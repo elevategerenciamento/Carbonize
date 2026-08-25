@@ -244,7 +244,7 @@
                 <div class="glass">
                     <div class="table-wrapper">
                         <table class="modern-table">
-                            <thead><tr><th>ID</th><th>DATA/HORA</th><th>VEÍCULO</th><th>PESO KG</th><th>DESTINO</th></tr></thead>
+                            <thead><tr><th>ID</th><th>EMBARQUE</th><th>SIDERÚRGICA (DESTINO)</th><th>DESCARREGAMENTO</th><th>METRAGEM (m³)</th><th>PESO (KG)</th><th>MOTORISTA</th><th>PLACA</th></tr></thead>
                             <tbody id="loads-table-body"></tbody>
                         </table>
                     </div>
@@ -678,13 +678,13 @@
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="form-field">
-                        <label>Data</label>
+                        <label>Data de Embarque</label>
                         <div class="date-input-wrapper">
                             <i data-lucide="calendar"></i>
                             <input type="text" name="data_carga" id="load-date-manual" class="date-picker" placeholder="Selecionar data" required>
                         </div>
                     </div>
-                    <div class="form-field"><label>Hora</label><input type="time" name="hora_carga" id="load-time-manual" required></div>
+                    <div class="form-field"><label>Hora de Embarque</label><input type="time" name="hora_carga" id="load-time-manual" required></div>
                 </div>
                 <div class="form-field"><label>Motorista</label><input type="text" name="motorista" required></div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
@@ -693,7 +693,14 @@
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="form-field"><label>Peso (kg)</label><input type="number" name="peso" required></div>
-                    <div class="form-field"><label>Destino</label><input type="text" name="destino" required></div>
+                    <div class="form-field"><label>Siderúrgica (Destino)</label><input type="text" name="destino" placeholder="Ex: Siderúrgica X" required></div>
+                </div>
+                <div class="form-field">
+                    <label>Data do Descarregamento</label>
+                    <div class="date-input-wrapper">
+                        <i data-lucide="calendar"></i>
+                        <input type="text" name="data_descarregamento" class="date-picker" placeholder="Selecionar data do descarregamento">
+                    </div>
                 </div>
                 <button type="submit" class="btn-save">Emitir Romaneio</button>
             </form>
