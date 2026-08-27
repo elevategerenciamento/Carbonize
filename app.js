@@ -181,6 +181,29 @@ async function saveItem(table, item) {
     }
 }
 
+async function saveItems(table, itemsList) {
+    if (!currentUser) return;
+    const payloads = itemsList.map(item => ({ ...item, user_id: currentUser.id }));
+    
+    try {
+        const { error } = await supabase.from(table).insert(payloads);
+        if (error) throw error;
+        await loadAllData();
+    } catch (err) {
+        console.warn("Modo Offline: Salvando localmente...", err);
+        for (const payload of payloads) {
+            saveOffline(table, payload);
+        }
+        showToast("Salvo localmente (Modo Offline)");
+        
+        if (table === 'kilns') {
+            kilns.push(...payloads.map(p => ({ ...p, id: 'temp-' + Date.now() + Math.random() })));
+        }
+        renderAll();
+        updateUI();
+    }
+}
+
 function saveOffline(table, data) {
     const queue = JSON.parse(localStorage.getItem('carbonize_offline_queue') || '[]');
     queue.push({ table, data, timestamp: Date.now() });
@@ -249,6 +272,7 @@ function switchTab(tabId) {
     document.querySelectorAll(`button[onclick*="switchTab('${tabId}')"]`).forEach(l => l.classList.add('active'));
 
     if (targetSection === 'analise' || targetSection === 'dashboard') renderCharts();
+    if (targetSection === 'fornos') initSpreadsheet();
     if (targetSection === 'acesso-negado' && window.lucide) window.lucide.createIcons();
 }
 
@@ -333,7 +357,9 @@ function renderKilns() {
         select.innerHTML = '<option value="">Selecione...</option>' + kilns.map(k => `<option value="${k.praca}">${k.praca}</option>`).join('');
     }
     
-    if (maintSelect) maintSelect.innerHTML = select.innerHTML;
+    if (maintSelect) {
+        maintSelect.innerHTML = '<option value="">Selecione...</option>' + kilns.map(k => `<option value="${k.praca}">${k.praca}</option>`).join('');
+    }
 
     if (historyList) {
         const sortedHistory = [...history].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -346,6 +372,9 @@ function renderKilns() {
             </tr>
         `).join('');
     }
+
+    // Render spreadsheet grid
+    renderSpreadsheetGrid();
 }
 
 function renderLoads() {
@@ -553,7 +582,42 @@ function setupEventListeners() {
 }
 
 async function processForm(id, fd) {
-    if (id === 'kiln') await saveItem('kilns', { praca: fd.get('praca'), modelo: fd.get('modelo') });
+    if (id === 'kiln') {
+        const pracaInput = fd.get('praca') || "";
+        const modelo = fd.get('modelo');
+        
+        let pracasToRegister = [];
+        if (pracaInput.includes(',')) {
+            pracasToRegister = pracaInput.split(',').map(s => s.trim()).filter(Boolean);
+        } else if (pracaInput.includes('-')) {
+            const [startStr, endStr] = pracaInput.split('-');
+            const start = parseInt(startStr.trim());
+            const end = parseInt(endStr.trim());
+            if (!isNaN(start) && !isNaN(end)) {
+                const min = Math.min(start, end);
+                const max = Math.max(start, end);
+                for (let i = min; i <= max; i++) {
+                    pracasToRegister.push(i.toString());
+                }
+            }
+        } else {
+            pracasToRegister.push(pracaInput.trim());
+        }
+        
+        pracasToRegister = pracasToRegister.filter((v, i, self) => self.indexOf(v) === i);
+        
+        const existingPracas = kilns.map(k => k.praca);
+        const newPracas = pracasToRegister.filter(p => !existingPracas.includes(p));
+        
+        if (newPracas.length === 0) {
+            showToast("Nenhum forno novo para cadastrar.");
+            return;
+        }
+        
+        const payloads = newPracas.map(p => ({ praca: p, modelo: modelo }));
+        await saveItems('kilns', payloads);
+        showToast(`${newPracas.length} forno(s) cadastrado(s)!`);
+    }
     if (id === 'kiln-daily') {
         const item = { data: fd.get('data_lancamento'), responsavel: fd.get('responsavel'), praca: fd.get('praca_select'), vazios: fd.get('vazios'), cheios: fd.get('cheios'), carbonizando: fd.get('carbonizando'), esfriando: fd.get('esfriando'), obs: fd.get('obs') };
         await saveItem('production_history', item);
@@ -2430,4 +2494,332 @@ function editSpreadsheetExpense(id) {
 }
 
 window.editSpreadsheetExpense = editSpreadsheetExpense;
+
+// ==========================================
+// INTERACTIVE SPREADSHEET MONITORING ENGINE
+// ==========================================
+
+let selectedSpreadsheetMonth = new Date().toISOString().substring(0, 7);
+let activePopoverCell = null;
+let selectedPopoverStageCode = null;
+
+function initSpreadsheet() {
+    const picker = document.getElementById('spreadsheet-month-picker');
+    if (picker && !picker.value) {
+        picker.value = selectedSpreadsheetMonth;
+    }
+    renderSpreadsheetGrid();
+}
+
+function naturalSortKilns(kilnsList) {
+    return [...kilnsList].sort((a, b) => {
+        return a.praca.localeCompare(b.praca, undefined, { numeric: true, sensitivity: 'base' });
+    });
+}
+
+function renderSpreadsheetGrid() {
+    const picker = document.getElementById('spreadsheet-month-picker');
+    if (picker) {
+        selectedSpreadsheetMonth = picker.value || new Date().toISOString().substring(0, 7);
+    }
+    
+    const [yearStr, monthStr] = selectedSpreadsheetMonth.split('-');
+    if (!yearStr || !monthStr) return;
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr) - 1;
+    
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    
+    const headerRow = document.getElementById('spreadsheet-header-days');
+    if (!headerRow) return;
+    
+    let headerHtml = `<th class="sticky-col">Fila / Forno</th>`;
+    for (let d = 1; d <= totalDays; d++) {
+        const date = new Date(year, month, d);
+        const weekday = date.toLocaleDateString('pt-BR', { weekday: 'short' })
+            .replace('.', '')
+            .toUpperCase()
+            .substring(0, 3);
+        headerHtml += `<th>${d}<br><span style="font-size: 8px; opacity:0.7;">${weekday}</span></th>`;
+    }
+    headerRow.innerHTML = headerHtml;
+    
+    const bodyRows = document.getElementById('spreadsheet-body-rows');
+    if (!bodyRows) return;
+    
+    const sortedKilns = naturalSortKilns(kilns);
+    let bodyHtml = "";
+    
+    const dailyCargas = new Array(totalDays + 1).fill(0);
+    const dailyDescarga = new Array(totalDays + 1).fill(0);
+    const dailyCarboniz = new Array(totalDays + 1).fill(0);
+    const dailyResfri = new Array(totalDays + 1).fill(0);
+    const dailyVazios = new Array(totalDays + 1).fill(0);
+    
+    sortedKilns.forEach((k) => {
+        bodyHtml += `<tr>`;
+        bodyHtml += `<td class="sticky-col">${k.praca}<br><span style="font-size:9px; font-weight:normal; opacity:0.6;">${k.modelo || ''}</span></td>`;
+        
+        for (let d = 1; d <= totalDays; d++) {
+            const dayStr = String(d).padStart(2, '0');
+            const dateStr = `${selectedSpreadsheetMonth}-${dayStr}`;
+            
+            const hRecord = history.find(h => h && h.praca === k.praca && h.data === dateStr);
+            
+            let stageCode = "";
+            let cellClass = "";
+            let obs = "";
+            
+            if (hRecord) {
+                obs = hRecord.obs || "";
+                if (hRecord.estagio) {
+                    stageCode = hRecord.estagio;
+                } else {
+                    if (Number(hRecord.carbonizando) > 0) stageCode = "C";
+                    else if (Number(hRecord.esfriando) > 0) stageCode = "E";
+                    else if (Number(hRecord.cheios) > 0) stageCode = "X";
+                    else if (Number(hRecord.vazios) > 0) stageCode = "V";
+                }
+                
+                if (stageCode === "C") {
+                    cellClass = "stage-c";
+                    dailyCarboniz[d]++;
+                } else if (stageCode === "E") {
+                    cellClass = "stage-e";
+                    dailyResfri[d]++;
+                } else if (stageCode === "D") {
+                    cellClass = "stage-d";
+                    dailyDescarga[d]++;
+                } else if (stageCode === "DX") {
+                    cellClass = "stage-dx";
+                    dailyDescarga[d]++;
+                } else if (stageCode === "X") {
+                    cellClass = "stage-x";
+                    dailyCargas[d]++;
+                } else if (stageCode === "V") {
+                    cellClass = "stage-v";
+                    dailyVazios[d]++;
+                }
+            }
+            
+            bodyHtml += `
+                <td class="spreadsheet-cell-clickable ${cellClass}" 
+                    title="${obs ? 'Obs: ' + obs : ''}"
+                    onclick="openSpreadsheetPopover('${k.praca}', '${dateStr}', this, '${stageCode}', '${obs.replace(/'/g, "\\'")}')">
+                    ${stageCode}
+                </td>
+            `;
+        }
+        bodyHtml += `</tr>`;
+    });
+    
+    // Add summary rows
+    bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">CARGAS</td>`;
+    for (let d = 1; d <= totalDays; d++) {
+        bodyHtml += `<td>${dailyCargas[d]}</td>`;
+    }
+    bodyHtml += `</tr>`;
+    
+    bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">DESCARGA</td>`;
+    for (let d = 1; d <= totalDays; d++) {
+        bodyHtml += `<td>${dailyDescarga[d]}</td>`;
+    }
+    bodyHtml += `</tr>`;
+    
+    bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">CARBONIZ</td>`;
+    for (let d = 1; d <= totalDays; d++) {
+        bodyHtml += `<td>${dailyCarboniz[d]}</td>`;
+    }
+    bodyHtml += `</tr>`;
+    
+    bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">RESFRI</td>`;
+    for (let d = 1; d <= totalDays; d++) {
+        bodyHtml += `<td>${dailyResfri[d]}</td>`;
+    }
+    bodyHtml += `</tr>`;
+    
+    bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">VAZIOS</td>`;
+    for (let d = 1; d <= totalDays; d++) {
+        bodyHtml += `<td>${dailyVazios[d]}</td>`;
+    }
+    bodyHtml += `</tr>`;
+    
+    bodyRows.innerHTML = bodyHtml;
+}
+
+function openSpreadsheetPopover(praca, dateStr, element, currentStage, currentObs) {
+    activePopoverCell = { praca, data: dateStr, element };
+    selectedPopoverStageCode = currentStage || null;
+    
+    const [y, m, d] = dateStr.split('-');
+    document.getElementById('popover-title').innerText = `Forno ${praca} - Dia ${d}/${m}`;
+    
+    document.querySelectorAll('.btn-stage').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    
+    if (selectedPopoverStageCode) {
+        const selectedBtn = document.querySelector(`.btn-stage-${selectedPopoverStageCode.toLowerCase()}`);
+        if (selectedBtn) selectedBtn.classList.add('selected');
+    }
+    
+    document.getElementById('popover-obs').value = currentObs || "";
+    
+    const popover = document.getElementById('spreadsheet-popover');
+    popover.style.display = 'block';
+    
+    const popoverWidth = popover.offsetWidth || 280;
+    const popoverHeight = popover.offsetHeight || 220;
+    
+    const rect = element.getBoundingClientRect();
+    let left = window.scrollX + rect.left + rect.width / 2 - popoverWidth / 2;
+    let top = window.scrollY + rect.top + rect.height + 6;
+    
+    if (left < 10) left = 10;
+    if (left + popoverWidth > window.innerWidth - 10) {
+        left = window.innerWidth - popoverWidth - 10;
+    }
+    
+    popover.style.left = `${left}px`;
+    popover.style.top = `${top}px`;
+    
+    setTimeout(() => {
+        document.getElementById('popover-obs').focus();
+    }, 50);
+}
+
+function selectPopoverStage(stageCode) {
+    selectedPopoverStageCode = stageCode;
+    document.querySelectorAll('.btn-stage').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    const selectedBtn = document.querySelector(`.btn-stage-${stageCode.toLowerCase()}`);
+    if (selectedBtn) selectedBtn.classList.add('selected');
+}
+
+function closeSpreadsheetPopover() {
+    const popover = document.getElementById('spreadsheet-popover');
+    if (popover) popover.style.display = 'none';
+    activePopoverCell = null;
+}
+
+async function savePopoverData() {
+    if (!activePopoverCell) return;
+    const { praca, data } = activePopoverCell;
+    const obs = document.getElementById('popover-obs').value.trim();
+    const stage = selectedPopoverStageCode;
+    
+    if (!stage && !obs) {
+        await clearPopoverData();
+        return;
+    }
+    
+    const hRecord = history.find(h => h && h.praca === praca && h.data === data);
+    
+    const payload = {
+        data: data,
+        praca: praca,
+        responsavel: (currentUser && currentUser.user_metadata && currentUser.user_metadata.operator_name) 
+            || (currentUser && currentUser.email) 
+            || "Sistema",
+        vazios: stage === 'V' ? 1 : 0,
+        cheios: stage === 'X' ? 1 : 0,
+        carbonizando: stage === 'C' ? 1 : 0,
+        esfriando: stage === 'E' ? 1 : 0,
+        estagio: stage,
+        obs: obs
+    };
+    
+    try {
+        if (hRecord) {
+            const { error } = await supabase.from('production_history')
+                .update(payload)
+                .eq('id', hRecord.id)
+                .eq('user_id', currentUser.id);
+            if (error) throw error;
+        } else {
+            const { error } = await supabase.from('production_history')
+                .insert([{ ...payload, user_id: currentUser.id }]);
+            if (error) throw error;
+        }
+        
+        if (obs && (!hRecord || hRecord.obs !== obs)) {
+            const existingIssue = maintenance.find(m => m && m.forno === praca && !m.resolved);
+            if (!existingIssue) {
+                await saveItem('maintenance', { forno: praca, problema: obs, data: data, resolved: false });
+            }
+        }
+        
+        showToast("Dados salvos!");
+        await loadAllData();
+    } catch (err) {
+        console.error("Erro ao salvar célula:", err);
+        showToast("Erro ao salvar! Armazenando localmente...");
+        const offlinePayload = { ...payload, user_id: currentUser.id };
+        if (hRecord) {
+            offlinePayload.id = hRecord.id;
+            const idx = history.findIndex(h => h.id === hRecord.id);
+            if (idx !== -1) history[idx] = offlinePayload;
+        } else {
+            offlinePayload.id = 'temp-' + Date.now();
+            history.unshift(offlinePayload);
+        }
+        saveOffline('production_history', offlinePayload);
+        renderAll();
+        updateUI();
+    }
+    
+    closeSpreadsheetPopover();
+}
+
+async function clearPopoverData() {
+    if (!activePopoverCell) return;
+    const { praca, data } = activePopoverCell;
+    
+    const hRecord = history.find(h => h && h.praca === praca && h.data === data);
+    
+    if (hRecord) {
+        try {
+            const { error } = await supabase.from('production_history')
+                .delete()
+                .eq('id', hRecord.id)
+                .eq('user_id', currentUser.id);
+            if (error) throw error;
+            
+            showToast("Célula limpa!");
+            await loadAllData();
+        } catch (err) {
+            console.error("Erro ao limpar célula:", err);
+            showToast("Erro ao deletar. Removendo localmente...");
+            const idx = history.findIndex(h => h.id === hRecord.id);
+            if (idx !== -1) history.splice(idx, 1);
+            saveOffline('production_history_delete', { id: hRecord.id });
+            renderAll();
+            updateUI();
+        }
+    }
+    
+    closeSpreadsheetPopover();
+}
+
+// Click outside popover logic
+document.addEventListener('click', (e) => {
+    const popover = document.getElementById('spreadsheet-popover');
+    if (popover && popover.style.display === 'block') {
+        const isCell = e.target.classList.contains('spreadsheet-cell-clickable');
+        const isPopover = e.target.closest('#spreadsheet-popover');
+        if (!isCell && !isPopover) {
+            closeSpreadsheetPopover();
+        }
+    }
+});
+
+// Expose functions globally
+window.initSpreadsheet = initSpreadsheet;
+window.renderSpreadsheetGrid = renderSpreadsheetGrid;
+window.openSpreadsheetPopover = openSpreadsheetPopover;
+window.selectPopoverStage = selectPopoverStage;
+window.closeSpreadsheetPopover = closeSpreadsheetPopover;
+window.savePopoverData = savePopoverData;
+window.clearPopoverData = clearPopoverData;
 

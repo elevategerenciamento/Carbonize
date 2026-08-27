@@ -178,57 +178,40 @@
                 </div>
             </section>
 
-            <!-- SECTION: FORNOS (LADO A LADO) -->
+            <!-- SECTION: FORNOS (ACOMPANHAMENTO PLANILHA INTERATIVA) -->
             <section id="section-fornos" class="content-section" style="display: none;">
                 <div class="header-action">
                     <h2 class="page-title">Gestão de Produção</h2>
                     <button class="btn-primary" onclick="showModal('kiln')"><i data-lucide="plus-circle"></i> Novo Forno</button>
                 </div>
 
-                <div class="split-layout">
-                    <!-- Form Lado Esquerdo -->
-                    <div class="glass">
-                        <h4 class="card-title">Lançamento de Turno</h4>
-                        <p class="text-dim" style="font-size: 13px; margin-bottom: 24px;">Dados consolidados da operação do dia.</p>
-                        
-                        <form id="form-kiln-daily">
-                            <div class="form-field">
-                                <label>Data</label>
-                                <div class="date-input-wrapper">
-                                    <i data-lucide="calendar"></i>
-                                    <input type="text" name="data_lancamento" id="daily-date" class="date-picker" placeholder="Selecionar data" required>
-                                </div>
-                            </div>
-                            <div class="form-field">
-                                <label>Responsável</label>
-                                <input type="text" name="responsavel" placeholder="Nome do operador" required>
-                            </div>
-                            <div class="form-field">
-                                <label>Unidade / Forno</label>
-                                <select name="praca_select" id="daily-praca-select" required></select>
-                            </div>
-                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
-                                <div class="sub-field"><label style="font-size: 9px; display:block;">Vazios</label><input type="number" name="vazios" value="0"></div>
-                                <div class="sub-field"><label style="font-size: 9px; display:block;">Cheios</label><input type="number" name="cheios" value="0"></div>
-                                <div class="sub-field"><label style="font-size: 9px; display:block;">Carbon.</label><input type="number" name="carbonizando" value="0"></div>
-                                <div class="sub-field"><label style="font-size: 9px; display:block;">Esfria</label><input type="number" name="esfriando" value="0"></div>
-                            </div>
-                            <div class="form-field">
-                                <label>Observações / Manutenção</label>
-                                <textarea name="obs" rows="2" placeholder="Descreva problemas se houver..."></textarea>
-                            </div>
-                            <button type="submit" class="btn-save">Registrar Produção</button>
-                        </form>
+                <div class="glass" style="margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
+                        <div class="form-field" style="margin-bottom: 0; min-width: 220px;">
+                            <label style="font-weight: 700;">Mês de Acompanhamento</label>
+                            <input type="month" id="spreadsheet-month-picker" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: #fff; padding: 10px 14px; border-radius: 8px; font-weight: 600; width: 100%; outline: none;" onchange="renderSpreadsheetGrid()">
+                        </div>
+                        <div class="legend-container" style="margin: 0;">
+                            <div class="legend-item"><div class="legend-badge stage-x">X</div> <span>Carga</span></div>
+                            <div class="legend-item"><div class="legend-badge stage-c">C</div> <span>Carbonização</span></div>
+                            <div class="legend-item"><div class="legend-badge stage-e">E</div> <span>Resfriamento</span></div>
+                            <div class="legend-item"><div class="legend-badge stage-d">D</div> <span>Descarga</span></div>
+                            <div class="legend-item"><div class="legend-badge stage-dx">DX</div> <span>Descarregado</span></div>
+                            <div class="legend-item"><div class="legend-badge stage-v">V</div> <span>Vazio</span></div>
+                        </div>
                     </div>
-
-                    <!-- Lista Lado Direito -->
-                    <div class="glass" style="display: flex; flex-direction: column; gap: 24px;">
-                        <h4 class="card-title">Histórico e Ativos</h4>
-                        <div id="kilns-list-assets" style="display: flex; flex-wrap: wrap; gap: 12px; max-height: 200px; overflow-y: auto;"></div>
-                        <div class="table-wrapper" style="flex: 1;">
-                            <table class="modern-table">
-                                <thead><tr><th>DATA</th><th>UNIDADE</th><th>V/C/C/E</th><th>OBS</th></tr></thead>
-                                <tbody id="kiln-history-list"></tbody>
+                    
+                    <div class="spreadsheet-container">
+                        <div class="spreadsheet-table-wrapper">
+                            <table class="spreadsheet-table">
+                                <thead>
+                                    <tr id="spreadsheet-header-days">
+                                        <!-- Carregado via JS -->
+                                    </tr>
+                                </thead>
+                                <tbody id="spreadsheet-body-rows">
+                                    <!-- Carregado via JS -->
+                                </tbody>
                             </table>
                         </div>
                     </div>
@@ -656,12 +639,45 @@
         </main>
     </div>
 
+    <!-- SPREADSHEET POPOVER FOR DIRECT CELL EDITING -->
+    <div id="spreadsheet-popover" class="spreadsheet-popover" style="display: none;">
+        <div class="popover-header">
+            <span id="popover-title">Forno - Dia</span>
+            <button type="button" onclick="closeSpreadsheetPopover()">✕</button>
+        </div>
+        <div class="popover-body">
+            <div style="margin-bottom: 8px; font-size: 11px; color: var(--text-dim);">Estágio do Processo:</div>
+            <div class="stage-buttons-grid">
+                <button type="button" class="btn-stage btn-stage-x" onclick="selectPopoverStage('X')">X</button>
+                <button type="button" class="btn-stage btn-stage-c" onclick="selectPopoverStage('C')">C</button>
+                <button type="button" class="btn-stage btn-stage-e" onclick="selectPopoverStage('E')">E</button>
+                <button type="button" class="btn-stage btn-stage-d" onclick="selectPopoverStage('D')">D</button>
+                <button type="button" class="btn-stage btn-stage-dx" onclick="selectPopoverStage('DX')">DX</button>
+                <button type="button" class="btn-stage btn-stage-v" onclick="selectPopoverStage('V')">V</button>
+            </div>
+            <div class="form-field" style="margin-top: 12px; margin-bottom: 12px;">
+                <label style="font-size: 11px;">Observações / Ocorrências</label>
+                <input type="text" id="popover-obs" placeholder="Ex: Vazamento, exaustor..." style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color:#fff; padding:8px 10px; border-radius:6px; font-size:12px; outline:none;">
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-save-popover" onclick="savePopoverData()">Salvar</button>
+                <button type="button" class="btn-clear-popover" onclick="clearPopoverData()">Limpar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODALS -->
     <div id="modal-kiln" class="modal-overlay">
         <div class="modal-glass">
             <div class="modal-header"><h3>Novo Ativo</h3><button class="close-modal-btn" onclick="hideModal('kiln')">✕</button></div>
             <form id="form-kiln" style="margin-top:24px;">
-                <div class="form-field"><label>Identificação</label><input type="text" name="praca" required></div>
+                <div class="form-field">
+                    <label>Identificação do(s) Forno(s)</label>
+                    <input type="text" name="praca" placeholder="Ex: 50, 1-50, ou 50, 100, 250" required>
+                    <span class="text-dim" style="font-size: 11px; margin-top: 6px; display: block; line-height: 1.4;">
+                        Cadastre um único forno (ex: <strong>50</strong>), uma sequência (ex: <strong>1-50</strong>) ou múltiplos separados por vírgula (ex: <strong>50, 100, 250</strong>).
+                    </span>
+                </div>
                 <div class="form-field"><label>Modelo</label><select name="modelo"><option value="Forno JG">Forno JG</option><option value="Circular 5m">Circular 5m</option></select></div>
                 <button type="submit" class="btn-save">Salvar</button>
             </form>
