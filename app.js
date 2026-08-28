@@ -13,6 +13,16 @@ let history = [];
 let maintenance = [];
 let expenses = [];
 let fiscalDocs = [];
+let closedMonths = [];
+let userSettings = {
+    threshold_carbonizacao: 2,
+    threshold_resfriamento: 2,
+    threshold_carga: 1,
+    threshold_descarga: 1
+};
+let notifications = [];
+let isSettingsExpanded = false;
+let isNotificationPanelOpen = false;
 let currentUser = null;
 let expensesPage = 1;
 let fiscalPage = 1;
@@ -127,13 +137,15 @@ async function loadAllData() {
     console.log("Carbonize: Fetching data for UID:", uid);
 
     try {
-        const [k, l, h, m, e, f] = await Promise.all([
+        const [k, l, h, m, e, f, c, s] = await Promise.all([
             supabase.from('kilns').select('*').eq('user_id', uid),
             supabase.from('loads').select('*').eq('user_id', uid),
             supabase.from('production_history').select('*').eq('user_id', uid),
             supabase.from('maintenance').select('*').eq('user_id', uid),
             supabase.from('expenses').select('*').eq('user_id', uid),
-            supabase.from('fiscal_documents').select('*').eq('user_id', uid).order('created_at', { ascending: false })
+            supabase.from('fiscal_documents').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+            supabase.from('closed_months').select('*').eq('user_id', uid),
+            supabase.from('user_settings').select('*').eq('user_id', uid)
         ]);
 
         if (k.error) console.warn("Erro Kilns:", k.error);
@@ -142,6 +154,8 @@ async function loadAllData() {
         if (m.error) console.warn("Erro Maintenance:", m.error);
         if (e.error) console.warn("Erro Expenses:", e.error);
         if (f.error) console.warn("Erro Fiscal Docs:", f.error);
+        if (c.error) console.warn("Erro Closed Months:", c.error);
+        if (s.error) console.warn("Erro User Settings:", s.error);
 
         kilns = k.data || [];
         loads = l.data || [];
@@ -149,9 +163,25 @@ async function loadAllData() {
         maintenance = m.data || [];
         expenses = e.data || [];
         fiscalDocs = f.data || [];
+        closedMonths = c.data || [];
         
-        console.log("Data loaded:", { kilns, loads, history, maintenance, expenses, fiscalDocs });
+        if (s.data && s.data.length > 0) {
+            userSettings = s.data[0];
+        } else {
+            userSettings = {
+                threshold_carbonizacao: 2,
+                threshold_resfriamento: 2,
+                threshold_carga: 1,
+                threshold_descarga: 1
+            };
+        }
+        
+        console.log("Data loaded:", { kilns, loads, history, maintenance, expenses, fiscalDocs, closedMonths, userSettings });
         renderAll();
+        
+        // Calcular e renderizar notificações
+        calculateNotifications();
+        renderNotifications();
     } catch (err) {
         console.error("Sync Error:", err);
         alert("Erro de sincronização. Verifique sua conexão ou as tabelas do banco.");
@@ -2522,6 +2552,7 @@ function renderSpreadsheetGrid() {
     if (picker) {
         selectedSpreadsheetMonth = picker.value || new Date().toISOString().substring(0, 7);
     }
+    updateMonthStatusUI();
     
     const [yearStr, monthStr] = selectedSpreadsheetMonth.split('-');
     if (!yearStr || !monthStr) return;
@@ -2648,6 +2679,13 @@ function renderSpreadsheetGrid() {
 }
 
 function openSpreadsheetPopover(praca, dateStr, element, currentStage, currentObs) {
+    const monthRef = dateStr.substring(0, 7);
+    const isClosed = closedMonths.some(cm => cm.month_ref === monthRef);
+    if (isClosed) {
+        alert("Este mês está fechado e não permite edições. Caso queira fazer alterações, reabra o mês.");
+        return;
+    }
+
     activePopoverCell = { praca, data: dateStr, element };
     selectedPopoverStageCode = currentStage || null;
     
@@ -2767,6 +2805,8 @@ async function savePopoverData() {
         saveOffline('production_history', offlinePayload);
         renderAll();
         updateUI();
+        calculateNotifications();
+        renderNotifications();
     }
     
     closeSpreadsheetPopover();
@@ -2796,6 +2836,8 @@ async function clearPopoverData() {
             saveOffline('production_history_delete', { id: hRecord.id });
             renderAll();
             updateUI();
+            calculateNotifications();
+            renderNotifications();
         }
     }
     
@@ -2814,6 +2856,108 @@ document.addEventListener('click', (e) => {
     }
 });
 
+function updateMonthStatusUI() {
+    const picker = document.getElementById('spreadsheet-month-picker');
+    if (!picker) return;
+    
+    const selectedMonth = picker.value || new Date().toISOString().substring(0, 7);
+    const container = document.getElementById('month-status-container');
+    if (!container) return;
+    
+    // Verifica se o mês selecionado está fechado
+    const isClosed = closedMonths.some(cm => cm.month_ref === selectedMonth);
+    
+    let html = "";
+    if (isClosed) {
+        html = `
+            <span class="badge badge-danger" style="background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; letter-spacing: 0.5px;">
+                <i data-lucide="lock" style="width: 14px; height: 14px;"></i> FECHADO
+            </span>
+            <button class="btn-secondary" onclick="toggleMonthStatus('${selectedMonth}', false)" style="padding: 8px 14px; font-size: 12px; font-weight: 700; border-radius: 8px; margin: 0; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="unlock" style="width: 14px; height: 14px;"></i> Reabrir Mês
+            </button>
+        `;
+    } else {
+        html = `
+            <span class="badge badge-success" style="background-color: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; letter-spacing: 0.5px;">
+                <i data-lucide="lock-open" style="width: 14px; height: 14px;"></i> ABERTO
+            </span>
+            <button class="btn-danger" onclick="toggleMonthStatus('${selectedMonth}', true)" style="padding: 8px 14px; font-size: 12px; font-weight: 700; border-radius: 8px; margin: 0; background: #ef4444; border: none; color: white; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="lock" style="width: 14px; height: 14px;"></i> Fechar Mês
+            </button>
+        `;
+    }
+    container.innerHTML = html;
+    
+    // Atualiza os ícones do Lucide
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+}
+
+async function toggleMonthStatus(monthRef, shouldClose) {
+    if (!currentUser) {
+        alert("Usuário não autenticado.");
+        return;
+    }
+    
+    const [yearStr, monthStr] = monthRef.split('-');
+    const dateObj = new Date(parseInt(yearStr), parseInt(monthStr) - 1, 1);
+    const formattedMonth = dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    
+    if (shouldClose) {
+        const confirmClose = confirm(`Tem certeza que deseja fechar o mês de ${formattedMonth}? Isso impedirá novas edições nos dados deste período.`);
+        if (!confirmClose) return;
+        
+        try {
+            const { error } = await supabase.from('closed_months').insert([
+                { user_id: currentUser.id, month_ref: monthRef }
+            ]);
+            if (error) throw error;
+            
+            showToast(`Mês de ${formattedMonth} fechado com sucesso!`);
+            
+            // Recarregar os dados
+            await loadAllData();
+            
+            // Pergunta para iniciar novo mês do zero
+            const nextMonthDate = new Date(parseInt(yearStr), parseInt(monthStr), 1);
+            const nextMonthRef = nextMonthDate.toISOString().substring(0, 7);
+            const formattedNextMonth = nextMonthDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            
+            const initNewMonth = confirm(`Deseja iniciar o novo mês de ${formattedNextMonth} do zero?`);
+            if (initNewMonth) {
+                const picker = document.getElementById('spreadsheet-month-picker');
+                if (picker) {
+                    picker.value = nextMonthRef;
+                    selectedSpreadsheetMonth = nextMonthRef;
+                    renderSpreadsheetGrid();
+                }
+            }
+        } catch (err) {
+            console.error("Erro ao fechar mês:", err);
+            alert("Erro ao fechar mês: " + err.message);
+        }
+    } else {
+        const confirmOpen = confirm(`Tem certeza que deseja reabrir o mês de ${formattedMonth}? Isso permitirá novas edições nos dados deste período.`);
+        if (!confirmOpen) return;
+        
+        try {
+            const { error } = await supabase.from('closed_months')
+                .delete()
+                .eq('user_id', currentUser.id)
+                .eq('month_ref', monthRef);
+            if (error) throw error;
+            
+            showToast(`Mês de ${formattedMonth} reaberto com sucesso!`);
+            await loadAllData();
+        } catch (err) {
+            console.error("Erro ao reabrir mês:", err);
+            alert("Erro ao reabrir mês: " + err.message);
+        }
+    }
+}
+
 // Expose functions globally
 window.initSpreadsheet = initSpreadsheet;
 window.renderSpreadsheetGrid = renderSpreadsheetGrid;
@@ -2822,4 +2966,329 @@ window.selectPopoverStage = selectPopoverStage;
 window.closeSpreadsheetPopover = closeSpreadsheetPopover;
 window.savePopoverData = savePopoverData;
 window.clearPopoverData = clearPopoverData;
+window.updateMonthStatusUI = updateMonthStatusUI;
+window.toggleMonthStatus = toggleMonthStatus;
+
+// ═══ NOTIFICATION PANEL ENGINE ═══
+function getStageCode(hRecord) {
+    if (!hRecord) return "";
+    if (hRecord.estagio) return hRecord.estagio;
+    if (Number(hRecord.carbonizando) > 0) return "C";
+    if (Number(hRecord.esfriando) > 0) return "E";
+    if (Number(hRecord.cheios) > 0) return "X";
+    if (Number(hRecord.vazios) > 0) return "V";
+    return "";
+}
+
+function calculateNotifications() {
+    notifications = [];
+    if (!kilns || kilns.length === 0) return;
+    
+    // Thresholds
+    const tc = userSettings.threshold_carbonizacao || 2;
+    const te = userSettings.threshold_resfriamento || 2;
+    const tx = userSettings.threshold_carga || 1;
+    const td = userSettings.threshold_descarga || 1;
+    
+    kilns.forEach(k => {
+        // Obter histórico do forno
+        const kHistory = history
+            .filter(h => h && h.praca === k.praca)
+            .sort((a, b) => b.data.localeCompare(a.data));
+            
+        if (kHistory.length === 0) return;
+        
+        // Último estado
+        const latest = kHistory[0];
+        const currentStage = getStageCode(latest);
+        
+        // Apenas avaliamos processos operacionais que podem atrasar
+        if (!['C', 'E', 'X', 'D'].includes(currentStage)) return;
+        
+        // Contar dias consecutivos no mesmo estágio
+        let consecutiveDays = 0;
+        for (let i = 0; i < kHistory.length; i++) {
+            if (getStageCode(kHistory[i]) === currentStage) {
+                consecutiveDays++;
+            } else {
+                break;
+            }
+        }
+        
+        // Limiar correspondente
+        let threshold = 1;
+        if (currentStage === 'C') threshold = tc;
+        else if (currentStage === 'E') threshold = te;
+        else if (currentStage === 'X') threshold = tx;
+        else if (currentStage === 'D') threshold = td;
+        
+        if (consecutiveDays > threshold) {
+            const delayDays = consecutiveDays - threshold;
+            
+            // Analisar se houve recorrência de atrasos (ciclos passados)
+            let cycles = [];
+            let currentBlock = null;
+            kHistory.forEach(h => {
+                const stage = getStageCode(h);
+                if (!currentBlock) {
+                    currentBlock = { stage: stage, count: 1 };
+                } else if (currentBlock.stage === stage) {
+                    currentBlock.count++;
+                } else {
+                    cycles.push(currentBlock);
+                    currentBlock = { stage: stage, count: 1 };
+                }
+            });
+            if (currentBlock) cycles.push(currentBlock);
+            
+            // Filtra ciclos passados do mesmo tipo, pulando o primeiro (ativo)
+            const pastCyclesOfSameStage = cycles.slice(1).filter(c => c.stage === currentStage);
+            const pastDelays = pastCyclesOfSameStage.filter(c => {
+                let limit = 1;
+                if (c.stage === 'C') limit = tc;
+                else if (c.stage === 'E') limit = te;
+                else if (c.stage === 'X') limit = tx;
+                else if (c.stage === 'D') limit = td;
+                return c.count > limit;
+            });
+            
+            const isRecurrent = pastDelays.length > 0;
+            
+            notifications.push({
+                id: `notif-${k.praca}-${currentStage}-${latest.data}`,
+                praca: k.praca,
+                stage: currentStage,
+                stageName: { 'C': 'Carbonização', 'E': 'Resfriamento', 'X': 'Carregamento', 'D': 'Esvaziamento' }[currentStage] || currentStage,
+                consecutiveDays: consecutiveDays,
+                threshold: threshold,
+                delayDays: delayDays,
+                severity: delayDays >= 3 ? 'red' : 'yellow',
+                isRecurrent: isRecurrent,
+                lastUpdated: latest.data
+            });
+        }
+    });
+    
+    // Ordenar: Vermelhas (Críticas) primeiro, depois pelo desvio de dias decrescente
+    notifications.sort((a, b) => {
+        if (a.severity === b.severity) {
+            return b.delayDays - a.delayDays;
+        }
+        return a.severity === 'red' ? -1 : 1;
+    });
+}
+
+function toggleNotificationPanel() {
+    const panel = document.getElementById('notification-panel');
+    if (!panel) return;
+    isNotificationPanelOpen = !isNotificationPanelOpen;
+    if (isNotificationPanelOpen) {
+        panel.style.right = '0px';
+        const userDropdown = document.getElementById('user-dropdown');
+        if (userDropdown) userDropdown.style.display = 'none';
+    } else {
+        panel.style.right = '-380px';
+    }
+}
+
+function toggleSettingsForm() {
+    isSettingsExpanded = !isSettingsExpanded;
+    renderNotifications();
+}
+
+async function saveUserSettings(e) {
+    if (e) e.preventDefault();
+    if (!currentUser) return;
+    
+    const tc = parseInt(document.getElementById('setting-threshold-c').value) || 2;
+    const te = parseInt(document.getElementById('setting-threshold-e').value) || 2;
+    const tx = parseInt(document.getElementById('setting-threshold-x').value) || 1;
+    const td = parseInt(document.getElementById('setting-threshold-d').value) || 1;
+    
+    const payload = {
+        threshold_carbonizacao: tc,
+        threshold_resfriamento: te,
+        threshold_carga: tx,
+        threshold_descarga: td,
+        user_id: currentUser.id,
+        updated_at: new Date().toISOString()
+    };
+    
+    try {
+        const { error } = await supabase.from('user_settings')
+            .upsert(payload, { onConflict: 'user_id' });
+        if (error) throw error;
+        
+        showToast("Configurações salvas!");
+        userSettings = { ...userSettings, ...payload };
+        calculateNotifications();
+        isSettingsExpanded = false;
+        renderNotifications();
+    } catch (err) {
+        console.error("Erro ao salvar limites:", err);
+        alert("Erro ao salvar configurações: " + err.message);
+    }
+}
+
+function renderNotifications() {
+    const badge = document.getElementById('notification-badge');
+    if (badge) {
+        if (notifications.length > 0) {
+            badge.innerText = notifications.length;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
+    const panel = document.getElementById('notification-panel');
+    if (!panel) return;
+    
+    let html = `
+        <div class="notification-header">
+            <h3><i data-lucide="bell" style="width: 18px; height: 18px; color: var(--primary);"></i> Alertas e Notificações</h3>
+            <div class="notification-header-actions">
+                <button class="btn-icon-nav" onclick="toggleSettingsForm()" title="Configurar Tempos Médios">
+                    <i data-lucide="settings" style="width: 18px; height: 18px;"></i>
+                </button>
+                <button class="btn-icon-nav" onclick="toggleNotificationPanel()" title="Fechar">
+                    <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                </button>
+            </div>
+        </div>
+        <div class="notification-body">
+    `;
+    
+    if (isSettingsExpanded) {
+        html += `
+            <div class="notification-settings-section">
+                <h4><i data-lucide="sliders" style="width: 14px; height: 14px;"></i> Tempos Médios (Dias)</h4>
+                <form onsubmit="saveUserSettings(event)">
+                    <div class="settings-grid-row">
+                        <div class="settings-field">
+                            <label>Carbonização</label>
+                            <input type="number" id="setting-threshold-c" min="1" value="${userSettings.threshold_carbonizacao || 2}" required>
+                        </div>
+                        <div class="settings-field">
+                            <label>Resfriamento</label>
+                            <input type="number" id="setting-threshold-e" min="1" value="${userSettings.threshold_resfriamento || 2}" required>
+                        </div>
+                    </div>
+                    <div class="settings-grid-row">
+                        <div class="settings-field">
+                            <label>Carregamento</label>
+                            <input type="number" id="setting-threshold-x" min="1" value="${userSettings.threshold_carga || 1}" required>
+                        </div>
+                        <div class="settings-field">
+                            <label>Esvaziamento</label>
+                            <input type="number" id="setting-threshold-d" min="1" value="${userSettings.threshold_descarga || 1}" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-save" style="width:100%; height:36px; font-size:12px; margin-top:4px;">Salvar Limites</button>
+                </form>
+            </div>
+        `;
+    }
+    
+    if (notifications.length === 0) {
+        html += `
+            <div class="notification-empty-state">
+                <i data-lucide="check-circle-2" style="width: 48px; height: 48px; color: var(--success); opacity: 0.6;"></i>
+                <p>Nenhum alerta pendente. Todos os fornos estão operando dentro do prazo estimado.</p>
+            </div>
+        `;
+    } else {
+        notifications.forEach(n => {
+            const dateStr = formatDateBR(n.lastUpdated);
+            const severityClass = n.severity === 'red' ? 'alert-red' : 'alert-yellow';
+            const badgeText = n.severity === 'red' ? 'Crítico' : 'Atenção';
+            
+            html += `
+                <div class="notification-card ${severityClass}">
+                    <div class="notification-card-header">
+                        <span class="notification-title">
+                            <i data-lucide="alert-triangle" style="width: 14px; height: 14px;"></i> Forno ${n.praca}
+                        </span>
+                        <span class="notification-badge-tag">${badgeText}</span>
+                    </div>
+                    <p class="notification-desc">
+                        O processo de <strong>${n.stageName}</strong> está ativo há <strong>${n.consecutiveDays} dias</strong> (${n.delayDays} ${n.delayDays === 1 ? 'dia' : 'dias'} acima da média de ${n.threshold} dias).
+                    </p>
+            `;
+            
+            if (n.isRecurrent) {
+                html += `
+                    <div style="background: rgba(230,0,46,0.06); border: 1px solid rgba(230,0,46,0.12); border-radius: 6px; padding: 8px 10px; font-size: 10.5px; color: #ff8b9e; display: flex; align-items: flex-start; gap: 6px; line-height: 1.4;">
+                        <i data-lucide="info" style="width: 12px; height: 12px; margin-top: 1px; flex-shrink: 0;"></i>
+                        <span>Atraso recorrente neste processo. Possível entrada de ar falsa (vazamento). Recomenda-se vistoria física.</span>
+                    </div>
+                `;
+            }
+            
+            html += `
+                    <div class="notification-card-header" style="margin-top: 4px;">
+                        <span class="notification-meta">Último lançamento: ${dateStr}</span>
+                        <div class="notification-actions">
+                            <button class="notification-btn-action" onclick="abrirManutencaoForno('${n.praca}', '${n.stageName}', ${n.consecutiveDays})">
+                                <i data-lucide="wrench" style="width: 12px; height: 12px;"></i> Manutenção
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    html += `
+        </div>
+    `;
+    
+    panel.innerHTML = html;
+    
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+}
+
+function abrirManutencaoForno(praca, estagioName, dias) {
+    switchTab('manutencao');
+    
+    const select = document.getElementById('maint-kiln-select');
+    if (select) {
+        select.value = praca;
+    }
+    
+    const textarea = document.querySelector('#form-maintenance textarea[name="problema"]');
+    if (textarea) {
+        textarea.value = `Atraso no processo de ${estagioName}: permanecendo há ${dias} dias consecutivamente (acima do limite operacional configurado).`;
+    }
+    
+    const dateInput = document.querySelector('#form-maintenance input[name="repair_date"]');
+    if (dateInput) {
+        dateInput.value = new Date().toISOString().substring(0, 10);
+        if (dateInput._flatpickr) {
+            dateInput._flatpickr.setDate(new Date());
+        }
+    }
+    
+    toggleNotificationPanel();
+    showToast(`Preenchido Ordem de Reparo para Forno ${praca}!`);
+}
+
+// Click outside notification panel to close it
+document.addEventListener('click', (e) => {
+    const panel = document.getElementById('notification-panel');
+    const trigger = e.target.closest('.notification-trigger');
+    const isInsidePanel = e.target.closest('#notification-panel');
+    
+    if (panel && isNotificationPanelOpen && !isInsidePanel && !trigger) {
+        toggleNotificationPanel();
+    }
+});
+
+// Expose notification functions globally
+window.toggleNotificationPanel = toggleNotificationPanel;
+window.toggleSettingsForm = toggleSettingsForm;
+window.saveUserSettings = saveUserSettings;
+window.abrirManutencaoForno = abrirManutencaoForno;
 

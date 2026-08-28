@@ -77,6 +77,13 @@
                     <span class="user-name" id="greeting">Olá</span>
                     <span class="user-date" id="current-date">--/--/----</span>
                 </div>
+                
+                <!-- Sino de Notificações -->
+                <button class="notification-trigger" onclick="toggleNotificationPanel()" style="background: transparent; border: none; color: rgba(255,255,255,0.75); cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; transition: all 0.2s ease; margin-right: 8px;">
+                    <i data-lucide="bell" style="width: 20px; height: 20px;"></i>
+                    <span id="notification-badge" style="display: none; position: absolute; top: 4px; right: 4px; background: #ef4444; color: #fff; font-size: 9px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; border: 2px solid #1a1a24; line-height: 1;">0</span>
+                </button>
+
                 <div class="avatar" onclick="toggleUserDropdown()" id="user-avatar-initials">C</div>
                 
                 <!-- Dropdown Menu -->
@@ -93,6 +100,11 @@
                 </button>
             </div>
         </nav>
+
+        <!-- PAINEL DE NOTIFICAÇÕES LATERAL (DRAWER) -->
+        <div id="notification-panel" class="notification-panel glass" style="position: fixed; top: 70px; right: -380px; width: 360px; height: calc(100vh - 70px); z-index: 999; border-left: 1px solid var(--border); box-shadow: -10px 0 30px rgba(0,0,0,0.5); transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; background: rgba(18, 18, 24, 0.92); backdrop-filter: blur(25px);">
+            <!-- Renderizado via JS -->
+        </div>
 
         <!-- Mobile Navigation Sidebar -->
         <div id="mobile-nav" class="mobile-nav">
@@ -187,9 +199,14 @@
 
                 <div class="glass" style="margin-bottom: 24px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
-                        <div class="form-field" style="margin-bottom: 0; min-width: 220px;">
-                            <label style="font-weight: 700;">Mês de Acompanhamento</label>
-                            <input type="month" id="spreadsheet-month-picker" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: #fff; padding: 10px 14px; border-radius: 8px; font-weight: 600; width: 100%; outline: none;" onchange="renderSpreadsheetGrid()">
+                        <div style="display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;">
+                            <div class="form-field" style="margin-bottom: 0; min-width: 220px;">
+                                <label style="font-weight: 700;">Mês de Acompanhamento</label>
+                                <input type="month" id="spreadsheet-month-picker" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: #fff; padding: 10px 14px; border-radius: 8px; font-weight: 600; width: 100%; outline: none;" onchange="renderSpreadsheetGrid()">
+                            </div>
+                            <div id="month-status-container" style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+                                <!-- Gerado via JS: Status e Botões de Fechamento -->
+                            </div>
                         </div>
                         <div class="legend-container" style="margin: 0;">
                             <div class="legend-item"><div class="legend-badge stage-x">X</div> <span>Carga</span></div>
