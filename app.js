@@ -53,6 +53,7 @@ async function init() {
         initPinLogic(); // Iniciar lógica dos quadrados de PIN
 
         await loadAllData();
+        initRealtimeSync();
     } else {
         document.getElementById('login-screen').style.display = 'flex';
         document.querySelector('.app-container').style.display = 'none';
@@ -3533,4 +3534,29 @@ window.openEditKilnModal = openEditKilnModal;
 window.saveKilnSettings = saveKilnSettings;
 window.deleteKilnFromModal = deleteKilnFromModal;
 window.renderOperationalAlerts = renderOperationalAlerts;
+
+function initRealtimeSync() {
+    if (!currentUser) return;
+    console.log("Carbonize: Initializing Realtime channels...");
+    
+    supabase
+        .channel('realtime-sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_settings' }, async (payload) => {
+            console.log('Realtime user_settings change:', payload);
+            await loadAllData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'kilns' }, async (payload) => {
+            console.log('Realtime kilns change:', payload);
+            await loadAllData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'production_history' }, async (payload) => {
+            console.log('Realtime production_history change:', payload);
+            await loadAllData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance' }, async (payload) => {
+            console.log('Realtime maintenance change:', payload);
+            await loadAllData();
+        })
+        .subscribe();
+}
 
