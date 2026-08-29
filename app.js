@@ -176,6 +176,16 @@ async function loadAllData() {
             };
         }
         
+        // Sincronizar inputs de limites globais na página Central de Alertas
+        const inputC = document.getElementById('setting-threshold-c');
+        const inputE = document.getElementById('setting-threshold-e');
+        const inputX = document.getElementById('setting-threshold-x');
+        const inputD = document.getElementById('setting-threshold-d');
+        if (inputC) inputC.value = userSettings.threshold_carbonizacao || 2;
+        if (inputE) inputE.value = userSettings.threshold_resfriamento || 2;
+        if (inputX) inputX.value = userSettings.threshold_carga || 1;
+        if (inputD) inputD.value = userSettings.threshold_descarga || 1;
+
         console.log("Data loaded:", { kilns, loads, history, maintenance, expenses, fiscalDocs, closedMonths, userSettings });
         renderAll();
         
@@ -278,10 +288,10 @@ const PIN_HASHES = {
 };
 
 const PERMISSIONS = {
-    'operacional': ['dashboard', 'fornos', 'cargas', 'manutencao', 'analise'],
+    'operacional': ['dashboard', 'fornos', 'cargas', 'alertas', 'analise'],
     'financeiro': ['dashboard', 'dados_fiscais', 'analise', 'relatorios', 'custos'],
     'contabil': ['dashboard', 'dados_fiscais', 'analise', 'relatorios'],
-    'admin': ['dashboard', 'fornos', 'cargas', 'manutencao', 'dados_fiscais', 'analise', 'custos', 'relatorios']
+    'admin': ['dashboard', 'fornos', 'cargas', 'alertas', 'dados_fiscais', 'analise', 'custos', 'relatorios']
 };
 
 function switchTab(tabId) {
@@ -3277,7 +3287,7 @@ function renderNotifications() {
 }
 
 function abrirManutencaoForno(praca, estagioName, dias) {
-    switchTab('manutencao');
+    switchTab('alertas');
     
     const select = document.getElementById('maint-kiln-select');
     if (select) {
@@ -3315,10 +3325,20 @@ document.addEventListener('click', (e) => {
 function renderOperationalAlerts() {
     const dashboardPanel = document.getElementById('dashboard-alerts-panel');
     const productionPanel = document.getElementById('operational-alerts-panel');
+    const centralPanel = document.getElementById('central-alerts-list');
     
     if (notifications.length === 0) {
         if (dashboardPanel) dashboardPanel.style.display = 'none';
         if (productionPanel) productionPanel.style.display = 'none';
+        if (centralPanel) {
+            centralPanel.innerHTML = `
+                <div class="notification-empty-state" style="margin-top: 40px;">
+                    <i data-lucide="check-circle-2" style="width: 48px; height: 48px; color: var(--success); opacity: 0.8; margin-bottom: 12px;"></i>
+                    <p style="font-size: 13px; font-weight: 600; color: #fff;">Tudo em Ordem!</p>
+                    <p style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Todos os fornos da carvoaria estão operando dentro do prazo operacional configurado.</p>
+                </div>
+            `;
+        }
         return;
     }
     
@@ -3331,12 +3351,14 @@ function renderOperationalAlerts() {
             <div class="operational-alerts-grid">
     `;
     
+    let centralHtml = "";
+    
     notifications.forEach(n => {
         const severityClass = n.severity === 'red' ? 'critical' : 'warning';
         const badgeText = n.severity === 'red' ? 'Crítico' : 'Atenção';
         const badgeClass = n.severity === 'red' ? 'critical' : 'warning';
         
-        alertsHtml += `
+        const cardHtml = `
             <div class="operational-alert-card ${severityClass}">
                 <div class="operational-alert-card-header">
                     <span class="operational-alert-card-title">
@@ -3347,18 +3369,11 @@ function renderOperationalAlerts() {
                 <div class="operational-alert-card-desc">
                     O processo de <strong>${n.stageName}</strong> está ativo há <strong>${n.consecutiveDays} dias</strong> (${n.delayDays} ${n.delayDays === 1 ? 'dia' : 'dias'} acima da média de ${n.threshold} dias).
                 </div>
-        `;
-        
-        if (n.isRecurrent) {
-            alertsHtml += `
-                <div style="background: rgba(230,0,46,0.05); border: 1px solid rgba(230,0,46,0.1); border-radius: 6px; padding: 6px 10px; font-size: 10px; color: #ff8b9e; display: flex; align-items: flex-start; gap: 6px; line-height: 1.3;">
+                ${n.isRecurrent ? `
+                <div style="background: rgba(230,0,46,0.05); border: 1px solid rgba(230,0,46,0.1); border-radius: 6px; padding: 6px 10px; font-size: 10px; color: #ff8b9e; display: flex; align-items: flex-start; gap: 6px; line-height: 1.3; margin-top: 4px;">
                     <i data-lucide="info" style="width: 11px; height: 11px; margin-top: 1px; flex-shrink: 0;"></i>
                     <span>Possível vazamento ou entrada de ar falsa. Recomenda-se vistoria física.</span>
-                </div>
-            `;
-        }
-        
-        alertsHtml += `
+                </div>` : ''}
                 <div class="operational-alert-card-meta">
                     <span>Lançamento: ${formatDateBR(n.lastUpdated)}</span>
                     <button class="operational-alert-card-action" onclick="abrirManutencaoForno('${n.praca}', '${n.stageName}', ${n.consecutiveDays})">
@@ -3367,6 +3382,9 @@ function renderOperationalAlerts() {
                 </div>
             </div>
         `;
+        
+        alertsHtml += cardHtml;
+        centralHtml += cardHtml;
     });
     
     alertsHtml += `
@@ -3381,6 +3399,9 @@ function renderOperationalAlerts() {
     if (productionPanel) {
         productionPanel.innerHTML = alertsHtml;
         productionPanel.style.display = 'block';
+    }
+    if (centralPanel) {
+        centralPanel.innerHTML = centralHtml;
     }
     
     if (window.lucide) {
