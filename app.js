@@ -3048,6 +3048,7 @@ function getStageCode(hRecord) {
     if (hRecord.estagio) return hRecord.estagio;
     if (Number(hRecord.carbonizando) > 0) return "C";
     if (Number(hRecord.esfriando) > 0) return "E";
+    if (Number(hRecord.esvaziando) > 0 || Number(hRecord.descarga) > 0) return "D";
     if (Number(hRecord.cheios) > 0) return "X";
     if (Number(hRecord.vazios) > 0) return "V";
     return "";
@@ -3078,15 +3079,24 @@ function calculateNotifications() {
         // Apenas avaliamos processos operacionais que podem atrasar
         if (!['C', 'E', 'X', 'D'].includes(currentStage)) return;
 
-        // Contar dias consecutivos no mesmo estágio
+        // Calcular os dias reais no estágio: usa o primeiro registro contínuo
+        // e compara com hoje, mesmo quando não houve lançamento diário.
         let consecutiveDays = 0;
+        const activeStageHistory = [];
         for (let i = 0; i < kHistory.length; i++) {
             if (getStageCode(kHistory[i]) === currentStage) {
-                consecutiveDays++;
+                activeStageHistory.push(kHistory[i]);
             } else {
                 break;
             }
         }
+        const oldestStageDate = activeStageHistory.reduce((oldest, item) => {
+            return !oldest || item.data < oldest ? item.data : oldest;
+        }, latest.data);
+        const oldestDate = new Date(`${oldestStageDate}T00:00:00`);
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
+        consecutiveDays = Math.max(1, Math.floor((todayDate - oldestDate) / 86400000) + 1);
 
         // Limiar correspondente com fallback para o global do usuário
         let threshold = 1;
@@ -3182,6 +3192,14 @@ function toggleSettingsForm() {
     renderNotifications();
 }
 
+function toggleCarvoariaSettings() {
+    const panel = document.getElementById('carvoaria-settings-panel');
+    if (!panel) return;
+    const isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 async function saveUserSettings(e) {
     if (e) e.preventDefault();
     if (!currentUser) return;
@@ -3205,7 +3223,7 @@ async function saveUserSettings(e) {
             .upsert(payload, { onConflict: 'user_id' });
         if (error) throw error;
 
-        showToast("Configurações salvas!");
+        showToast("Prazos da carvoaria salvos!");
         userSettings = { ...userSettings, ...payload };
         calculateNotifications();
         isSettingsExpanded = false;
@@ -3234,7 +3252,7 @@ function renderNotifications() {
         <div class="notification-header">
             <h3><i data-lucide="bell" style="width: 18px; height: 18px; color: var(--primary);"></i> Alertas e Notificações</h3>
             <div class="notification-header-actions">
-                <button class="btn-icon-nav" onclick="toggleSettingsForm()" title="Configurar Tempos Médios">
+                <button class="btn-icon-nav" onclick="toggleCarvoariaSettings(); toggleNotificationPanel();" title="Configurar Tempos Médios">
                     <i data-lucide="settings" style="width: 18px; height: 18px;"></i>
                 </button>
                 <button class="btn-icon-nav" onclick="toggleNotificationPanel()" title="Fechar">
@@ -3244,37 +3262,6 @@ function renderNotifications() {
         </div>
         <div class="notification-body">
     `;
-
-    if (isSettingsExpanded) {
-        html += `
-            <div class="notification-settings-section">
-                <h4><i data-lucide="sliders" style="width: 14px; height: 14px;"></i> Tempos Médios (Dias)</h4>
-                <form onsubmit="saveUserSettings(event)">
-                    <div class="settings-grid-row">
-                        <div class="settings-field">
-                            <label>Carbonização</label>
-                            <input type="number" id="setting-threshold-c" min="1" value="${userSettings.threshold_carbonizacao || 2}" required>
-                        </div>
-                        <div class="settings-field">
-                            <label>Resfriamento</label>
-                            <input type="number" id="setting-threshold-e" min="1" value="${userSettings.threshold_resfriamento || 2}" required>
-                        </div>
-                    </div>
-                    <div class="settings-grid-row">
-                        <div class="settings-field">
-                            <label>Carregamento</label>
-                            <input type="number" id="setting-threshold-x" min="1" value="${userSettings.threshold_carga || 1}" required>
-                        </div>
-                        <div class="settings-field">
-                            <label>Esvaziamento</label>
-                            <input type="number" id="setting-threshold-d" min="1" value="${userSettings.threshold_descarga || 1}" required>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn-save" style="width:100%; height:36px; font-size:12px; margin-top:4px;">Salvar Limites</button>
-                </form>
-            </div>
-        `;
-    }
 
     if (notifications.length === 0) {
         html += `

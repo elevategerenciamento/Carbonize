@@ -352,12 +352,20 @@
             <!-- SECTION: CENTRAL DE ALERTAS E STATUS DA CARVOARIA -->
             <section id="section-alertas" class="content-section" style="display: none;">
                 <div class="header-action">
-                    <h2 class="page-title">Gestão de Status e Alertas</h2>
-                    <span id="maint-alert-badge" class="status-badge success">SISTEMA OK</span>
+                    <div>
+                        <h2 class="page-title">Gestão de Status e Alertas</h2>
+                        <p class="page-subtitle">Acompanhe os prazos operacionais e receba alertas por forno.</p>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <span id="maint-alert-badge" class="status-badge success">SISTEMA OK</span>
+                        <button type="button" class="btn-primary settings-toggle-btn" onclick="toggleCarvoariaSettings()">
+                            <i data-lucide="sliders-horizontal"></i> Configurar prazos
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Seção Principal: Tempos Médios Globais (Configuração Integrada) -->
-                <div class="glass" style="margin-bottom: 24px; padding: 24px;">
+                <!-- Painel recolhível: configuração por empresa/usuário -->
+                <div id="carvoaria-settings-panel" class="glass carvoaria-settings-panel" style="display: none; margin-bottom: 24px; padding: 24px;">
                     <h4 class="card-title" style="margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
                         <i data-lucide="sliders" style="width: 18px; height: 18px; color: var(--primary);"></i>
                         Métricas de Tempo Operacional Geral (Dias)
