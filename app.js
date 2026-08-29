@@ -39,14 +39,14 @@ document.addEventListener('DOMContentLoaded', init);
 async function init() {
     console.log("Carbonize: DOM Ready");
     protectDevTools();
-    
+
     // Auth Check
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
         currentUser = session.user;
         document.getElementById('login-screen').style.display = 'none';
         document.querySelector('.app-container').style.display = 'flex';
-        
+
         // Ativar o PIN Lock Modal com Blur
         document.querySelector('.app-container').classList.add('blur-background');
         document.getElementById('modal-pin-unlock').style.display = 'flex';
@@ -60,7 +60,7 @@ async function init() {
     }
 
     if (window.lucide) window.lucide.createIcons();
-    
+
     // Initialize Flatpickr
     if (window.flatpickr) {
         flatpickr(".date-picker", {
@@ -92,12 +92,12 @@ async function handleLogin(e) {
     const password = fd.get('password');
     const action = e.submitter ? e.submitter.dataset.action : e.target.dataset.action;
     console.log("Carbonize: Ação de autenticação:", action, "Empreendimento:", farmName);
-    
+
     if (!farmName || !password) {
         alert("Por favor, preencha todos os campos.");
         return;
     }
-    
+
     const sanitizedFarmName = farmName
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
@@ -165,7 +165,7 @@ async function loadAllData() {
         expenses = e.data || [];
         fiscalDocs = f.data || [];
         closedMonths = c.data || [];
-        
+
         if (s.data && s.data.length > 0) {
             userSettings = s.data[0];
         } else {
@@ -176,7 +176,7 @@ async function loadAllData() {
                 threshold_descarga: 1
             };
         }
-        
+
         // Sincronizar inputs de limites globais na página Central de Alertas
         const inputC = document.getElementById('setting-threshold-c');
         const inputE = document.getElementById('setting-threshold-e');
@@ -189,7 +189,7 @@ async function loadAllData() {
 
         console.log("Data loaded:", { kilns, loads, history, maintenance, expenses, fiscalDocs, closedMonths, userSettings });
         renderAll();
-        
+
         // Calcular e renderizar notificações
         calculateNotifications();
         renderNotifications();
@@ -202,7 +202,7 @@ async function loadAllData() {
 async function saveItem(table, item) {
     if (!currentUser) return;
     const payload = { ...item, user_id: currentUser.id };
-    
+
     try {
         const { error } = await supabase.from(table).insert([payload]);
         if (error) throw error;
@@ -211,7 +211,7 @@ async function saveItem(table, item) {
         console.warn("Modo Offline: Salvando localmente...", err);
         saveOffline(table, payload);
         showToast("Salvo localmente (Modo Offline)");
-        
+
         // Atualiza estado local para feedback imediato
         if (table === 'production_history') history.unshift({ ...payload, id: 'temp-' + Date.now() });
         if (table === 'loads') loads.unshift({ ...payload, id: 'temp-' + Date.now() });
@@ -225,7 +225,7 @@ async function saveItem(table, item) {
 async function saveItems(table, itemsList) {
     if (!currentUser) return;
     const payloads = itemsList.map(item => ({ ...item, user_id: currentUser.id }));
-    
+
     try {
         const { error } = await supabase.from(table).insert(payloads);
         if (error) throw error;
@@ -236,7 +236,7 @@ async function saveItems(table, itemsList) {
             saveOffline(table, payload);
         }
         showToast("Salvo localmente (Modo Offline)");
-        
+
         if (table === 'kilns') {
             kilns.push(...payloads.map(p => ({ ...p, id: 'temp-' + Date.now() + Math.random() })));
         }
@@ -254,7 +254,7 @@ function saveOffline(table, data) {
 async function syncOfflineData() {
     const queue = JSON.parse(localStorage.getItem('carbonize_offline_queue') || '[]');
     if (queue.length === 0) return;
-    
+
     console.log(`Carbonize: Sincronizando ${queue.length} itens offline...`);
     for (const item of queue) {
         try {
@@ -298,7 +298,7 @@ const PERMISSIONS = {
 function switchTab(tabId) {
     const role = (currentUser && currentUser.user_metadata && currentUser.user_metadata.role) ? currentUser.user_metadata.role : 'admin';
     const allowedTabs = PERMISSIONS[role] || PERMISSIONS['admin'];
-    
+
     let targetSection = tabId;
     if (!allowedTabs.includes(tabId)) {
         targetSection = 'acesso-negado';
@@ -382,7 +382,7 @@ function renderKilns() {
     const select = document.getElementById('daily-praca-select');
     const maintSelect = document.getElementById('maint-kiln-select');
     const historyList = document.getElementById('kiln-history-list');
-    
+
     if (list) {
         list.innerHTML = kilns.map(k => `
             <div class="asset-pill" onclick="openEditKilnModal('${k.praca}')" style="cursor: pointer;" title="Configurar Forno ${k.praca}">
@@ -397,7 +397,7 @@ function renderKilns() {
     if (select) {
         select.innerHTML = '<option value="">Selecione...</option>' + kilns.map(k => `<option value="${k.praca}">${k.praca}</option>`).join('');
     }
-    
+
     if (maintSelect) {
         maintSelect.innerHTML = '<option value="">Selecione...</option>' + kilns.map(k => `<option value="${k.praca}">${k.praca}</option>`).join('');
     }
@@ -471,13 +471,13 @@ function renderExpenses() {
     console.log("Rendering expenses...", expenses);
     const list = document.getElementById('expense-history-list');
     const totalEl = document.getElementById('kpi-custo-mes');
-    
+
     // Filtra para pegar apenas os gastos gerais (sem planilha rápida)
     const generalExpenses = expenses.filter(e => !e.spreadsheet_name);
-    
+
     const total = generalExpenses.reduce((acc, e) => acc + Number(e.expense_value || 0), 0);
     if (totalEl) totalEl.innerText = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-    
+
     if (list) {
         if (generalExpenses.length === 0) {
             list.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-dim);">Nenhum lançamento encontrado.</td></tr>';
@@ -510,7 +510,7 @@ function renderExpenses() {
 
         const info = document.getElementById('expenses-page-info');
         if (info) info.innerText = `Página ${expensesPage} de ${totalPages}`;
-        
+
         if (window.lucide) window.lucide.createIcons();
     }
 }
@@ -535,7 +535,7 @@ async function deleteExpense(id) {
 function editExpense(id) {
     const e = expenses.find(item => item.id === id);
     if (!e) return;
-    
+
     const form = document.getElementById('form-expense');
     form.querySelector('[name="expense_date"]')._flatpickr.setDate(e.expense_date);
     form.querySelector('[name="expense_category"]').value = e.expense_category;
@@ -558,11 +558,11 @@ function editExpense(id) {
     } else {
         installmentsField.style.display = 'none';
     }
-    
+
     const btn = document.getElementById('btn-save-expense');
     btn.innerText = "Atualizar Lançamento";
     btn.style.background = "#2563eb"; // Blue for edit mode
-    
+
     window.scrollTo({ top: form.offsetTop - 100, behavior: 'smooth' });
 }
 
@@ -579,7 +579,7 @@ function setupEventListeners() {
                 e.preventDefault();
                 const btn = e.target.querySelector('button[type="submit"]');
                 const originalText = btn ? btn.innerText : "Salvar";
-                
+
                 if (btn) {
                     btn.innerText = "Processando...";
                     btn.disabled = true;
@@ -625,7 +625,7 @@ function setupEventListeners() {
 async function processForm(id, fd) {
     if (id === 'kiln') {
         const pracaInput = fd.get('praca') || "";
-        
+
         let pracasToRegister = [];
         if (pracaInput.includes(',')) {
             pracasToRegister = pracaInput.split(',').map(s => s.trim()).filter(Boolean);
@@ -643,17 +643,17 @@ async function processForm(id, fd) {
         } else {
             pracasToRegister.push(pracaInput.trim());
         }
-        
+
         pracasToRegister = pracasToRegister.filter((v, i, self) => self.indexOf(v) === i);
-        
+
         const existingPracas = kilns.map(k => k.praca);
         const newPracas = pracasToRegister.filter(p => !existingPracas.includes(p));
-        
+
         if (newPracas.length === 0) {
             showToast("Nenhum forno novo para cadastrar.");
             return;
         }
-        
+
         const payloads = newPracas.map(p => ({ praca: p }));
         await saveItems('kilns', payloads);
         showToast(`${newPracas.length} forno(s) cadastrado(s)!`);
@@ -663,24 +663,24 @@ async function processForm(id, fd) {
         await saveItem('production_history', item);
         if (item.obs) await saveItem('maintenance', { forno: item.praca, problema: item.obs, data: item.data, resolved: false });
     }
-    if (id === 'load') await saveItem('loads', { 
-        identificador: fd.get('identificador'), 
-        data: fd.get('data_carga'), 
-        hora: fd.get('hora_carga'), 
-        placa: fd.get('placa'), 
-        motorista: fd.get('motorista'), 
-        tipo_carvao: fd.get('tipo_carvao'), 
-        metragem: fd.get('metragem'), 
-        peso: fd.get('peso'), 
+    if (id === 'load') await saveItem('loads', {
+        identificador: fd.get('identificador'),
+        data: fd.get('data_carga'),
+        hora: fd.get('hora_carga'),
+        placa: fd.get('placa'),
+        motorista: fd.get('motorista'),
+        tipo_carvao: fd.get('tipo_carvao'),
+        metragem: fd.get('metragem'),
+        peso: fd.get('peso'),
         destino: fd.get('destino'),
         data_descarregamento: fd.get('data_descarregamento')
     });
     if (id === 'expense') {
         const expenseId = fd.get('expense_id');
-        const item = { 
-            expense_date: fd.get('expense_date'), 
-            expense_category: fd.get('expense_category'), 
-            expense_desc: fd.get('expense_desc'), 
+        const item = {
+            expense_date: fd.get('expense_date'),
+            expense_category: fd.get('expense_category'),
+            expense_desc: fd.get('expense_desc'),
             expense_value: fd.get('expense_value'),
             expense_quantity: fd.get('expense_quantity') || 1,
             payment_method: fd.get('payment_method'),
@@ -694,7 +694,7 @@ async function processForm(id, fd) {
             if (error) throw error;
             document.getElementById('edit-expense-id').value = '';
             document.getElementById('btn-save-expense').innerText = "Salvar Lançamento";
-            document.getElementById('btn-save-expense').style.background = ""; 
+            document.getElementById('btn-save-expense').style.background = "";
             if (document.getElementById('expense-spreadsheet-select')) {
                 document.getElementById('expense-spreadsheet-select').value = '';
             }
@@ -705,12 +705,12 @@ async function processForm(id, fd) {
     }
     if (id === 'maintenance') await saveItem('maintenance', { forno: fd.get('kiln_target'), problema: fd.get('problema'), data: fd.get('repair_date'), cost: fd.get('cost'), resolved: false });
     if (id === 'settings') {
-        await supabase.auth.updateUser({ 
-            data: { 
+        await supabase.auth.updateUser({
+            data: {
                 farm_name: fd.get('enterprise_name'),
                 operator_name: fd.get('operator_name'),
                 role: fd.get('user_role')
-            } 
+            }
         });
         location.reload();
     }
@@ -1074,7 +1074,7 @@ function formatDateBR(dateStr) {
 }
 
 function getReportDateRange(type) {
-    const typeMap = { 'loads': 'loads', 'pracas': 'pracas', 'maint': 'maint', 'expenses': 'expenses' };
+    const typeMap = { 'loads': 'loads', 'pracas': 'pracas', 'kilns': 'kilns', 'carvoaria': 'carvoaria', 'maint': 'maint', 'expenses': 'expenses' };
     const key = typeMap[type] || type;
     const start = document.getElementById(`report-${key}-start`).value;
     const end = document.getElementById(`report-${key}-end`).value;
@@ -1090,7 +1090,7 @@ function filterByDateRange(arr, dateField, start, end) {
 
 window.generateReport = async (type, format = 'pdf') => {
     const { start, end } = getReportDateRange(type);
-    
+
     if (!start || !end) {
         alert("Por favor, selecione o período inicial e final.");
         return;
@@ -1099,6 +1099,8 @@ window.generateReport = async (type, format = 'pdf') => {
     let typeLabel = {
         'loads': 'EXPEDICAO',
         'pracas': 'PRODUCAO',
+        'kilns': 'FORNOS',
+        'carvoaria': 'GERENCIAMENTO_CARVOARIA',
         'maint': 'MANUTENCAO',
         'expenses': 'GASTOS'
     }[type] || type.toUpperCase();
@@ -1150,6 +1152,53 @@ window.generateReport = async (type, format = 'pdf') => {
                 "",
                 ""
             ]
+        };
+    }
+
+    // ─── FORNOS ───
+    else if (type === 'kilns') {
+        const filtered = filterByDateRange(history, 'data', start, end);
+        const totalCarbonizando = filtered.reduce((a, h) => a + Number(h.carbonizando || 0), 0);
+        const totalCheios = filtered.reduce((a, h) => a + Number(h.cheios || 0), 0);
+        const totalEsfriando = filtered.reduce((a, h) => a + Number(h.esfriando || 0), 0);
+        const totalVazios = filtered.reduce((a, h) => a + Number(h.vazios || 0), 0);
+        const unidades = [...new Set(filtered.map(h => h.praca).filter(Boolean))];
+        reportConfig = {
+            title: "RELATÓRIO DE FORNOS E OPERAÇÃO",
+            subtitle: "Acompanhamento de Ciclos e Ocupação Operacional",
+            summaryItems: [
+                { label: "Registros no Período", value: filtered.length },
+                { label: "Fornos Monitorados", value: unidades.length },
+                { label: "Em Carbonização", value: totalCarbonizando },
+                { label: "Fornos Carregados", value: totalCheios }
+            ],
+            headers: ["Data", "Responsável", "Forno", "Vazios", "Cheios", "Carbonização", "Resfriamento", "Observações"],
+            rows: filtered.map(h => [formatDateBR(h.data), h.responsavel || '-', h.praca || '-', h.vazios || '0', h.cheios || '0', h.carbonizando || '0', h.esfriando || '0', h.obs || '-']),
+            footer: `Resumo operacional: ${totalCarbonizando} em carbonização | ${totalCheios} carregados | ${totalEsfriando} em resfriamento`,
+            totalRow: ["TOTAL", "", "", totalVazios, totalCheios, totalCarbonizando, totalEsfriando, ""]
+        };
+    }
+
+    // ─── GERENCIAMENTO DE CARVOARIA ───
+    else if (type === 'carvoaria') {
+        const alertas = notifications.filter(n => n && n.praca);
+        const filteredMaint = filterByDateRange(maintenance, 'data', start, end);
+        const pendentes = filteredMaint.filter(m => !m.resolved).length;
+        const resolvidos = filteredMaint.filter(m => m.resolved).length;
+        const custoManutencao = filteredMaint.reduce((a, m) => a + Number(m.cost || 0), 0);
+        reportConfig = {
+            title: "RELATÓRIO DE GERENCIAMENTO DE CARVOARIA",
+            subtitle: "Visão Executiva de Alertas, Pendências e Manutenção",
+            summaryItems: [
+                { label: "Alertas Ativos", value: alertas.length },
+                { label: "Manutenções no Período", value: filteredMaint.length },
+                { label: "Pendências", value: pendentes },
+                { label: "Custo de Manutenção", value: `R$ ${custoManutencao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
+            ],
+            headers: ["Data", "Forno", "Ocorrência / Serviço", "Status", "Custo (R$)"],
+            rows: filteredMaint.map(m => [formatDateBR(m.data), m.forno || '-', m.problema || '-', m.resolved ? 'Resolvido' : 'Pendente', `R$ ${Number(m.cost || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`]),
+            footer: `Gestão operacional: ${alertas.length} alertas ativos | ${pendentes} pendências | ${resolvidos} serviços concluídos`,
+            totalRow: ["TOTAL", "", "", `${resolvidos} resolvidos / ${pendentes} pendentes`, `R$ ${custoManutencao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`]
         };
     }
 
@@ -1237,7 +1286,7 @@ window.generateReport = async (type, format = 'pdf') => {
         const filterInput = document.getElementById('report-expenses-filter');
         const filterText = filterInput ? filterInput.value.trim() : '';
         const sheetFilter = document.getElementById('report-expenses-spreadsheet').value;
-        
+
         let filtered = filterByDateRange(expenses, 'expense_date', start, end)
             .filter(e => !(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha'));
         if (sheetFilter) {
@@ -1255,12 +1304,12 @@ window.generateReport = async (type, format = 'pdf') => {
                 typeLabel = `GASTOS_GERAIS_${filterText.toUpperCase().replace(/\s+/g, '_')}`;
             }
         }
-        
+
         const total = filtered.reduce((a, e) => a + Number(e.expense_value || 0), 0);
         const totalQtd = filtered.reduce((a, e) => a + Number(e.expense_quantity || 1), 0);
         const totalQuitados = filtered.filter(e => (e.expense_status || 'Quitado') === 'Quitado').reduce((a, e) => a + Number(e.expense_value || 0), 0);
         const totalPendentes = filtered.filter(e => e.expense_status === 'Pendente').reduce((a, e) => a + Number(e.expense_value || 0), 0);
-        
+
         let reportTitle = "RELATÓRIO DE GASTOS GERAIS";
         let reportSubtitle = "Análise Financeira de Gastos Gerais (Sem Planilhas Rápidas)";
         if (sheetFilter) {
@@ -1303,7 +1352,7 @@ window.generateReport = async (type, format = 'pdf') => {
             ]
         };
     }
-    
+
     // ─── FISCAL ───
     else if (type === 'fiscal') {
         const filtered = filterByDateRange(fiscalDocs, 'reference_date', start, end);
@@ -1420,7 +1469,7 @@ window.generateReport = async (type, format = 'pdf') => {
         // Linha de total
         let totalRowXml = '';
         if (reportConfig.totalRows) {
-            totalRowXml = reportConfig.totalRows.map(row => 
+            totalRowXml = reportConfig.totalRows.map(row =>
                 `<Row ss:Height="20">${row.map(cell => `<Cell ss:StyleID="s3"><Data ss:Type="String">${esc(cell)}</Data></Cell>`).join('')}</Row>`
             ).join('');
         } else if (reportConfig.totalRow) {
@@ -1470,7 +1519,7 @@ window.generateReport = async (type, format = 'pdf') => {
     // Barra vermelha superior
     doc.setFillColor(230, 0, 46);
     doc.rect(0, 0, pageWidth, 28, 'F');
-    
+
     // Barra escura secundária
     doc.setFillColor(15, 15, 18);
     doc.rect(0, 28, pageWidth, 8, 'F');
@@ -1508,11 +1557,11 @@ window.generateReport = async (type, format = 'pdf') => {
     const cardWidth = (pageWidth - 28 - 18) / 4;
     reportConfig.summaryItems.forEach((item, i) => {
         const x = 14 + i * (cardWidth + 6);
-        
+
         // Card background
         doc.setFillColor(245, 245, 248);
         doc.roundedRect(x, yPos, cardWidth, 20, 3, 3, 'F');
-        
+
         // Barra lateral vermelha
         doc.setFillColor(230, 0, 46);
         doc.rect(x, yPos, 2, 20, 'F');
@@ -1574,7 +1623,7 @@ window.generateReport = async (type, format = 'pdf') => {
             doc.setDrawColor(230, 0, 46);
             doc.setLineWidth(0.5);
             doc.line(0, pageHeight - 18, pageWidth, pageHeight - 18);
-            
+
             doc.setFont("helvetica", "normal");
             doc.setFontSize(7);
             doc.setTextColor(120, 120, 120);
@@ -1748,7 +1797,7 @@ function renderFiscalDocs() {
         const hasFile = doc.file_path && doc.file_path.length > 0;
         const fileName = doc.file_name || 'Sem arquivo';
         const fileExt = fileName.split('.').pop().toUpperCase();
-        
+
         const statusConfig = {
             'pago': { label: 'Pago', class: 'success' },
             'aberto': { label: 'Em Aberto', class: 'warning' },
@@ -2103,17 +2152,17 @@ if (installBtn) {
             alert("O aplicativo já está instalado ou não é suportado neste navegador.");
             return;
         }
-        
+
         // Mostra o prompt de instalação nativo
         deferredPrompt.prompt();
-        
+
         // Aguarda a resposta do usuário
         const { outcome } = await deferredPrompt.userChoice;
         console.log(`PWA: Usuário escolheu: ${outcome}`);
-        
+
         // Limpa o prompt para não ser usado novamente
         deferredPrompt = null;
-        
+
         // Esconde o botão se o usuário instalou
         if (outcome === 'accepted') {
             if (installContainer) installContainer.style.display = 'none';
@@ -2169,7 +2218,7 @@ function protectDevTools() {
 function initPinLogic() {
     const inputs = document.querySelectorAll('.pin-input');
     const select = document.getElementById('pin-role-select');
-    
+
     // Auto-focus next input
     inputs.forEach((input, idx) => {
         input.addEventListener('input', (e) => {
@@ -2202,11 +2251,11 @@ function initPinLogic() {
                 // Success - Unlock
                 document.getElementById('modal-pin-unlock').style.display = 'none';
                 document.querySelector('.app-container').classList.remove('blur-background');
-                
+
                 // Override currentUser role for this session
                 if(!currentUser.user_metadata) currentUser.user_metadata = {};
                 currentUser.user_metadata.role = role;
-                
+
                 // Apply permissions
                 switchTab('dashboard');
                 updateUI();
@@ -2215,7 +2264,7 @@ function initPinLogic() {
             }
         }
     }
-    
+
     function showPinError(msg) {
         document.getElementById('pin-error-msg').innerText = msg;
         const container = document.getElementById('pin-inputs-container');
@@ -2227,7 +2276,7 @@ function initPinLogic() {
             document.getElementById('pin-error-msg').innerText = '';
         }, 1500);
     }
-    
+
     const sheetExpenseForm = document.getElementById('form-spreadsheet-expense');
     if (sheetExpenseForm) {
         sheetExpenseForm.addEventListener('submit', async (e) => {
@@ -2304,7 +2353,7 @@ function showSpreadsheetsList() {
 function renderSpreadsheetsList() {
     const tbody = document.getElementById('spreadsheets-table-body');
     if (!tbody) return;
-    
+
     const sheetsMap = {};
     expenses.forEach(e => {
         if (e.spreadsheet_name) {
@@ -2385,7 +2434,7 @@ function viewSpreadsheet(name) {
         document.getElementById('spreadsheet-create-view').style.display = 'none';
     }
     document.getElementById('current-spreadsheet-title').innerText = name;
-    
+
     const form = document.getElementById('form-spreadsheet-expense');
     if (form) {
         form.reset();
@@ -2393,7 +2442,7 @@ function viewSpreadsheet(name) {
             form.querySelector('[name="expense_date"]')._flatpickr.setDate(new Date());
         }
     }
-    
+
     renderSpreadsheetItems();
 }
 
@@ -2402,7 +2451,7 @@ function renderSpreadsheetItems() {
     if (!tbody) return;
 
     let items = expenses.filter(e => e.spreadsheet_name === currentSpreadsheetName);
-    
+
     if (items.length > 1) {
         items = items.filter(e => !(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha'));
     }
@@ -2456,7 +2505,7 @@ async function renameCurrentSpreadsheet() {
             .update({ spreadsheet_name: trimmedNewName })
             .eq('spreadsheet_name', currentSpreadsheetName)
             .eq('user_id', currentUser.id);
-            
+
         if (error) {
             alert("Erro ao renomear planilha: " + error.message);
             return;
@@ -2477,7 +2526,7 @@ async function deleteCurrentSpreadsheet() {
             .delete()
             .eq('spreadsheet_name', currentSpreadsheetName)
             .eq('user_id', currentUser.id);
-            
+
         if (error) {
             alert("Erro ao excluir planilha: " + error.message);
             return;
@@ -2494,18 +2543,18 @@ function updateSpreadsheetSelects() {
     const expSelect = document.getElementById('expense-spreadsheet-select');
     const repSelect = document.getElementById('report-expenses-spreadsheet');
     if (!expSelect && !repSelect) return;
-    
+
     const sheets = [...new Set(expenses.map(e => e.spreadsheet_name).filter(Boolean))].sort();
 
     if (expSelect) {
         const currentVal = expSelect.value;
-        expSelect.innerHTML = '<option value="">Nenhuma (Custo Avulso)</option>' + 
+        expSelect.innerHTML = '<option value="">Nenhuma (Custo Avulso)</option>' +
             sheets.map(s => `<option value="${s}">${s}</option>`).join('');
         expSelect.value = currentVal;
     }
     if (repSelect) {
         const currentVal = repSelect.value;
-        repSelect.innerHTML = '<option value="">Custos Avulsos (Sem Planilha)</option>' + 
+        repSelect.innerHTML = '<option value="">Custos Avulsos (Sem Planilha)</option>' +
             sheets.map(s => `<option value="${s}">${s}</option>`).join('');
         repSelect.value = currentVal;
     }
@@ -2529,7 +2578,7 @@ function editSpreadsheetExpense(id) {
     const btn = document.getElementById('btn-save-sheet-expense');
     btn.innerHTML = `<i data-lucide="save" style="width: 16px; height: 16px;"></i> Salvar Alterações`;
     btn.style.background = "#2563eb"; // Blue for edit mode
-    
+
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -2563,17 +2612,17 @@ function renderSpreadsheetGrid() {
         selectedSpreadsheetMonth = picker.value || new Date().toISOString().substring(0, 7);
     }
     updateMonthStatusUI();
-    
+
     const [yearStr, monthStr] = selectedSpreadsheetMonth.split('-');
     if (!yearStr || !monthStr) return;
     const year = parseInt(yearStr);
     const month = parseInt(monthStr) - 1;
-    
+
     const totalDays = new Date(year, month + 1, 0).getDate();
-    
+
     const headerRow = document.getElementById('spreadsheet-header-days');
     if (!headerRow) return;
-    
+
     let headerHtml = `<th class="sticky-col">Fila / Forno</th>`;
     for (let d = 1; d <= totalDays; d++) {
         const date = new Date(year, month, d);
@@ -2584,19 +2633,19 @@ function renderSpreadsheetGrid() {
         headerHtml += `<th>${d}<br><span style="font-size: 8px; opacity:0.7;">${weekday}</span></th>`;
     }
     headerRow.innerHTML = headerHtml;
-    
+
     const bodyRows = document.getElementById('spreadsheet-body-rows');
     if (!bodyRows) return;
-    
+
     const sortedKilns = naturalSortKilns(kilns);
     let bodyHtml = "";
-    
+
     const dailyCargas = new Array(totalDays + 1).fill(0);
     const dailyDescarga = new Array(totalDays + 1).fill(0);
     const dailyCarboniz = new Array(totalDays + 1).fill(0);
     const dailyResfri = new Array(totalDays + 1).fill(0);
     const dailyVazios = new Array(totalDays + 1).fill(0);
-    
+
     sortedKilns.forEach((k) => {
         // Verificar se há alerta ativo para este forno
         const kilnNotif = notifications.find(n => n.praca === k.praca);
@@ -2614,17 +2663,17 @@ function renderSpreadsheetGrid() {
                 ${alertIndicator}
             </div>
         </td>`;
-        
+
         for (let d = 1; d <= totalDays; d++) {
             const dayStr = String(d).padStart(2, '0');
             const dateStr = `${selectedSpreadsheetMonth}-${dayStr}`;
-            
+
             const hRecord = history.find(h => h && h.praca === k.praca && h.data === dateStr);
-            
+
             let stageCode = "";
             let cellClass = "";
             let obs = "";
-            
+
             if (hRecord) {
                 obs = hRecord.obs || "";
                 if (hRecord.estagio) {
@@ -2635,7 +2684,7 @@ function renderSpreadsheetGrid() {
                     else if (Number(hRecord.cheios) > 0) stageCode = "X";
                     else if (Number(hRecord.vazios) > 0) stageCode = "V";
                 }
-                
+
                 if (stageCode === "C") {
                     cellClass = "stage-c";
                     dailyCarboniz[d]++;
@@ -2656,9 +2705,9 @@ function renderSpreadsheetGrid() {
                     dailyVazios[d]++;
                 }
             }
-            
+
             bodyHtml += `
-                <td class="spreadsheet-cell-clickable ${cellClass}" 
+                <td class="spreadsheet-cell-clickable ${cellClass}"
                     title="${obs ? 'Obs: ' + obs : ''}"
                     onclick="openSpreadsheetPopover('${k.praca}', '${dateStr}', this, '${stageCode}', '${obs.replace(/'/g, "\\'")}')">
                     ${stageCode}
@@ -2667,38 +2716,38 @@ function renderSpreadsheetGrid() {
         }
         bodyHtml += `</tr>`;
     });
-    
+
     // Add summary rows
     bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">CARGAS</td>`;
     for (let d = 1; d <= totalDays; d++) {
         bodyHtml += `<td>${dailyCargas[d]}</td>`;
     }
     bodyHtml += `</tr>`;
-    
+
     bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">DESCARGA</td>`;
     for (let d = 1; d <= totalDays; d++) {
         bodyHtml += `<td>${dailyDescarga[d]}</td>`;
     }
     bodyHtml += `</tr>`;
-    
+
     bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">CARBONIZ</td>`;
     for (let d = 1; d <= totalDays; d++) {
         bodyHtml += `<td>${dailyCarboniz[d]}</td>`;
     }
     bodyHtml += `</tr>`;
-    
+
     bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">RESFRI</td>`;
     for (let d = 1; d <= totalDays; d++) {
         bodyHtml += `<td>${dailyResfri[d]}</td>`;
     }
     bodyHtml += `</tr>`;
-    
+
     bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">VAZIOS</td>`;
     for (let d = 1; d <= totalDays; d++) {
         bodyHtml += `<td>${dailyVazios[d]}</td>`;
     }
     bodyHtml += `</tr>`;
-    
+
     bodyRows.innerHTML = bodyHtml;
 }
 
@@ -2712,39 +2761,39 @@ function openSpreadsheetPopover(praca, dateStr, element, currentStage, currentOb
 
     activePopoverCell = { praca, data: dateStr, element };
     selectedPopoverStageCode = currentStage || null;
-    
+
     const [y, m, d] = dateStr.split('-');
     document.getElementById('popover-title').innerText = `Forno ${praca} - Dia ${d}/${m}`;
-    
+
     document.querySelectorAll('.btn-stage').forEach(btn => {
         btn.classList.remove('selected');
     });
-    
+
     if (selectedPopoverStageCode) {
         const selectedBtn = document.querySelector(`.btn-stage-${selectedPopoverStageCode.toLowerCase()}`);
         if (selectedBtn) selectedBtn.classList.add('selected');
     }
-    
+
     document.getElementById('popover-obs').value = currentObs || "";
-    
+
     const popover = document.getElementById('spreadsheet-popover');
     popover.style.display = 'block';
-    
+
     const popoverWidth = popover.offsetWidth || 280;
     const popoverHeight = popover.offsetHeight || 220;
-    
+
     const rect = element.getBoundingClientRect();
     let left = window.scrollX + rect.left + rect.width / 2 - popoverWidth / 2;
     let top = window.scrollY + rect.top + rect.height + 6;
-    
+
     if (left < 10) left = 10;
     if (left + popoverWidth > window.innerWidth - 10) {
         left = window.innerWidth - popoverWidth - 10;
     }
-    
+
     popover.style.left = `${left}px`;
     popover.style.top = `${top}px`;
-    
+
     setTimeout(() => {
         document.getElementById('popover-obs').focus();
     }, 50);
@@ -2770,19 +2819,19 @@ async function savePopoverData() {
     const { praca, data } = activePopoverCell;
     const obs = document.getElementById('popover-obs').value.trim();
     const stage = selectedPopoverStageCode;
-    
+
     if (!stage && !obs) {
         await clearPopoverData();
         return;
     }
-    
+
     const hRecord = history.find(h => h && h.praca === praca && h.data === data);
-    
+
     const payload = {
         data: data,
         praca: praca,
-        responsavel: (currentUser && currentUser.user_metadata && currentUser.user_metadata.operator_name) 
-            || (currentUser && currentUser.email) 
+        responsavel: (currentUser && currentUser.user_metadata && currentUser.user_metadata.operator_name)
+            || (currentUser && currentUser.email)
             || "Sistema",
         vazios: stage === 'V' ? 1 : 0,
         cheios: stage === 'X' ? 1 : 0,
@@ -2791,7 +2840,7 @@ async function savePopoverData() {
         estagio: stage,
         obs: obs
     };
-    
+
     try {
         if (hRecord) {
             const { error } = await supabase.from('production_history')
@@ -2804,14 +2853,14 @@ async function savePopoverData() {
                 .insert([{ ...payload, user_id: currentUser.id }]);
             if (error) throw error;
         }
-        
+
         if (obs && (!hRecord || hRecord.obs !== obs)) {
             const existingIssue = maintenance.find(m => m && m.forno === praca && !m.resolved);
             if (!existingIssue) {
                 await saveItem('maintenance', { forno: praca, problema: obs, data: data, resolved: false });
             }
         }
-        
+
         showToast("Dados salvos!");
         await loadAllData();
     } catch (err) {
@@ -2832,16 +2881,16 @@ async function savePopoverData() {
         calculateNotifications();
         renderNotifications();
     }
-    
+
     closeSpreadsheetPopover();
 }
 
 async function clearPopoverData() {
     if (!activePopoverCell) return;
     const { praca, data } = activePopoverCell;
-    
+
     const hRecord = history.find(h => h && h.praca === praca && h.data === data);
-    
+
     if (hRecord) {
         try {
             const { error } = await supabase.from('production_history')
@@ -2849,7 +2898,7 @@ async function clearPopoverData() {
                 .eq('id', hRecord.id)
                 .eq('user_id', currentUser.id);
             if (error) throw error;
-            
+
             showToast("Célula limpa!");
             await loadAllData();
         } catch (err) {
@@ -2864,7 +2913,7 @@ async function clearPopoverData() {
             renderNotifications();
         }
     }
-    
+
     closeSpreadsheetPopover();
 }
 
@@ -2883,14 +2932,14 @@ document.addEventListener('click', (e) => {
 function updateMonthStatusUI() {
     const picker = document.getElementById('spreadsheet-month-picker');
     if (!picker) return;
-    
+
     const selectedMonth = picker.value || new Date().toISOString().substring(0, 7);
     const container = document.getElementById('month-status-container');
     if (!container) return;
-    
+
     // Verifica se o mês selecionado está fechado
     const isClosed = closedMonths.some(cm => cm.month_ref === selectedMonth);
-    
+
     let html = "";
     if (isClosed) {
         html = `
@@ -2912,7 +2961,7 @@ function updateMonthStatusUI() {
         `;
     }
     container.innerHTML = html;
-    
+
     // Atualiza os ícones do Lucide
     if (window.lucide) {
         window.lucide.createIcons();
@@ -2924,31 +2973,31 @@ async function toggleMonthStatus(monthRef, shouldClose) {
         alert("Usuário não autenticado.");
         return;
     }
-    
+
     const [yearStr, monthStr] = monthRef.split('-');
     const dateObj = new Date(parseInt(yearStr), parseInt(monthStr) - 1, 1);
     const formattedMonth = dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-    
+
     if (shouldClose) {
         const confirmClose = confirm(`Tem certeza que deseja fechar o mês de ${formattedMonth}? Isso impedirá novas edições nos dados deste período.`);
         if (!confirmClose) return;
-        
+
         try {
             const { error } = await supabase.from('closed_months').insert([
                 { user_id: currentUser.id, month_ref: monthRef }
             ]);
             if (error) throw error;
-            
+
             showToast(`Mês de ${formattedMonth} fechado com sucesso!`);
-            
+
             // Recarregar os dados
             await loadAllData();
-            
+
             // Pergunta para iniciar novo mês do zero
             const nextMonthDate = new Date(parseInt(yearStr), parseInt(monthStr), 1);
             const nextMonthRef = nextMonthDate.toISOString().substring(0, 7);
             const formattedNextMonth = nextMonthDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-            
+
             const initNewMonth = confirm(`Deseja iniciar o novo mês de ${formattedNextMonth} do zero?`);
             if (initNewMonth) {
                 const picker = document.getElementById('spreadsheet-month-picker');
@@ -2965,14 +3014,14 @@ async function toggleMonthStatus(monthRef, shouldClose) {
     } else {
         const confirmOpen = confirm(`Tem certeza que deseja reabrir o mês de ${formattedMonth}? Isso permitirá novas edições nos dados deste período.`);
         if (!confirmOpen) return;
-        
+
         try {
             const { error } = await supabase.from('closed_months')
                 .delete()
                 .eq('user_id', currentUser.id)
                 .eq('month_ref', monthRef);
             if (error) throw error;
-            
+
             showToast(`Mês de ${formattedMonth} reaberto com sucesso!`);
             await loadAllData();
         } catch (err) {
@@ -3007,28 +3056,28 @@ function getStageCode(hRecord) {
 function calculateNotifications() {
     notifications = [];
     if (!kilns || kilns.length === 0) return;
-    
+
     // Thresholds
     const tc = userSettings.threshold_carbonizacao || 2;
     const te = userSettings.threshold_resfriamento || 2;
     const tx = userSettings.threshold_carga || 1;
     const td = userSettings.threshold_descarga || 1;
-    
+
     kilns.forEach(k => {
         // Obter histórico do forno
         const kHistory = history
             .filter(h => h && h.praca === k.praca)
             .sort((a, b) => b.data.localeCompare(a.data));
-            
+
         if (kHistory.length === 0) return;
-        
+
         // Último estado
         const latest = kHistory[0];
         const currentStage = getStageCode(latest);
-        
+
         // Apenas avaliamos processos operacionais que podem atrasar
         if (!['C', 'E', 'X', 'D'].includes(currentStage)) return;
-        
+
         // Contar dias consecutivos no mesmo estágio
         let consecutiveDays = 0;
         for (let i = 0; i < kHistory.length; i++) {
@@ -3038,7 +3087,7 @@ function calculateNotifications() {
                 break;
             }
         }
-        
+
         // Limiar correspondente com fallback para o global do usuário
         let threshold = 1;
         if (currentStage === 'C') {
@@ -3058,10 +3107,10 @@ function calculateNotifications() {
                 ? k.threshold_descarga
                 : td;
         }
-        
+
         if (consecutiveDays > threshold) {
             const delayDays = consecutiveDays - threshold;
-            
+
             // Analisar se houve recorrência de atrasos (ciclos passados)
             let cycles = [];
             let currentBlock = null;
@@ -3077,7 +3126,7 @@ function calculateNotifications() {
                 }
             });
             if (currentBlock) cycles.push(currentBlock);
-            
+
             // Filtra ciclos passados do mesmo tipo, pulando o primeiro (ativo)
             const pastCyclesOfSameStage = cycles.slice(1).filter(c => c.stage === currentStage);
             const pastDelays = pastCyclesOfSameStage.filter(c => {
@@ -3088,9 +3137,9 @@ function calculateNotifications() {
                 else if (c.stage === 'D') limit = td;
                 return c.count > limit;
             });
-            
+
             const isRecurrent = pastDelays.length > 0;
-            
+
             notifications.push({
                 id: `notif-${k.praca}-${currentStage}-${latest.data}`,
                 praca: k.praca,
@@ -3105,7 +3154,7 @@ function calculateNotifications() {
             });
         }
     });
-    
+
     // Ordenar: Vermelhas (Críticas) primeiro, depois pelo desvio de dias decrescente
     notifications.sort((a, b) => {
         if (a.severity === b.severity) {
@@ -3136,12 +3185,12 @@ function toggleSettingsForm() {
 async function saveUserSettings(e) {
     if (e) e.preventDefault();
     if (!currentUser) return;
-    
+
     const tc = parseInt(document.getElementById('setting-threshold-c').value) || 2;
     const te = parseInt(document.getElementById('setting-threshold-e').value) || 2;
     const tx = parseInt(document.getElementById('setting-threshold-x').value) || 1;
     const td = parseInt(document.getElementById('setting-threshold-d').value) || 1;
-    
+
     const payload = {
         threshold_carbonizacao: tc,
         threshold_resfriamento: te,
@@ -3150,12 +3199,12 @@ async function saveUserSettings(e) {
         user_id: currentUser.id,
         updated_at: new Date().toISOString()
     };
-    
+
     try {
         const { error } = await supabase.from('user_settings')
             .upsert(payload, { onConflict: 'user_id' });
         if (error) throw error;
-        
+
         showToast("Configurações salvas!");
         userSettings = { ...userSettings, ...payload };
         calculateNotifications();
@@ -3177,10 +3226,10 @@ function renderNotifications() {
             badge.style.display = 'none';
         }
     }
-    
+
     const panel = document.getElementById('notification-panel');
     if (!panel) return;
-    
+
     let html = `
         <div class="notification-header">
             <h3><i data-lucide="bell" style="width: 18px; height: 18px; color: var(--primary);"></i> Alertas e Notificações</h3>
@@ -3195,7 +3244,7 @@ function renderNotifications() {
         </div>
         <div class="notification-body">
     `;
-    
+
     if (isSettingsExpanded) {
         html += `
             <div class="notification-settings-section">
@@ -3226,7 +3275,7 @@ function renderNotifications() {
             </div>
         `;
     }
-    
+
     if (notifications.length === 0) {
         html += `
             <div class="notification-empty-state">
@@ -3239,7 +3288,7 @@ function renderNotifications() {
             const dateStr = formatDateBR(n.lastUpdated);
             const severityClass = n.severity === 'red' ? 'alert-red' : 'alert-yellow';
             const badgeText = n.severity === 'red' ? 'Crítico' : 'Atenção';
-            
+
             html += `
                 <div class="notification-card ${severityClass}">
                     <div class="notification-card-header">
@@ -3252,7 +3301,7 @@ function renderNotifications() {
                         O processo de <strong>${n.stageName}</strong> está ativo há <strong>${n.consecutiveDays} dias</strong> (${n.delayDays} ${n.delayDays === 1 ? 'dia' : 'dias'} acima da média de ${n.threshold} dias).
                     </p>
             `;
-            
+
             if (n.isRecurrent) {
                 html += `
                     <div style="background: rgba(230,0,46,0.06); border: 1px solid rgba(230,0,46,0.12); border-radius: 6px; padding: 8px 10px; font-size: 10.5px; color: #ff8b9e; display: flex; align-items: flex-start; gap: 6px; line-height: 1.4;">
@@ -3261,7 +3310,7 @@ function renderNotifications() {
                     </div>
                 `;
             }
-            
+
             html += `
                     <div class="notification-card-header" style="margin-top: 4px;">
                         <span class="notification-meta">Último lançamento: ${dateStr}</span>
@@ -3275,13 +3324,13 @@ function renderNotifications() {
             `;
         });
     }
-    
+
     html += `
         </div>
     `;
-    
+
     panel.innerHTML = html;
-    
+
     if (window.lucide) {
         window.lucide.createIcons();
     }
@@ -3289,17 +3338,17 @@ function renderNotifications() {
 
 function abrirManutencaoForno(praca, estagioName, dias) {
     switchTab('alertas');
-    
+
     const select = document.getElementById('maint-kiln-select');
     if (select) {
         select.value = praca;
     }
-    
+
     const textarea = document.querySelector('#form-maintenance textarea[name="problema"]');
     if (textarea) {
         textarea.value = `Atraso no processo de ${estagioName}: permanecendo há ${dias} dias consecutivamente (acima do limite operacional configurado).`;
     }
-    
+
     const dateInput = document.querySelector('#form-maintenance input[name="repair_date"]');
     if (dateInput) {
         dateInput.value = new Date().toISOString().substring(0, 10);
@@ -3307,7 +3356,7 @@ function abrirManutencaoForno(praca, estagioName, dias) {
             dateInput._flatpickr.setDate(new Date());
         }
     }
-    
+
     toggleNotificationPanel();
     showToast(`Preenchido Ordem de Reparo para Forno ${praca}!`);
 }
@@ -3317,7 +3366,7 @@ document.addEventListener('click', (e) => {
     const panel = document.getElementById('notification-panel');
     const trigger = e.target.closest('.notification-trigger');
     const isInsidePanel = e.target.closest('#notification-panel');
-    
+
     if (panel && isNotificationPanelOpen && !isInsidePanel && !trigger) {
         toggleNotificationPanel();
     }
@@ -3327,7 +3376,7 @@ function renderOperationalAlerts() {
     const dashboardPanel = document.getElementById('dashboard-alerts-panel');
     const productionPanel = document.getElementById('operational-alerts-panel');
     const centralPanel = document.getElementById('central-alerts-list');
-    
+
     if (notifications.length === 0) {
         if (dashboardPanel) dashboardPanel.style.display = 'none';
         if (productionPanel) productionPanel.style.display = 'none';
@@ -3342,7 +3391,7 @@ function renderOperationalAlerts() {
         }
         return;
     }
-    
+
     let alertsHtml = `
         <div class="operational-alerts-section">
             <div class="operational-alerts-title">
@@ -3351,14 +3400,14 @@ function renderOperationalAlerts() {
             </div>
             <div class="operational-alerts-grid">
     `;
-    
+
     let centralHtml = "";
-    
+
     notifications.forEach(n => {
         const severityClass = n.severity === 'red' ? 'critical' : 'warning';
         const badgeText = n.severity === 'red' ? 'Crítico' : 'Atenção';
         const badgeClass = n.severity === 'red' ? 'critical' : 'warning';
-        
+
         const cardHtml = `
             <div class="operational-alert-card ${severityClass}">
                 <div class="operational-alert-card-header">
@@ -3383,16 +3432,16 @@ function renderOperationalAlerts() {
                 </div>
             </div>
         `;
-        
+
         alertsHtml += cardHtml;
         centralHtml += cardHtml;
     });
-    
+
     alertsHtml += `
             </div>
         </div>
     `;
-    
+
     if (dashboardPanel) {
         dashboardPanel.innerHTML = alertsHtml;
         dashboardPanel.style.display = 'block';
@@ -3404,7 +3453,7 @@ function renderOperationalAlerts() {
     if (centralPanel) {
         centralPanel.innerHTML = centralHtml;
     }
-    
+
     if (window.lucide) {
         window.lucide.createIcons();
     }
@@ -3413,27 +3462,27 @@ function renderOperationalAlerts() {
 async function openEditKilnModal(praca) {
     const k = kilns.find(item => item.praca === praca);
     if (!k) return;
-    
+
     document.getElementById('edit-praca-hidden').value = praca;
     document.getElementById('edit-praca-display').value = `Forno ${praca}`;
-    
+
     // Thresholds Globais como fallback e placeholders
     const tc = userSettings.threshold_carbonizacao || 2;
     const te = userSettings.threshold_resfriamento || 2;
     const tx = userSettings.threshold_carga || 1;
     const td = userSettings.threshold_descarga || 1;
-    
+
     document.getElementById('edit-threshold-c').placeholder = `Padrão (${tc} dias)`;
     document.getElementById('edit-threshold-e').placeholder = `Padrão (${te} dias)`;
     document.getElementById('edit-threshold-x').placeholder = `Padrão (${tx} dias)`;
     document.getElementById('edit-threshold-d').placeholder = `Padrão (${td} dias)`;
-    
+
     // Valores atuais do forno
     document.getElementById('edit-threshold-c').value = k.threshold_carbonizacao || '';
     document.getElementById('edit-threshold-e').value = k.threshold_resfriamento || '';
     document.getElementById('edit-threshold-x').value = k.threshold_carga || '';
     document.getElementById('edit-threshold-d').value = k.threshold_descarga || '';
-    
+
     showModal('edit-kiln');
 }
 
@@ -3442,41 +3491,41 @@ async function saveKilnSettings(e) {
     const praca = document.getElementById('edit-praca-hidden').value;
     const k = kilns.find(item => item.praca === praca);
     if (!k) return;
-    
+
     const tc = document.getElementById('edit-threshold-c').value;
     const te = document.getElementById('edit-threshold-e').value;
     const tx = document.getElementById('edit-threshold-x').value;
     const td = document.getElementById('edit-threshold-d').value;
-    
+
     const payload = {
         threshold_carbonizacao: tc ? parseInt(tc) : null,
         threshold_resfriamento: te ? parseInt(te) : null,
         threshold_carga: tx ? parseInt(tx) : null,
         threshold_descarga: td ? parseInt(td) : null
     };
-    
+
     try {
         showToast("Salvando configurações...");
-        
+
         if (k.id && !k.id.toString().startsWith('temp-')) {
             const { error } = await supabase
                 .from('kilns')
                 .update(payload)
                 .eq('praca', praca)
                 .eq('user_id', currentUser.id);
-                
+
             if (error) throw error;
         }
-        
+
         // Atualiza localmente
         k.threshold_carbonizacao = payload.threshold_carbonizacao;
         k.threshold_resfriamento = payload.threshold_resfriamento;
         k.threshold_carga = payload.threshold_carga;
         k.threshold_descarga = payload.threshold_descarga;
-        
+
         hideModal('edit-kiln');
         showToast("Limites salvos!");
-        
+
         // Recalcular e renderizar
         calculateNotifications();
         renderAll();
@@ -3491,30 +3540,30 @@ async function deleteKilnFromModal() {
     const praca = document.getElementById('edit-praca-hidden').value;
     const k = kilns.find(item => item.praca === praca);
     if (!k) return;
-    
+
     if (!confirm(`Tem certeza que deseja excluir o Forno ${praca}? Esta ação não pode ser desfeita.`)) {
         return;
     }
-    
+
     try {
         showToast("Excluindo forno...");
-        
+
         if (k.id && !k.id.toString().startsWith('temp-')) {
             const { error } = await supabase
                 .from('kilns')
                 .delete()
                 .eq('praca', praca)
                 .eq('user_id', currentUser.id);
-                
+
             if (error) throw error;
         }
-        
+
         // Remove do array local
         kilns = kilns.filter(item => item.praca !== praca);
-        
+
         hideModal('edit-kiln');
         showToast("Forno excluído!");
-        
+
         // Recalcular e renderizar
         calculateNotifications();
         renderAll();
@@ -3538,7 +3587,7 @@ window.renderOperationalAlerts = renderOperationalAlerts;
 function initRealtimeSync() {
     if (!currentUser) return;
     console.log("Carbonize: Initializing Realtime channels...");
-    
+
     supabase
         .channel('realtime-sync')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'user_settings' }, async (payload) => {

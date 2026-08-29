@@ -60,7 +60,7 @@
                     <span class="unit" id="display-enterprise-name">Intelligence</span>
                 </div>
             </div>
-            
+
             <div class="nav-links">
                 <button class="nav-link active" onclick="switchTab('dashboard')"><i data-lucide="layout-dashboard"></i> Dashboard</button>
                 <button class="nav-link" onclick="switchTab('fornos')"><i data-lucide="container"></i> Fornos</button>
@@ -77,7 +77,7 @@
                     <span class="user-name" id="greeting">Olá</span>
                     <span class="user-date" id="current-date">--/--/----</span>
                 </div>
-                
+
                 <!-- Sino de Notificações -->
                 <button class="notification-trigger" onclick="toggleNotificationPanel()" style="background: transparent; border: none; color: rgba(255,255,255,0.75); cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; transition: all 0.2s ease; margin-right: 8px;">
                     <i data-lucide="bell" style="width: 20px; height: 20px;"></i>
@@ -85,7 +85,7 @@
                 </button>
 
                 <div class="avatar" onclick="toggleUserDropdown()" id="user-avatar-initials">C</div>
-                
+
                 <!-- Dropdown Menu -->
                 <div id="user-dropdown" class="user-dropdown-menu">
                     <button class="dropdown-item" onclick="showModal('settings')"><i data-lucide="settings"></i> Configurações</button>
@@ -223,7 +223,7 @@
                             <div class="legend-item"><div class="legend-badge stage-v">V</div> <span>Vazio</span></div>
                         </div>
                     </div>
-                    
+
                     <div class="spreadsheet-container">
                         <div class="spreadsheet-table-wrapper">
                             <table class="spreadsheet-table">
@@ -392,7 +392,7 @@
 
                 <!-- Split Layout para Alertas e Manutenções -->
                 <div class="split-layout" style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; align-items: start;">
-                    
+
                     <!-- Coluna da Esquerda: Alertas Ativos da Carvoaria -->
                     <div class="glass" style="padding: 24px; min-height: 400px; display: flex; flex-direction: column;">
                         <h4 class="card-title" style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
@@ -610,8 +610,8 @@
                 <div class="glass" style="margin-top: 32px;">
                     <h4 class="card-title">Insights de IA</h4>
                     <p class="text-dim" style="margin-top: 12px; line-height: 1.6;">
-                        Com base nos dados atuais, sua produção está 12% acima da média do mês passado. 
-                        A praca de maior eficiência é a <strong style="color:var(--primary);">P01</strong>. 
+                        Com base nos dados atuais, sua produção está 12% acima da média do mês passado.
+                        A praca de maior eficiência é a <strong style="color:var(--primary);">P01</strong>.
                         Recomendamos revisar o estoque de lenha para a próxima semana.
                     </p>
                 </div>
@@ -620,7 +620,7 @@
             <!-- SECTION: RELATÓRIOS -->
             <section id="section-relatorios" class="content-section" style="display: none;">
                 <div class="header-action"><h2 class="page-title">Central de Inteligência</h2></div>
-                
+
                 <div class="reports-grid">
                     <!-- Relatório 1: Expedição -->
                     <div class="report-card">
@@ -641,22 +641,49 @@
                         </div>
                     </div>
 
-                    <!-- Relatório 2: Produção -->
-                    <div class="report-card">
-                        <h4><i data-lucide="container"></i> Produção</h4>
+                    <!-- Relatório 2: Fornos -->
+                    <div class="report-card report-card-featured">
+                        <div class="report-card-heading">
+                            <h4><i data-lucide="container"></i> Fornos</h4>
+                            <span class="report-card-tag">OPERAÇÃO</span>
+                        </div>
+                        <p class="report-card-description">Acompanhamento dos ciclos, ocupação e desempenho operacional dos fornos.</p>
                         <div class="filter-group">
                             <div class="date-input-wrapper">
                                 <i data-lucide="calendar"></i>
-                                <input type="text" id="report-pracas-start" class="date-picker" placeholder="Data Início">
+                                <input type="text" id="report-kilns-start" class="date-picker" placeholder="Data Início">
                             </div>
                             <div class="date-input-wrapper">
                                 <i data-lucide="calendar"></i>
-                                <input type="text" id="report-pracas-end" class="date-picker" placeholder="Data Fim">
+                                <input type="text" id="report-kilns-end" class="date-picker" placeholder="Data Fim">
                             </div>
                         </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button class="btn-primary" onclick="generateReport('pracas')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
-                            <button class="btn-primary" onclick="generateReport('pracas', 'excel')" style="flex:1; background:#1D6F42; border:none;"><i data-lucide="file-spreadsheet"></i> XLS</button>
+                        <div class="report-actions">
+                            <button class="btn-primary" onclick="generateReport('kilns')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
+                            <button class="btn-primary" onclick="generateReport('kilns', 'excel')" style="flex:1; background:#1D6F42; border:none;"><i data-lucide="file-spreadsheet"></i> XLS</button>
+                        </div>
+                    </div>
+
+                    <!-- Relatório 3: Gerenciamento de Carvoaria -->
+                    <div class="report-card report-card-featured">
+                        <div class="report-card-heading">
+                            <h4><i data-lucide="radar"></i> Gerenciamento de Carvoaria</h4>
+                            <span class="report-card-tag report-card-tag-alert">GESTÃO</span>
+                        </div>
+                        <p class="report-card-description">Visão executiva de alertas, pendências e manutenções no período.</p>
+                        <div class="filter-group">
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-carvoaria-start" class="date-picker" placeholder="Data Início">
+                            </div>
+                            <div class="date-input-wrapper">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="report-carvoaria-end" class="date-picker" placeholder="Data Fim">
+                            </div>
+                        </div>
+                        <div class="report-actions">
+                            <button class="btn-primary" onclick="generateReport('carvoaria')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
+                            <button class="btn-primary" onclick="generateReport('carvoaria', 'excel')" style="flex:1; background:#1D6F42; border:none;"><i data-lucide="file-spreadsheet"></i> XLS</button>
                         </div>
                     </div>
 
@@ -799,7 +826,7 @@
                     <label>Identificação do Forno</label>
                     <input type="text" id="edit-praca-display" disabled style="background: rgba(255, 255, 255, 0.05); color: #888; font-weight: 600;">
                 </div>
-                
+
                 <div style="margin-top: 20px; margin-bottom: 8px;">
                     <h4 style="font-size: 13px; color: var(--primary); font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
                         <i data-lucide="sliders" style="width: 14px; height: 14px;"></i> Limites Operacionais Customizados (Dias)
@@ -808,7 +835,7 @@
                         Deixe o campo vazio para utilizar a média padrão configurada globalmente no sistema.
                     </p>
                 </div>
-                
+
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="form-field">
                         <label>Carbonização</label>
@@ -819,7 +846,7 @@
                         <input type="number" name="threshold_resfriamento" id="edit-threshold-e" min="1" placeholder="Padrão">
                     </div>
                 </div>
-                
+
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="form-field">
                         <label>Carregamento</label>
@@ -830,7 +857,7 @@
                         <input type="number" name="threshold_descarga" id="edit-threshold-d" min="1" placeholder="Padrão">
                     </div>
                 </div>
-                
+
                 <div style="display: flex; gap: 12px; margin-top: 24px;">
                     <button type="button" class="btn-primary" id="btn-delete-kiln" style="background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); font-weight: 600; width: 40%; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="deleteKilnFromModal()">
                         <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Excluir Forno
@@ -897,7 +924,7 @@
                 </div>
                 <div class="form-field"><label>E-mail</label><input type="email" id="settings-email" disabled></div>
                 <button type="submit" class="btn-save">Salvar Alterações</button>
-                
+
                 <div id="install-app-container" style="display: none; margin-top: 32px; border-top: 1px solid var(--border); pt: 24px;">
                     <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 16px;">Tenha acesso rápido ao Carbonize na sua tela de início.</p>
                     <button type="button" id="btn-install-pwa" class="btn-primary" style="width: 100%; background: linear-gradient(135deg, #e6002e 0%, #ff4d71 100%); border: none;">
@@ -1009,7 +1036,7 @@
                 <h3 style="font-size: 24px;">Acesso ao Sistema</h3>
             </div>
             <p class="text-dim" style="margin-bottom: 24px;">Selecione o seu perfil e insira o PIN de 6 dígitos para continuar.</p>
-            
+
             <div class="form-field" style="text-align: left; margin-bottom: 24px;">
                 <label>Perfil de Acesso</label>
                 <select id="pin-role-select" style="font-size: 16px;">
@@ -1029,7 +1056,7 @@
                 <input type="text" inputmode="numeric" pattern="[0-9]*" class="pin-input" maxlength="1" data-index="4">
                 <input type="text" inputmode="numeric" pattern="[0-9]*" class="pin-input" maxlength="1" data-index="5">
             </div>
-            
+
             <p id="pin-error-msg" style="color: var(--primary); font-size: 13px; min-height: 20px; font-weight: 700;"></p>
         </div>
     </div>
@@ -1057,7 +1084,7 @@
                     </div>
                 </form>
             </div>
-            
+
             <!-- Listagem de planilhas criadas -->
             <div id="spreadsheets-list-view">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap;">
