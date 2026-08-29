@@ -341,6 +341,7 @@ function renderAll() {
     renderExpenses();
     renderFiscalDocs();
     updateSpreadsheetSelects();
+    renderOperationalAlerts();
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -373,11 +374,10 @@ function renderKilns() {
     
     if (list) {
         list.innerHTML = kilns.map(k => `
-            <div class="asset-pill">
+            <div class="asset-pill" onclick="openEditKilnModal('${k.praca}')" style="cursor: pointer;" title="Configurar Forno ${k.praca}">
                 <i data-lucide="container"></i>
                 <div class="info">
-                    <h6>${k.praca}</h6>
-                    <span>${k.modelo}</span>
+                    <h6>Forno ${k.praca}</h6>
                 </div>
             </div>
         `).join('');
@@ -614,7 +614,6 @@ function setupEventListeners() {
 async function processForm(id, fd) {
     if (id === 'kiln') {
         const pracaInput = fd.get('praca') || "";
-        const modelo = fd.get('modelo');
         
         let pracasToRegister = [];
         if (pracaInput.includes(',')) {
@@ -644,7 +643,7 @@ async function processForm(id, fd) {
             return;
         }
         
-        const payloads = newPracas.map(p => ({ praca: p, modelo: modelo }));
+        const payloads = newPracas.map(p => ({ praca: p }));
         await saveItems('kilns', payloads);
         showToast(`${newPracas.length} forno(s) cadastrado(s)!`);
     }
@@ -2588,8 +2587,22 @@ function renderSpreadsheetGrid() {
     const dailyVazios = new Array(totalDays + 1).fill(0);
     
     sortedKilns.forEach((k) => {
+        // Verificar se há alerta ativo para este forno
+        const kilnNotif = notifications.find(n => n.praca === k.praca);
+        let alertIndicator = '';
+        if (kilnNotif) {
+            const color = kilnNotif.severity === 'red' ? 'var(--primary)' : 'var(--warning)';
+            const title = `Atrasado em ${kilnNotif.stageName} há ${kilnNotif.consecutiveDays} dias (${kilnNotif.delayDays} dias de atraso)`;
+            alertIndicator = `<span class="kiln-alert-dot" style="background-color: ${color};" title="${title}"></span>`;
+        }
+
         bodyHtml += `<tr>`;
-        bodyHtml += `<td class="sticky-col">${k.praca}<br><span style="font-size:9px; font-weight:normal; opacity:0.6;">${k.modelo || ''}</span></td>`;
+        bodyHtml += `<td class="sticky-col" onclick="openEditKilnModal('${k.praca}')" style="cursor: pointer; transition: background 0.2s;" title="Clique para configurar o Forno ${k.praca}">
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <span style="font-weight: 700;">${k.praca}</span>
+                ${alertIndicator}
+            </div>
+        </td>`;
         
         for (let d = 1; d <= totalDays; d++) {
             const dayStr = String(d).padStart(2, '0');
@@ -3015,12 +3028,25 @@ function calculateNotifications() {
             }
         }
         
-        // Limiar correspondente
+        // Limiar correspondente com fallback para o global do usuário
         let threshold = 1;
-        if (currentStage === 'C') threshold = tc;
-        else if (currentStage === 'E') threshold = te;
-        else if (currentStage === 'X') threshold = tx;
-        else if (currentStage === 'D') threshold = td;
+        if (currentStage === 'C') {
+            threshold = (k.threshold_carbonizacao !== null && k.threshold_carbonizacao !== undefined && k.threshold_carbonizacao > 0)
+                ? k.threshold_carbonizacao
+                : tc;
+        } else if (currentStage === 'E') {
+            threshold = (k.threshold_resfriamento !== null && k.threshold_resfriamento !== undefined && k.threshold_resfriamento > 0)
+                ? k.threshold_resfriamento
+                : te;
+        } else if (currentStage === 'X') {
+            threshold = (k.threshold_carga !== null && k.threshold_carga !== undefined && k.threshold_carga > 0)
+                ? k.threshold_carga
+                : tx;
+        } else if (currentStage === 'D') {
+            threshold = (k.threshold_descarga !== null && k.threshold_descarga !== undefined && k.threshold_descarga > 0)
+                ? k.threshold_descarga
+                : td;
+        }
         
         if (consecutiveDays > threshold) {
             const delayDays = consecutiveDays - threshold;
@@ -3286,9 +3312,204 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Expose notification functions globally
+function renderOperationalAlerts() {
+    const dashboardPanel = document.getElementById('dashboard-alerts-panel');
+    const productionPanel = document.getElementById('operational-alerts-panel');
+    
+    if (notifications.length === 0) {
+        if (dashboardPanel) dashboardPanel.style.display = 'none';
+        if (productionPanel) productionPanel.style.display = 'none';
+        return;
+    }
+    
+    let alertsHtml = `
+        <div class="operational-alerts-section">
+            <div class="operational-alerts-title">
+                <i data-lucide="alert-triangle" style="width: 15px; height: 15px; color: var(--primary);"></i>
+                <span>Alertas Operacionais Ativos (${notifications.length})</span>
+            </div>
+            <div class="operational-alerts-grid">
+    `;
+    
+    notifications.forEach(n => {
+        const severityClass = n.severity === 'red' ? 'critical' : 'warning';
+        const badgeText = n.severity === 'red' ? 'Crítico' : 'Atenção';
+        const badgeClass = n.severity === 'red' ? 'critical' : 'warning';
+        
+        alertsHtml += `
+            <div class="operational-alert-card ${severityClass}">
+                <div class="operational-alert-card-header">
+                    <span class="operational-alert-card-title">
+                        <i data-lucide="container" style="width: 14px; height: 14px;"></i> Forno ${n.praca}
+                    </span>
+                    <span class="operational-alert-card-badge ${badgeClass}">${badgeText}</span>
+                </div>
+                <div class="operational-alert-card-desc">
+                    O processo de <strong>${n.stageName}</strong> está ativo há <strong>${n.consecutiveDays} dias</strong> (${n.delayDays} ${n.delayDays === 1 ? 'dia' : 'dias'} acima da média de ${n.threshold} dias).
+                </div>
+        `;
+        
+        if (n.isRecurrent) {
+            alertsHtml += `
+                <div style="background: rgba(230,0,46,0.05); border: 1px solid rgba(230,0,46,0.1); border-radius: 6px; padding: 6px 10px; font-size: 10px; color: #ff8b9e; display: flex; align-items: flex-start; gap: 6px; line-height: 1.3;">
+                    <i data-lucide="info" style="width: 11px; height: 11px; margin-top: 1px; flex-shrink: 0;"></i>
+                    <span>Possível vazamento ou entrada de ar falsa. Recomenda-se vistoria física.</span>
+                </div>
+            `;
+        }
+        
+        alertsHtml += `
+                <div class="operational-alert-card-meta">
+                    <span>Lançamento: ${formatDateBR(n.lastUpdated)}</span>
+                    <button class="operational-alert-card-action" onclick="abrirManutencaoForno('${n.praca}', '${n.stageName}', ${n.consecutiveDays})">
+                        <i data-lucide="wrench" style="width: 11px; height: 11px;"></i> Reparo
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    alertsHtml += `
+            </div>
+        </div>
+    `;
+    
+    if (dashboardPanel) {
+        dashboardPanel.innerHTML = alertsHtml;
+        dashboardPanel.style.display = 'block';
+    }
+    if (productionPanel) {
+        productionPanel.innerHTML = alertsHtml;
+        productionPanel.style.display = 'block';
+    }
+    
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+}
+
+async function openEditKilnModal(praca) {
+    const k = kilns.find(item => item.praca === praca);
+    if (!k) return;
+    
+    document.getElementById('edit-praca-hidden').value = praca;
+    document.getElementById('edit-praca-display').value = `Forno ${praca}`;
+    
+    // Thresholds Globais como fallback e placeholders
+    const tc = userSettings.threshold_carbonizacao || 2;
+    const te = userSettings.threshold_resfriamento || 2;
+    const tx = userSettings.threshold_carga || 1;
+    const td = userSettings.threshold_descarga || 1;
+    
+    document.getElementById('edit-threshold-c').placeholder = `Padrão (${tc} dias)`;
+    document.getElementById('edit-threshold-e').placeholder = `Padrão (${te} dias)`;
+    document.getElementById('edit-threshold-x').placeholder = `Padrão (${tx} dias)`;
+    document.getElementById('edit-threshold-d').placeholder = `Padrão (${td} dias)`;
+    
+    // Valores atuais do forno
+    document.getElementById('edit-threshold-c').value = k.threshold_carbonizacao || '';
+    document.getElementById('edit-threshold-e').value = k.threshold_resfriamento || '';
+    document.getElementById('edit-threshold-x').value = k.threshold_carga || '';
+    document.getElementById('edit-threshold-d').value = k.threshold_descarga || '';
+    
+    showModal('edit-kiln');
+}
+
+async function saveKilnSettings(e) {
+    if (e) e.preventDefault();
+    const praca = document.getElementById('edit-praca-hidden').value;
+    const k = kilns.find(item => item.praca === praca);
+    if (!k) return;
+    
+    const tc = document.getElementById('edit-threshold-c').value;
+    const te = document.getElementById('edit-threshold-e').value;
+    const tx = document.getElementById('edit-threshold-x').value;
+    const td = document.getElementById('edit-threshold-d').value;
+    
+    const payload = {
+        threshold_carbonizacao: tc ? parseInt(tc) : null,
+        threshold_resfriamento: te ? parseInt(te) : null,
+        threshold_carga: tx ? parseInt(tx) : null,
+        threshold_descarga: td ? parseInt(td) : null
+    };
+    
+    try {
+        showToast("Salvando configurações...");
+        
+        if (k.id && !k.id.toString().startsWith('temp-')) {
+            const { error } = await supabase
+                .from('kilns')
+                .update(payload)
+                .eq('praca', praca)
+                .eq('user_id', currentUser.id);
+                
+            if (error) throw error;
+        }
+        
+        // Atualiza localmente
+        k.threshold_carbonizacao = payload.threshold_carbonizacao;
+        k.threshold_resfriamento = payload.threshold_resfriamento;
+        k.threshold_carga = payload.threshold_carga;
+        k.threshold_descarga = payload.threshold_descarga;
+        
+        hideModal('edit-kiln');
+        showToast("Limites salvos!");
+        
+        // Recalcular e renderizar
+        calculateNotifications();
+        renderAll();
+        renderNotifications();
+    } catch (err) {
+        console.error("Erro ao salvar limites do forno:", err);
+        alert("Erro ao salvar limites do forno: " + err.message);
+    }
+}
+
+async function deleteKilnFromModal() {
+    const praca = document.getElementById('edit-praca-hidden').value;
+    const k = kilns.find(item => item.praca === praca);
+    if (!k) return;
+    
+    if (!confirm(`Tem certeza que deseja excluir o Forno ${praca}? Esta ação não pode ser desfeita.`)) {
+        return;
+    }
+    
+    try {
+        showToast("Excluindo forno...");
+        
+        if (k.id && !k.id.toString().startsWith('temp-')) {
+            const { error } = await supabase
+                .from('kilns')
+                .delete()
+                .eq('praca', praca)
+                .eq('user_id', currentUser.id);
+                
+            if (error) throw error;
+        }
+        
+        // Remove do array local
+        kilns = kilns.filter(item => item.praca !== praca);
+        
+        hideModal('edit-kiln');
+        showToast("Forno excluído!");
+        
+        // Recalcular e renderizar
+        calculateNotifications();
+        renderAll();
+        renderNotifications();
+    } catch (err) {
+        console.error("Erro ao excluir forno:", err);
+        alert("Erro ao excluir forno: " + err.message);
+    }
+}
+
+// Expose functions globally
 window.toggleNotificationPanel = toggleNotificationPanel;
 window.toggleSettingsForm = toggleSettingsForm;
 window.saveUserSettings = saveUserSettings;
 window.abrirManutencaoForno = abrirManutencaoForno;
+window.openEditKilnModal = openEditKilnModal;
+window.saveKilnSettings = saveKilnSettings;
+window.deleteKilnFromModal = deleteKilnFromModal;
+window.renderOperationalAlerts = renderOperationalAlerts;
 
