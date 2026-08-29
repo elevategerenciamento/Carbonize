@@ -3564,6 +3564,7 @@ async function deleteKilnFromModal() {
 // Expose functions globally
 window.toggleNotificationPanel = toggleNotificationPanel;
 window.toggleSettingsForm = toggleSettingsForm;
+window.toggleCarvoariaSettings = toggleCarvoariaSettings;
 window.saveUserSettings = saveUserSettings;
 window.abrirManutencaoForno = abrirManutencaoForno;
 window.openEditKilnModal = openEditKilnModal;
