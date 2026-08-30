@@ -218,8 +218,6 @@
                             <div class="legend-item"><div class="legend-badge stage-x">X</div> <span>Carga</span></div>
                             <div class="legend-item"><div class="legend-badge stage-c">C</div> <span>Carbonização</span></div>
                             <div class="legend-item"><div class="legend-badge stage-e">E</div> <span>Resfriamento</span></div>
-                            <div class="legend-item"><div class="legend-badge stage-d">D</div> <span>Descarga</span></div>
-                            <div class="legend-item"><div class="legend-badge stage-dx">DX</div> <span>Descarregado</span></div>
                             <div class="legend-item"><div class="legend-badge stage-v">V</div> <span>Vazio</span></div>
                         </div>
                     </div>
@@ -386,10 +384,6 @@
                             <div class="form-field" style="margin-bottom: 0;">
                                 <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Carregamento</label>
                                 <input type="number" id="setting-threshold-x" min="1" value="1" required style="width: 100%;">
-                            </div>
-                            <div class="form-field" style="margin-bottom: 0;">
-                                <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Esvaziamento</label>
-                                <input type="number" id="setting-threshold-d" min="1" value="1" required style="width: 100%;">
                             </div>
                         </div>
                         <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
@@ -789,8 +783,6 @@
                 <button type="button" class="btn-stage btn-stage-x" onclick="selectPopoverStage('X')">X</button>
                 <button type="button" class="btn-stage btn-stage-c" onclick="selectPopoverStage('C')">C</button>
                 <button type="button" class="btn-stage btn-stage-e" onclick="selectPopoverStage('E')">E</button>
-                <button type="button" class="btn-stage btn-stage-d" onclick="selectPopoverStage('D')">D</button>
-                <button type="button" class="btn-stage btn-stage-dx" onclick="selectPopoverStage('DX')">DX</button>
                 <button type="button" class="btn-stage btn-stage-v" onclick="selectPopoverStage('V')">V</button>
             </div>
             <div class="form-field" style="margin-top: 12px; margin-bottom: 12px;">
@@ -859,10 +851,6 @@
                     <div class="form-field">
                         <label>Carregamento</label>
                         <input type="number" name="threshold_carga" id="edit-threshold-x" min="1" placeholder="Padrão">
-                    </div>
-                    <div class="form-field">
-                        <label>Esvaziamento</label>
-                        <input type="number" name="threshold_descarga" id="edit-threshold-d" min="1" placeholder="Padrão">
                     </div>
                 </div>
 

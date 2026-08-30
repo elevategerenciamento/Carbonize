@@ -17,8 +17,7 @@ let closedMonths = [];
 let userSettings = {
     threshold_carbonizacao: 2,
     threshold_resfriamento: 2,
-    threshold_carga: 1,
-    threshold_descarga: 1
+    threshold_carga: 1
 };
 let notifications = [];
 let isSettingsExpanded = false;
@@ -172,8 +171,7 @@ async function loadAllData() {
             userSettings = {
                 threshold_carbonizacao: 2,
                 threshold_resfriamento: 2,
-                threshold_carga: 1,
-                threshold_descarga: 1
+                threshold_carga: 1
             };
         }
 
@@ -181,11 +179,9 @@ async function loadAllData() {
         const inputC = document.getElementById('setting-threshold-c');
         const inputE = document.getElementById('setting-threshold-e');
         const inputX = document.getElementById('setting-threshold-x');
-        const inputD = document.getElementById('setting-threshold-d');
         if (inputC) inputC.value = userSettings.threshold_carbonizacao || 2;
         if (inputE) inputE.value = userSettings.threshold_resfriamento || 2;
         if (inputX) inputX.value = userSettings.threshold_carga || 1;
-        if (inputD) inputD.value = userSettings.threshold_descarga || 1;
 
         console.log("Data loaded:", { kilns, loads, history, maintenance, expenses, fiscalDocs, closedMonths, userSettings });
         renderAll();
@@ -2641,7 +2637,6 @@ function renderSpreadsheetGrid() {
     let bodyHtml = "";
 
     const dailyCargas = new Array(totalDays + 1).fill(0);
-    const dailyDescarga = new Array(totalDays + 1).fill(0);
     const dailyCarboniz = new Array(totalDays + 1).fill(0);
     const dailyResfri = new Array(totalDays + 1).fill(0);
     const dailyVazios = new Array(totalDays + 1).fill(0);
@@ -2691,12 +2686,10 @@ function renderSpreadsheetGrid() {
                 } else if (stageCode === "E") {
                     cellClass = "stage-e";
                     dailyResfri[d]++;
-                } else if (stageCode === "D") {
-                    cellClass = "stage-d";
-                    dailyDescarga[d]++;
-                } else if (stageCode === "DX") {
-                    cellClass = "stage-dx";
-                    dailyDescarga[d]++;
+                } else if (stageCode === "D" || stageCode === "DX") {
+                    stageCode = "V";
+                    cellClass = "stage-v";
+                    dailyVazios[d]++;
                 } else if (stageCode === "X") {
                     cellClass = "stage-x";
                     dailyCargas[d]++;
@@ -2721,12 +2714,6 @@ function renderSpreadsheetGrid() {
     bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">CARGAS</td>`;
     for (let d = 1; d <= totalDays; d++) {
         bodyHtml += `<td>${dailyCargas[d]}</td>`;
-    }
-    bodyHtml += `</tr>`;
-
-    bodyHtml += `<tr class="summary-row"><td class="sticky-col summary-row-label">DESCARGA</td>`;
-    for (let d = 1; d <= totalDays; d++) {
-        bodyHtml += `<td>${dailyDescarga[d]}</td>`;
     }
     bodyHtml += `</tr>`;
 
@@ -3045,10 +3032,11 @@ window.toggleMonthStatus = toggleMonthStatus;
 // ═══ NOTIFICATION PANEL ENGINE ═══
 function getStageCode(hRecord) {
     if (!hRecord) return "";
+    if (hRecord.estagio === 'D' || hRecord.estagio === 'DX') return "V";
     if (hRecord.estagio) return hRecord.estagio;
     if (Number(hRecord.carbonizando) > 0) return "C";
     if (Number(hRecord.esfriando) > 0) return "E";
-    if (Number(hRecord.esvaziando) > 0 || Number(hRecord.descarga) > 0) return "D";
+    if (Number(hRecord.esvaziando) > 0 || Number(hRecord.descarga) > 0) return "V";
     if (Number(hRecord.cheios) > 0) return "X";
     if (Number(hRecord.vazios) > 0) return "V";
     return "";
@@ -3062,7 +3050,6 @@ function calculateNotifications() {
     const tc = userSettings.threshold_carbonizacao || 2;
     const te = userSettings.threshold_resfriamento || 2;
     const tx = userSettings.threshold_carga || 1;
-    const td = userSettings.threshold_descarga || 1;
 
     kilns.forEach(k => {
         // Obter histórico do forno
@@ -3077,7 +3064,7 @@ function calculateNotifications() {
         const currentStage = getStageCode(latest);
 
         // Apenas avaliamos processos operacionais que podem atrasar
-        if (!['C', 'E', 'X', 'D'].includes(currentStage)) return;
+        if (!['C', 'E', 'X'].includes(currentStage)) return;
 
         // Calcular os dias reais no estágio: usa o primeiro registro contínuo
         // e compara com hoje, mesmo quando não houve lançamento diário.
@@ -3109,16 +3096,12 @@ function calculateNotifications() {
                 ? k.threshold_resfriamento
                 : te;
         } else if (currentStage === 'X') {
-            threshold = (k.threshold_carga !== null && k.threshold_carga !== undefined && k.threshold_carga > 0)
-                ? k.threshold_carga
-                : tx;
-        } else if (currentStage === 'D') {
-            threshold = (k.threshold_descarga !== null && k.threshold_descarga !== undefined && k.threshold_descarga > 0)
-                ? k.threshold_descarga
-                : td;
-        }
+                threshold = (k.threshold_carga !== null && k.threshold_carga !== undefined && k.threshold_carga > 0)
+                    ? k.threshold_carga
+                    : tx;
+            }
 
-        if (consecutiveDays > threshold) {
+            if (consecutiveDays > threshold) {
             const delayDays = consecutiveDays - threshold;
 
             // Analisar se houve recorrência de atrasos (ciclos passados)
@@ -3144,7 +3127,6 @@ function calculateNotifications() {
                 if (c.stage === 'C') limit = tc;
                 else if (c.stage === 'E') limit = te;
                 else if (c.stage === 'X') limit = tx;
-                else if (c.stage === 'D') limit = td;
                 return c.count > limit;
             });
 
@@ -3154,7 +3136,7 @@ function calculateNotifications() {
                 id: `notif-${k.praca}-${currentStage}-${latest.data}`,
                 praca: k.praca,
                 stage: currentStage,
-                stageName: { 'C': 'Carbonização', 'E': 'Resfriamento', 'X': 'Carregamento', 'D': 'Esvaziamento' }[currentStage] || currentStage,
+                stageName: { 'C': 'Carbonização', 'E': 'Resfriamento', 'X': 'Carregamento' }[currentStage] || currentStage,
                 consecutiveDays: consecutiveDays,
                 threshold: threshold,
                 delayDays: delayDays,
@@ -3207,13 +3189,11 @@ async function saveUserSettings(e) {
     const tc = parseInt(document.getElementById('setting-threshold-c').value) || 2;
     const te = parseInt(document.getElementById('setting-threshold-e').value) || 2;
     const tx = parseInt(document.getElementById('setting-threshold-x').value) || 1;
-    const td = parseInt(document.getElementById('setting-threshold-d').value) || 1;
 
     const payload = {
         threshold_carbonizacao: tc,
         threshold_resfriamento: te,
         threshold_carga: tx,
-        threshold_descarga: td,
         user_id: currentUser.id,
         updated_at: new Date().toISOString()
     };
@@ -3457,18 +3437,15 @@ async function openEditKilnModal(praca) {
     const tc = userSettings.threshold_carbonizacao || 2;
     const te = userSettings.threshold_resfriamento || 2;
     const tx = userSettings.threshold_carga || 1;
-    const td = userSettings.threshold_descarga || 1;
 
     document.getElementById('edit-threshold-c').placeholder = `Padrão (${tc} dias)`;
     document.getElementById('edit-threshold-e').placeholder = `Padrão (${te} dias)`;
     document.getElementById('edit-threshold-x').placeholder = `Padrão (${tx} dias)`;
-    document.getElementById('edit-threshold-d').placeholder = `Padrão (${td} dias)`;
 
     // Valores atuais do forno
     document.getElementById('edit-threshold-c').value = k.threshold_carbonizacao || '';
     document.getElementById('edit-threshold-e').value = k.threshold_resfriamento || '';
     document.getElementById('edit-threshold-x').value = k.threshold_carga || '';
-    document.getElementById('edit-threshold-d').value = k.threshold_descarga || '';
 
     showModal('edit-kiln');
 }
@@ -3482,13 +3459,11 @@ async function saveKilnSettings(e) {
     const tc = document.getElementById('edit-threshold-c').value;
     const te = document.getElementById('edit-threshold-e').value;
     const tx = document.getElementById('edit-threshold-x').value;
-    const td = document.getElementById('edit-threshold-d').value;
 
     const payload = {
         threshold_carbonizacao: tc ? parseInt(tc) : null,
         threshold_resfriamento: te ? parseInt(te) : null,
-        threshold_carga: tx ? parseInt(tx) : null,
-        threshold_descarga: td ? parseInt(td) : null
+        threshold_carga: tx ? parseInt(tx) : null
     };
 
     try {
@@ -3508,7 +3483,6 @@ async function saveKilnSettings(e) {
         k.threshold_carbonizacao = payload.threshold_carbonizacao;
         k.threshold_resfriamento = payload.threshold_resfriamento;
         k.threshold_carga = payload.threshold_carga;
-        k.threshold_descarga = payload.threshold_descarga;
 
         hideModal('edit-kiln');
         showToast("Limites salvos!");
