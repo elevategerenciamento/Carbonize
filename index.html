@@ -666,26 +666,26 @@
                         </div>
                     </div>
 
-                    <!-- Relatório 3: Gerenciamento de Carvoaria -->
-                    <div class="report-card report-card-featured">
+                    <!-- Relatório 3: Alertas Operacionais -->
+                    <div class="report-card report-card-featured" data-report-type="alerts">
                         <div class="report-card-heading">
-                            <h4><i data-lucide="radar"></i> Gerenciamento de Carvoaria</h4>
-                            <span class="report-card-tag report-card-tag-alert">GESTÃO</span>
+                            <h4><i data-lucide="shield-alert"></i> Alertas Operacionais</h4>
+                            <span class="report-card-tag report-card-tag-alert">PRIORIDADE</span>
                         </div>
-                        <p class="report-card-description">Visão executiva de alertas, pendências e manutenções no período.</p>
+                        <p class="report-card-description">Pendências por forno, estágio em atraso e nível de prioridade para decisão rápida.</p>
                         <div class="filter-group">
                             <div class="date-input-wrapper">
                                 <i data-lucide="calendar"></i>
-                                <input type="text" id="report-carvoaria-start" class="date-picker" placeholder="Data Início">
+                                <input type="text" id="report-alerts-start" class="date-picker" placeholder="Data Início">
                             </div>
                             <div class="date-input-wrapper">
                                 <i data-lucide="calendar"></i>
-                                <input type="text" id="report-carvoaria-end" class="date-picker" placeholder="Data Fim">
+                                <input type="text" id="report-alerts-end" class="date-picker" placeholder="Data Fim">
                             </div>
                         </div>
                         <div class="report-actions">
-                            <button class="btn-primary" onclick="generateReport('carvoaria')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
-                            <button class="btn-primary" onclick="generateReport('carvoaria', 'excel')" style="flex:1; background:#1D6F42; border:none;"><i data-lucide="file-spreadsheet"></i> XLS</button>
+                            <button class="btn-primary" onclick="generateReport('alerts')" style="flex:1;"><i data-lucide="file-down"></i> PDF</button>
+                            <button class="btn-primary" onclick="generateReport('alerts', 'excel')" style="flex:1; background:#1D6F42; border:none;"><i data-lucide="file-spreadsheet"></i> XLS</button>
                         </div>
                     </div>
 
@@ -916,6 +916,7 @@
                         <option value="financeiro">Financeiro</option>
                         <option value="contabil">Contábil</option>
                         <option value="operacional">Operacional (Produção)</option>
+                        <option value="gestor_carvoaria">Gestor de Carvoaria</option>
                     </select>
                 </div>
                 <div class="form-field"><label>E-mail</label><input type="email" id="settings-email" disabled></div>
@@ -1038,6 +1039,7 @@
                 <select id="pin-role-select" style="font-size: 16px;">
                     <option value="" disabled selected>Selecione...</option>
                     <option value="operacional">Operacional (Produção)</option>
+                    <option value="gestor_carvoaria">Gestor de Carvoaria</option>
                     <option value="contabil">Contábil</option>
                     <option value="financeiro">Financeiro</option>
                     <option value="admin">Administrador (Total)</option>

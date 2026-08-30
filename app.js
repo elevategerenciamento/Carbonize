@@ -281,15 +281,25 @@ const PIN_HASHES = {
     'operacional': 'f795433afccabfcda36925de8c0158c2dca4ccd79a538daadebd206fcce4d3f2',
     'contabil': 'b1bffc9f62cbc5a72c4b6867211fa884d1a8f557f5c7885f8a2f7fa0c211f3f9',
     'financeiro': '0168578f353f7bb90e3b46f17d336232469a3c602c04d058fe1ab62920bce1b5',
+    'gestor_carvoaria': '25778c7b9c9983b7b0de179c0ad6d0c04927c704b56672697004b0becf5efd39',
     'admin': '16e01095a53cc5fd7040dd37bdcff310cc0c721e99bc24671e0017ebe63ee11d'
 };
 
 const PERMISSIONS = {
     'operacional': ['dashboard', 'fornos', 'cargas', 'alertas', 'analise'],
+    'gestor_carvoaria': ['fornos', 'alertas', 'relatorios'],
     'financeiro': ['dashboard', 'dados_fiscais', 'analise', 'relatorios', 'custos'],
     'contabil': ['dashboard', 'dados_fiscais', 'analise', 'relatorios'],
     'admin': ['dashboard', 'fornos', 'cargas', 'alertas', 'dados_fiscais', 'analise', 'custos', 'relatorios']
 };
+
+function applyNavigationPermissions(role) {
+    const allowedTabs = PERMISSIONS[role] || PERMISSIONS.admin;
+    document.querySelectorAll('.nav-link, .mobile-nav-link').forEach(link => {
+        const tabId = link.getAttribute('onclick')?.match(/switchTab\('([^']+)'/)?.[1];
+        link.style.display = !tabId || allowedTabs.includes(tabId) ? '' : 'none';
+    });
+}
 
 function switchTab(tabId) {
     const role = (currentUser && currentUser.user_metadata && currentUser.user_metadata.role) ? currentUser.user_metadata.role : 'admin';
@@ -310,7 +320,17 @@ function switchTab(tabId) {
 
     if (targetSection === 'analise' || targetSection === 'dashboard') renderCharts();
     if (targetSection === 'fornos') initSpreadsheet();
+    if (targetSection === 'relatorios') applyReportPermissions(role);
     if (targetSection === 'acesso-negado' && window.lucide) window.lucide.createIcons();
+}
+
+function applyReportPermissions(role) {
+    const allowedReports = role === 'gestor_carvoaria' ? ['kilns', 'alerts'] : null;
+    document.querySelectorAll('.report-card').forEach(card => {
+        const reportType = card.dataset.reportType || card.querySelector('[onclick*="generateReport"]')?.getAttribute('onclick')?.match(/generateReport\('([^']+)'/)?.[1];
+        card.style.display = !allowedReports || allowedReports.includes(reportType) ? '' : 'none';
+    });
+    if (window.lucide) window.lucide.createIcons();
 }
 
 function showModal(id) {
@@ -1070,7 +1090,7 @@ function formatDateBR(dateStr) {
 }
 
 function getReportDateRange(type) {
-    const typeMap = { 'loads': 'loads', 'pracas': 'pracas', 'kilns': 'kilns', 'carvoaria': 'carvoaria', 'maint': 'maint', 'expenses': 'expenses' };
+    const typeMap = { 'loads': 'loads', 'pracas': 'pracas', 'kilns': 'kilns', 'alerts': 'alerts', 'maint': 'maint', 'expenses': 'expenses' };
     const key = typeMap[type] || type;
     const start = document.getElementById(`report-${key}-start`).value;
     const end = document.getElementById(`report-${key}-end`).value;
@@ -1096,7 +1116,7 @@ window.generateReport = async (type, format = 'pdf') => {
         'loads': 'EXPEDICAO',
         'pracas': 'PRODUCAO',
         'kilns': 'FORNOS',
-        'carvoaria': 'GERENCIAMENTO_CARVOARIA',
+        'alerts': 'ALERTAS_OPERACIONAIS',
         'maint': 'MANUTENCAO',
         'expenses': 'GASTOS'
     }[type] || type.toUpperCase();
@@ -1175,7 +1195,36 @@ window.generateReport = async (type, format = 'pdf') => {
         };
     }
 
-    // ─── GERENCIAMENTO DE CARVOARIA ───
+    // ─── ALERTAS OPERACIONAIS ───
+    else if (type === 'alerts') {
+        calculateNotifications();
+        const filtered = notifications
+            .filter(n => n && n.lastUpdated && n.lastUpdated >= start && n.lastUpdated <= end)
+            .sort((a, b) => b.delayDays - a.delayDays || String(a.praca).localeCompare(String(b.praca), 'pt-BR', { numeric: true }));
+        const critical = filtered.filter(n => n.severity === 'red').length;
+        const recurrent = filtered.filter(n => n.isRecurrent).length;
+        const totalDelay = filtered.reduce((total, n) => total + Number(n.delayDays || 0), 0);
+        reportConfig = {
+            title: "RELATÓRIO DE ALERTAS OPERACIONAIS",
+            subtitle: "Acompanhamento de atrasos, prioridades e recorrência por forno",
+            summaryItems: [
+                { label: "Alertas no Período", value: filtered.length },
+                { label: "Prioridade Crítica", value: critical },
+                { label: "Alertas Recorrentes", value: recurrent },
+                { label: "Dias Acumulados de Atraso", value: totalDelay }
+            ],
+            headers: ["Forno", "Estágio", "Início do Estágio", "Dias no Estágio", "Limite", "Atraso", "Prioridade", "Recorrência"],
+            rows: filtered.map(n => [
+                n.praca || '-', n.stageName || '-', formatDateBR(n.lastUpdated), n.consecutiveDays || 0,
+                `${n.threshold || 0} dias`, `${n.delayDays || 0} dias`,
+                n.severity === 'red' ? 'Crítica' : 'Atenção', n.isRecurrent ? 'Sim' : 'Não'
+            ]),
+            footer: `Monitoramento operacional: ${critical} alerta(s) crítico(s) | ${recurrent} recorrente(s) | ${totalDelay} dia(s) de atraso acumulado`,
+            totalRow: ["TOTAL", "", "", "", "", `${totalDelay} dias`, `${critical} crítico(s)`, ""]
+        };
+    }
+
+    // ─── GERENCIAMENTO DE CARVOARIA (LEGADO) ───
     else if (type === 'carvoaria') {
         const alertas = notifications.filter(n => n && n.praca);
         const filteredMaint = filterByDateRange(maintenance, 'data', start, end);
@@ -2253,7 +2302,8 @@ function initPinLogic() {
                 currentUser.user_metadata.role = role;
 
                 // Apply permissions
-                switchTab('dashboard');
+                applyNavigationPermissions(role);
+                switchTab(PERMISSIONS[role][0]);
                 updateUI();
             } else {
                 showPinError('PIN incorreto. Tente novamente.');
