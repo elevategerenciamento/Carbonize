@@ -802,13 +802,20 @@
             <div class="modal-header"><h3>Novo Ativo</h3><button class="close-modal-btn" onclick="hideModal('kiln')">✕</button></div>
             <form id="form-kiln" style="margin-top:24px;">
                 <div class="form-field">
-                    <label>Identificação do(s) Forno(s)</label>
-                    <input type="text" name="praca" placeholder="Ex: 50, 1-50, ou 50, 100, 250" required>
+                    <label>Quantidade total de fornos</label>
+                    <input type="number" name="kiln_quantity" min="1" max="10000" step="1" placeholder="Ex: 100">
                     <span class="text-dim" style="font-size: 11px; margin-top: 6px; display: block; line-height: 1.4;">
-                        Cadastre um único forno (ex: <strong>50</strong>), uma sequência (ex: <strong>1-50</strong>) ou múltiplos separados por vírgula (ex: <strong>50, 100, 250</strong>).
+                        Informe a quantidade e o sistema criará automaticamente os fornos numerados de <strong>1</strong> até esse total (ex: 100 cria 1 a 100). Para números específicos, use apenas o campo manual abaixo.
                     </span>
                 </div>
-                <button type="submit" class="btn-save">Salvar</button>
+                <div class="form-field" style="margin-top: 16px;">
+                    <label>Identificação manual (opcional)</label>
+                    <input type="text" name="praca" placeholder="Ex: 50, 1-50, ou 50, 100, 250">
+                    <span class="text-dim" style="font-size: 11px; margin-top: 6px; display: block; line-height: 1.4;">
+                        Use este campo somente se quiser cadastrar números específicos ou uma sequência diferente do total informado.
+                    </span>
+                </div>
+                <button type="submit" class="btn-save">Cadastrar fornos</button>
             </form>
         </div>
     </div>

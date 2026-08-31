@@ -640,24 +640,36 @@ function setupEventListeners() {
 
 async function processForm(id, fd) {
     if (id === 'kiln') {
-        const pracaInput = fd.get('praca') || "";
-
+        const quantityValue = String(fd.get('kiln_quantity') || '').trim();
+        const pracaInput = String(fd.get('praca') || '').trim();
+        const quantity = Number(quantityValue);
         let pracasToRegister = [];
-        if (pracaInput.includes(',')) {
-            pracasToRegister = pracaInput.split(',').map(s => s.trim()).filter(Boolean);
-        } else if (pracaInput.includes('-')) {
-            const [startStr, endStr] = pracaInput.split('-');
-            const start = parseInt(startStr.trim());
-            const end = parseInt(endStr.trim());
-            if (!isNaN(start) && !isNaN(end)) {
-                const min = Math.min(start, end);
-                const max = Math.max(start, end);
-                for (let i = min; i <= max; i++) {
-                    pracasToRegister.push(i.toString());
+
+        // A quantidade cria automaticamente a sequência 1..N em um único cadastro.
+        if (quantityValue && Number.isInteger(quantity) && quantity >= 1 && quantity <= 10000) {
+            for (let i = 1; i <= quantity; i++) {
+                pracasToRegister.push(i.toString());
+            }
+        } else if (pracaInput) {
+            // Mantém o cadastro manual para números específicos ou intervalos personalizados.
+            if (pracaInput.includes(',')) {
+                pracasToRegister = pracaInput.split(',').map(s => s.trim()).filter(Boolean);
+            } else if (pracaInput.includes('-')) {
+                const [startStr, endStr] = pracaInput.split('-');
+                const start = parseInt(startStr.trim());
+                const end = parseInt(endStr.trim());
+                if (!isNaN(start) && !isNaN(end)) {
+                    const min = Math.min(start, end);
+                    const max = Math.max(start, end);
+                    for (let i = min; i <= max; i++) {
+                        pracasToRegister.push(i.toString());
+                    }
                 }
+            } else {
+                pracasToRegister.push(pracaInput);
             }
         } else {
-            pracasToRegister.push(pracaInput.trim());
+            throw new Error('Informe uma quantidade inteira entre 1 e 10.000.');
         }
 
         pracasToRegister = pracasToRegister.filter((v, i, self) => self.indexOf(v) === i);
