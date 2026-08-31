@@ -197,7 +197,12 @@
             <section id="section-fornos" class="content-section" style="display: none;">
                 <div class="header-action">
                     <h2 class="page-title">Gestão de Produção</h2>
-                    <button class="btn-primary" onclick="showModal('kiln')"><i data-lucide="plus-circle"></i> Novo Forno</button>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn-primary" onclick="showModal('kiln')"><i data-lucide="plus-circle"></i> Novo Forno</button>
+                        <button type="button" onclick="deleteAllKilns()" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.45); color: #f87171; padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer;" title="Excluir todos os fornos cadastrados">
+                            <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i> Excluir todos
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Painel de Alertas Operacionais Ativos -->

@@ -3597,6 +3597,46 @@ async function deleteKilnFromModal() {
     }
 }
 
+async function deleteAllKilns() {
+    if (!currentUser) {
+        alert("Usuário não autenticado.");
+        return;
+    }
+
+    if (kilns.length === 0) {
+        showToast("Nenhum forno cadastrado.");
+        return;
+    }
+
+    const firstConfirmation = confirm(`ATENÇÃO: ${kilns.length} forno(s) serão excluídos. Os históricos de produção, cargas e manutenções serão preservados. Deseja continuar?`);
+    if (!firstConfirmation) return;
+
+    const confirmationText = prompt('Para confirmar, digite EXCLUIR:');
+    if (confirmationText?.trim().toUpperCase() !== 'EXCLUIR') {
+        showToast("Exclusão cancelada.");
+        return;
+    }
+
+    try {
+        showToast("Excluindo fornos...");
+        const { error } = await supabase
+            .from('kilns')
+            .delete()
+            .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        kilns = [];
+        notifications = [];
+        renderAll();
+        renderNotifications();
+        showToast("Todos os fornos foram excluídos.");
+    } catch (err) {
+        console.error("Erro ao excluir todos os fornos:", err);
+        alert("Erro ao excluir todos os fornos: " + err.message);
+    }
+}
+
 // Expose functions globally
 window.toggleNotificationPanel = toggleNotificationPanel;
 window.toggleSettingsForm = toggleSettingsForm;
@@ -3606,6 +3646,7 @@ window.abrirManutencaoForno = abrirManutencaoForno;
 window.openEditKilnModal = openEditKilnModal;
 window.saveKilnSettings = saveKilnSettings;
 window.deleteKilnFromModal = deleteKilnFromModal;
+window.deleteAllKilns = deleteAllKilns;
 window.renderOperationalAlerts = renderOperationalAlerts;
 
 function initRealtimeSync() {
