@@ -78,6 +78,12 @@
                     <span class="user-date" id="current-date">--/--/----</span>
                 </div>
 
+                <!-- Ajuda e instruções -->
+                <button class="help-trigger" onclick="openInstructions()" aria-label="Abrir instruções" title="Como usar o Carbonize">
+                    <i data-lucide="circle-help"></i>
+                    <span>Instruções</span>
+                </button>
+
                 <!-- Sino de Notificações -->
                 <button class="notification-trigger" onclick="toggleNotificationPanel()" style="background: transparent; border: none; color: rgba(255,255,255,0.75); cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; transition: all 0.2s ease; margin-right: 8px;">
                     <i data-lucide="bell" style="width: 20px; height: 20px;"></i>
@@ -121,6 +127,7 @@
                 <button class="mobile-nav-link" onclick="switchTab('analise'); toggleMobileMenu()"><i data-lucide="bar-chart-3"></i> Análise</button>
                 <button class="mobile-nav-link" onclick="switchTab('custos'); toggleMobileMenu()"><i data-lucide="wallet"></i> Custos</button>
                 <button class="mobile-nav-link" onclick="switchTab('relatorios'); toggleMobileMenu()"><i data-lucide="file-text"></i> Relatórios</button>
+                <button class="mobile-nav-link mobile-help-link" onclick="openInstructions(); toggleMobileMenu()"><i data-lucide="circle-help"></i> Como usar</button>
             </div>
         </div>
 
@@ -941,6 +948,39 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Guia passo a passo -->
+    <div id="modal-instructions" class="modal-overlay instructions-overlay" role="dialog" aria-modal="true" aria-labelledby="instructions-title">
+        <div class="modal-glass instructions-modal">
+            <div class="modal-header instructions-header">
+                <div>
+                    <span class="instructions-eyebrow"><i data-lucide="sparkles"></i> GUIA RÁPIDO</span>
+                    <h3 id="instructions-title">Como usar o Carbonize</h3>
+                    <p>Aprenda o fluxo principal da operação em poucos passos.</p>
+                </div>
+                <button class="close-modal-btn" onclick="hideModal('instructions')" aria-label="Fechar instruções">✕</button>
+            </div>
+
+            <div class="instructions-progress" aria-hidden="true"><span class="active"></span><span></span><span></span><span></span></div>
+            <div class="instruction-step active" data-step="1">
+                <div class="instruction-visual visual-dashboard"><img src="public/carboniza_logo.png" alt="Logo Carbonize"><div class="visual-window"><b>Panorama Operacional</b><i data-lucide="layout-dashboard"></i><small>Veja produção, cargas, estoque e alertas em um só lugar.</small></div></div>
+                <div class="instruction-copy"><span class="step-number">01</span><h4>Comece pelo Dashboard</h4><p>Após entrar, o Dashboard mostra a visão geral da sua operação. Use os indicadores para acompanhar fornos ativos, cargas do dia, produção, manutenções e saldo em pátio.</p><strong>Dica:</strong> os gráficos são atualizados quando você registra novos dados.</div>
+            </div>
+            <div class="instruction-step" data-step="2">
+                <div class="instruction-visual visual-furnace"><div class="mock-toolbar"><i data-lucide="container"></i><b>Gestão de Produção</b></div><div class="mock-grid"><span>FORNO</span><span>01</span><span class="mock-red">C</span><span>02</span><span class="mock-green">E</span><span>03</span><span class="mock-yellow">V</span></div></div>
+                <div class="instruction-copy"><span class="step-number">02</span><h4>Cadastre e acompanhe os fornos</h4><p>Abra <b>Fornos</b>, clique em <b>Novo Forno</b> e informe a quantidade. Na grade, clique na célula de cada dia para marcar o estágio: X (carga), C (carbonização), E (resfriamento) ou V (vazio).</p><strong>Dica:</strong> registre observações para transformar ocorrências em alertas de manutenção.</div>
+            </div>
+            <div class="instruction-step" data-step="3">
+                <div class="instruction-visual visual-load"><div class="mock-truck"><i data-lucide="truck"></i></div><div><b>Novo Romaneio</b><small>Destino • peso • motorista</small><em>EXPEDIÇÃO REGISTRADA</em></div></div>
+                <div class="instruction-copy"><span class="step-number">03</span><h4>Registre cargas e expedições</h4><p>Em <b>Cargas</b>, clique em <b>Novo Romaneio</b>. Preencha identificação, data, veículo, motorista, tipo de carvão, peso e destino. Assim o estoque e os gráficos logísticos ficam atualizados.</p><strong>Dica:</strong> confira o peso em kg antes de emitir o romaneio.</div>
+            </div>
+            <div class="instruction-step" data-step="4">
+                <div class="instruction-visual visual-report"><i data-lucide="bar-chart-3"></i><i data-lucide="wallet"></i><i data-lucide="file-text"></i><small>ANALISE • CUSTOS • RELATÓRIOS</small></div>
+                <div class="instruction-copy"><span class="step-number">04</span><h4>Analise, organize e decida</h4><p>Use <b>Alertas</b> para resolver pendências, <b>Custos</b> para lançar despesas, <b>Dados Fiscais</b> para guardar documentos e <b>Relatórios</b> para exportar PDF ou XLS.</p><strong>Dica:</strong> consulte as notificações pelo sino no topo sempre que aparecer um alerta.</div>
+            </div>
+            <div class="instructions-footer"><button type="button" class="instruction-prev" onclick="changeInstruction(-1)"><i data-lucide="arrow-left"></i> Voltar</button><span id="instruction-counter">1 de 4</span><button type="button" class="btn-primary instruction-next" onclick="changeInstruction(1)">Próximo <i data-lucide="arrow-right"></i></button></div>
         </div>
     </div>
 

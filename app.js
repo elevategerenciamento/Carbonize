@@ -357,6 +357,57 @@ function toggleUserDropdown() {
     document.getElementById('user-dropdown').classList.toggle('show');
 }
 
+let currentInstructionStep = 1;
+const totalInstructionSteps = 4;
+
+function renderInstructionStep() {
+    const modal = document.getElementById('modal-instructions');
+    if (!modal) return;
+
+    modal.querySelectorAll('.instruction-step').forEach(step => {
+        step.classList.toggle('active', Number(step.dataset.step) === currentInstructionStep);
+    });
+    modal.querySelectorAll('.instructions-progress span').forEach((bar, index) => {
+        bar.classList.toggle('active', index < currentInstructionStep);
+    });
+
+    const counter = document.getElementById('instruction-counter');
+    const previous = modal.querySelector('.instruction-prev');
+    const next = modal.querySelector('.instruction-next');
+    if (counter) counter.innerText = `${currentInstructionStep} de ${totalInstructionSteps}`;
+    if (previous) previous.disabled = currentInstructionStep === 1;
+    if (next) next.innerHTML = currentInstructionStep === totalInstructionSteps
+        ? 'Concluir <i data-lucide="check"></i>'
+        : 'Próximo <i data-lucide="arrow-right"></i>';
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function changeInstruction(direction) {
+    const nextStep = currentInstructionStep + direction;
+    if (nextStep > totalInstructionSteps) {
+        hideModal('instructions');
+        return;
+    }
+    currentInstructionStep = Math.max(1, Math.min(totalInstructionSteps, nextStep));
+    renderInstructionStep();
+}
+
+function openInstructions() {
+    currentInstructionStep = 1;
+    showModal('instructions');
+    renderInstructionStep();
+}
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && document.getElementById('modal-instructions')?.style.display === 'flex') {
+        hideModal('instructions');
+    }
+});
+
+document.addEventListener('click', event => {
+    if (event.target.id === 'modal-instructions') hideModal('instructions');
+});
+
 // 7. RENDERERS
 function renderAll() {
     console.log("Carbonize: Rendering UI...", { kilns, loads, history, maintenance, expenses, fiscalDocs });
@@ -1072,6 +1123,8 @@ window.showModal = showModal;
 window.hideModal = hideModal;
 window.toggleMobileMenu = toggleMobileMenu;
 window.toggleUserDropdown = toggleUserDropdown;
+window.changeInstruction = changeInstruction;
+window.openInstructions = openInstructions;
 window.logout = logout;
 window.resolveMaint = resolveMaint;
 window.deleteExpense = deleteExpense;
