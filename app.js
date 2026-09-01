@@ -3524,10 +3524,81 @@ document.addEventListener('click', (e) => {
     }
 });
 
+function getAverageCycleStats() {
+    const stages = { C: [], E: [], V: [] };
+    const orderedHistory = [...history]
+        .filter(h => h && h.praca && h.data)
+        .sort((a, b) => a.praca.localeCompare(b.praca) || a.data.localeCompare(b.data));
+
+    let currentBlock = null;
+    const registerBlock = block => {
+        if (block && stages[block.stage]) stages[block.stage].push(block.days);
+    };
+
+    orderedHistory.forEach(record => {
+        const stage = getStageCode(record);
+        if (!currentBlock || currentBlock.praca !== record.praca || currentBlock.stage !== stage) {
+            registerBlock(currentBlock);
+            currentBlock = { praca: record.praca, stage, days: 1 };
+        } else {
+            currentBlock.days += 1;
+        }
+    });
+    registerBlock(currentBlock);
+
+    const average = values => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+    const carbonizacao = average(stages.C);
+    const resfriamento = average(stages.E);
+    const vazio = average(stages.V);
+    const cargas = orderedHistory.filter(record => getStageCode(record) === 'X').length;
+    const descargas = orderedHistory.filter(record => getStageCode(record) === 'V').length;
+
+    return { carbonizacao, resfriamento, vazio, cargas, descargas, total: carbonizacao + resfriamento + vazio };
+}
+
+function formatCycleDays(value) {
+    return value ? value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-';
+}
+
+function renderAverageCyclePanel() {
+    const panel = document.getElementById('average-cycle-panel');
+    if (!panel) return;
+
+    const stats = getAverageCycleStats();
+    const hasData = stats.carbonizacao || stats.resfriamento || stats.vazio;
+    panel.innerHTML = `
+        <div class="average-cycle-heading">
+            <div>
+                <span class="average-cycle-eyebrow"><i data-lucide="calculator"></i> Indicador operacional</span>
+                <h3>Cálculo do ciclo médio</h3>
+                <p>Tempo apurado a partir dos lançamentos registrados por forno.</p>
+            </div>
+            <div class="average-cycle-total">
+                <span>Ciclo médio total</span>
+                <strong>${hasData ? formatCycleDays(stats.total) : '-'}</strong>
+                <em>dias</em>
+            </div>
+        </div>
+        <div class="average-cycle-content">
+            <div class="average-cycle-counts">
+                <div><span>Cargas registradas</span><strong>${stats.cargas}</strong></div>
+                <div><span>Descargas registradas</span><strong>${stats.descargas}</strong></div>
+            </div>
+            <div class="average-cycle-stages">
+                <div class="cycle-stage carbonizacao"><span>Carbonização</span><strong>${formatCycleDays(stats.carbonizacao)}</strong><small>dias</small></div>
+                <div class="cycle-stage resfriamento"><span>Resfriamento</span><strong>${formatCycleDays(stats.resfriamento)}</strong><small>dias</small></div>
+                <div class="cycle-stage vazio"><span>Vazio</span><strong>${formatCycleDays(stats.vazio)}</strong><small>dias</small></div>
+            </div>
+        </div>
+        ${hasData ? '' : '<p class="average-cycle-empty">Registre os estágios dos fornos para começar a acompanhar o ciclo médio.</p>'}
+    `;
+}
+
 function renderOperationalAlerts() {
     const dashboardPanel = document.getElementById('dashboard-alerts-panel');
     const productionPanel = document.getElementById('operational-alerts-panel');
     const centralPanel = document.getElementById('central-alerts-list');
+    renderAverageCyclePanel();
 
     if (notifications.length === 0) {
         if (dashboardPanel) dashboardPanel.style.display = 'none';

@@ -1621,3 +1621,29 @@ td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
 .visual-report { display: flex; justify-content: center; align-items: center; gap: 23px; }.visual-report i { width: 42px; height: 42px; color: var(--primary); }.visual-report i:nth-child(2) { color: var(--success); }.visual-report i:nth-child(3) { color: var(--accent); }.visual-report small { position: absolute; bottom: 26px; color: var(--text-dim); font-size: 10px; font-weight: 700; letter-spacing: .6px; }
 .instructions-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 24px; margin-top: 22px; border-top: 1px solid var(--border); }.instructions-footer button { min-width: 100px; justify-content: center; }.instruction-prev { display: inline-flex; align-items: center; gap: 7px; padding: 11px 12px; background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }.instruction-prev:disabled { opacity: .38; cursor: default; }.instruction-prev i, .instruction-next i { width: 16px; height: 16px; }.instruction-next { padding: 11px 14px; }
 @media (max-width: 768px) { .help-trigger span { display: none; }.help-trigger { width: 38px; justify-content: center; padding: 0; }.instruction-step.active { display: flex; flex-direction: column; align-items: stretch; gap: 20px; }.instruction-visual { height: 180px; }.instructions-modal { padding: 22px; }.instruction-copy h4 { font-size: 18px; }.instruction-copy { font-size: 13px; }.instructions-footer button { min-width: auto; }.instructions-header p { max-width: 245px; } }
+
+
+/* Painel de ciclo médio operacional */
+.average-cycle-panel { padding: 22px 24px; overflow: hidden; background: linear-gradient(135deg, rgba(255,255,255,.045), rgba(230,0,46,.035)); }
+.average-cycle-heading { display: flex; justify-content: space-between; align-items: center; gap: 24px; border-bottom: 1px solid var(--border); padding-bottom: 18px; }
+.average-cycle-eyebrow { display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-size: 10px; font-weight: 800; letter-spacing: .9px; text-transform: uppercase; }
+.average-cycle-eyebrow svg { width: 14px; height: 14px; }
+.average-cycle-heading h3 { margin: 8px 0 4px; color: #fff; font-size: 20px; }
+.average-cycle-heading p { margin: 0; color: var(--text-dim); font-size: 12px; }
+.average-cycle-total { min-width: 154px; padding: 12px 18px; border: 1px solid rgba(230,0,46,.38); border-radius: 10px; background: rgba(230,0,46,.08); text-align: center; }
+.average-cycle-total span, .average-cycle-total em { display: block; color: var(--text-dim); font-size: 10px; font-style: normal; text-transform: uppercase; letter-spacing: .5px; }
+.average-cycle-total strong { display: inline-block; margin: 3px 6px 0 0; color: #fff; font-size: 25px; }
+.average-cycle-content { display: flex; align-items: stretch; gap: 18px; padding-top: 18px; }
+.average-cycle-counts { display: grid; grid-template-columns: repeat(2, minmax(125px, 1fr)); gap: 10px; min-width: 265px; }
+.average-cycle-counts div { display: flex; flex-direction: column; justify-content: center; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: rgba(0,0,0,.14); }
+.average-cycle-counts span { color: var(--text-dim); font-size: 10px; text-transform: uppercase; }
+.average-cycle-counts strong { margin-top: 5px; color: #fff; font-size: 22px; }
+.average-cycle-stages { display: grid; grid-template-columns: repeat(3, minmax(130px, 1fr)); flex: 1; gap: 10px; }
+.cycle-stage { position: relative; min-height: 72px; padding: 12px 14px; border-left: 3px solid var(--primary); border-radius: 7px; background: rgba(255,255,255,.035); }
+.cycle-stage.resfriamento { border-left-color: #eab308; }
+.cycle-stage.vazio { border-left-color: #60a5fa; }
+.cycle-stage span, .cycle-stage small { color: var(--text-dim); font-size: 10px; text-transform: uppercase; }
+.cycle-stage strong { display: inline-block; margin: 10px 5px 0 0; color: #fff; font-size: 23px; }
+.cycle-stage small { font-size: 10px; }
+.average-cycle-empty { margin: 16px 0 0; color: var(--text-dim); font-size: 12px; }
+@media (max-width: 720px) { .average-cycle-heading, .average-cycle-content { flex-direction: column; } .average-cycle-total { width: 100%; box-sizing: border-box; } .average-cycle-counts { min-width: 0; } .average-cycle-stages { grid-template-columns: 1fr; } }
