@@ -456,6 +456,7 @@ function renderKilns() {
                 <i data-lucide="container"></i>
                 <div class="info">
                     <h6>Forno ${k.praca}</h6>
+                    ${k.status === 'manutencao' ? '<small style="color:var(--primary);">EM MANUTENÇÃO</small>' : ''}
                 </div>
             </div>
         `).join('');
@@ -739,6 +740,12 @@ async function processForm(id, fd) {
     }
     if (id === 'kiln-daily') {
         const item = { data: fd.get('data_lancamento'), responsavel: fd.get('responsavel'), praca: fd.get('praca_select'), vazios: fd.get('vazios'), cheios: fd.get('cheios'), carbonizando: fd.get('carbonizando'), esfriando: fd.get('esfriando'), obs: fd.get('obs') };
+        const dailyStage = Number(item.carbonizando) > 0 ? 'C' : Number(item.esfriando) > 0 ? 'E' : Number(item.cheios) > 0 ? 'X' : Number(item.vazios) > 0 ? 'V' : '';
+        const dailyRecord = history.find(h => h && h.praca === item.praca && h.data === item.data_lancamento);
+        const validation = validateKilnStageTransition(item.praca, item.data_lancamento, dailyStage, dailyRecord);
+        if (!validation.valid) throw new Error(validation.message);
+        const kiln = kilns.find(k => k.praca === item.praca);
+        if (kiln && kiln.status === 'manutencao') throw new Error('O forno selecionado está em manutenção.');
         await saveItem('production_history', item);
         if (item.obs) await saveItem('maintenance', { forno: item.praca, problema: item.obs, data: item.data, resolved: false });
     }
@@ -2795,16 +2802,21 @@ function renderSpreadsheetGrid() {
                     else if (Number(hRecord.vazios) > 0) stageCode = "V";
                 }
 
-                if (stageCode === "C") {
+                if (stageCode === "M") {
+                    cellClass = "stage-m";
+                } else if (stageCode === "C") {
                     cellClass = "stage-c";
                     dailyCarboniz[d]++;
                 } else if (stageCode === "E") {
                     cellClass = "stage-e";
                     dailyResfri[d]++;
-                } else if (stageCode === "D" || stageCode === "DX") {
+                } else if (stageCode === "D") {
                     stageCode = "V";
                     cellClass = "stage-v";
                     dailyVazios[d]++;
+                } else if (stageCode === "DX") {
+                    cellClass = "stage-dx";
+                    dailyCargas[d]++;
                 } else if (stageCode === "X") {
                     cellClass = "stage-x";
                     dailyCargas[d]++;
@@ -2812,10 +2824,13 @@ function renderSpreadsheetGrid() {
                     cellClass = "stage-v";
                     dailyVazios[d]++;
                 }
+            } else if (k.status === 'manutencao') {
+                stageCode = "M";
+                cellClass = "stage-m";
             }
 
-            bodyHtml += `
-                <td class="spreadsheet-cell-clickable ${cellClass}"
+                bodyHtml += `
+                    <td class="spreadsheet-cell-clickable ${cellClass}"
                     title="${obs ? 'Obs: ' + obs : ''}"
                     onclick="openSpreadsheetPopover('${k.praca}', '${dateStr}', this, '${stageCode}', '${obs.replace(/'/g, "\\'")}')">
                     ${stageCode}
@@ -2855,6 +2870,11 @@ function renderSpreadsheetGrid() {
 
 function openSpreadsheetPopover(praca, dateStr, element, currentStage, currentObs) {
     const monthRef = dateStr.substring(0, 7);
+    const kiln = kilns.find(k => k.praca === praca);
+    if (kiln && kiln.status === 'manutencao' && currentStage !== 'M') {
+        alert(`O Forno ${praca} está em manutenção e não pode receber apontamentos de produção.`);
+        return;
+    }
     const isClosed = closedMonths.some(cm => cm.month_ref === monthRef);
     if (isClosed) {
         alert("Este mês está fechado e não permite edições. Caso queira fazer alterações, reabra o mês.");
@@ -2901,6 +2921,39 @@ function openSpreadsheetPopover(praca, dateStr, element, currentStage, currentOb
     }, 50);
 }
 
+function getKilnStageOnOrBefore(praca, date, excludeRecordId) {
+    return history
+        .filter(h => h && h.praca === praca && h.data <= date && h.id !== excludeRecordId)
+        .sort((a, b) => b.data.localeCompare(a.data))[0];
+}
+
+function validateKilnStageTransition(praca, date, nextStage, currentRecord) {
+    if (!nextStage || nextStage === 'M') return { valid: true };
+
+    const kiln = kilns.find(k => k.praca === praca);
+    const previous = getKilnStageOnOrBefore(praca, date, currentRecord && currentRecord.id);
+    const previousStage = getStageCode(previous) || getStageCode(currentRecord);
+
+    // Ao concluir a manutenção, o forno pode ficar vazio ou já cheio.
+    if ((kiln && kiln.status === 'manutencao' || previousStage === 'M') && (nextStage === 'V' || nextStage === 'X')) {
+        return { valid: true };
+    }
+
+    if (nextStage === 'E' && previousStage !== 'C') {
+        return { valid: false, message: 'O resfriamento só pode começar após a carbonização (C).' };
+    }
+    if (nextStage === 'DX' && previousStage !== 'E') {
+        return { valid: false, message: 'A descarga e carga no mesmo dia só pode ocorrer após o resfriamento (E).' };
+    }
+    if (nextStage === 'C' && previousStage !== 'X' && previousStage !== 'DX') {
+        return { valid: false, message: 'O forno só pode iniciar a carbonização após estar cheio (X).' };
+    }
+    if (nextStage === 'V' && previousStage !== 'E') {
+        return { valid: false, message: 'O forno deve passar pelo resfriamento (E) antes de ser descarregado (V).' };
+    }
+    return { valid: true };
+}
+
 function selectPopoverStage(stageCode) {
     selectedPopoverStageCode = stageCode;
     document.querySelectorAll('.btn-stage').forEach(btn => {
@@ -2928,6 +2981,12 @@ async function savePopoverData() {
     }
 
     const hRecord = history.find(h => h && h.praca === praca && h.data === data);
+    const kiln = kilns.find(k => k.praca === praca);
+    const validation = validateKilnStageTransition(praca, data, stage, hRecord);
+    if (!validation.valid) {
+        alert(validation.message);
+        return;
+    }
 
     const payload = {
         data: data,
@@ -2936,7 +2995,7 @@ async function savePopoverData() {
             || (currentUser && currentUser.email)
             || "Sistema",
         vazios: stage === 'V' ? 1 : 0,
-        cheios: stage === 'X' ? 1 : 0,
+        cheios: (stage === 'X' || stage === 'DX') ? 1 : 0,
         carbonizando: stage === 'C' ? 1 : 0,
         esfriando: stage === 'E' ? 1 : 0,
         estagio: stage,
@@ -2961,6 +3020,16 @@ async function savePopoverData() {
             if (!existingIssue) {
                 await saveItem('maintenance', { forno: praca, problema: obs, data: data, resolved: false });
             }
+        }
+
+        // V ou X encerram a manutenção e deixam o forno disponível para produção.
+        if (kiln && kiln.status === 'manutencao' && (stage === 'V' || stage === 'X')) {
+            const { error: kilnStatusError } = await supabase.from('kilns')
+                .update({ status: 'operacional' })
+                .eq('praca', praca)
+                .eq('user_id', currentUser.id);
+            if (kilnStatusError) throw kilnStatusError;
+            kiln.status = 'operacional';
         }
 
         showToast("Dados salvos!");
@@ -3147,7 +3216,8 @@ window.toggleMonthStatus = toggleMonthStatus;
 // ═══ NOTIFICATION PANEL ENGINE ═══
 function getStageCode(hRecord) {
     if (!hRecord) return "";
-    if (hRecord.estagio === 'D' || hRecord.estagio === 'DX') return "V";
+    if (hRecord.estagio === 'D') return "V";
+    if (hRecord.estagio === 'DX') return "DX";
     if (hRecord.estagio) return hRecord.estagio;
     if (Number(hRecord.carbonizando) > 0) return "C";
     if (Number(hRecord.esfriando) > 0) return "E";
@@ -3561,6 +3631,7 @@ async function openEditKilnModal(praca) {
     document.getElementById('edit-threshold-c').value = k.threshold_carbonizacao || '';
     document.getElementById('edit-threshold-e').value = k.threshold_resfriamento || '';
     document.getElementById('edit-threshold-x').value = k.threshold_carga || '';
+    document.getElementById('edit-kiln-status').value = k.status || 'operacional';
 
     showModal('edit-kiln');
 }
@@ -3574,11 +3645,13 @@ async function saveKilnSettings(e) {
     const tc = document.getElementById('edit-threshold-c').value;
     const te = document.getElementById('edit-threshold-e').value;
     const tx = document.getElementById('edit-threshold-x').value;
+    const status = document.getElementById('edit-kiln-status').value;
 
     const payload = {
         threshold_carbonizacao: tc ? parseInt(tc) : null,
         threshold_resfriamento: te ? parseInt(te) : null,
-        threshold_carga: tx ? parseInt(tx) : null
+        threshold_carga: tx ? parseInt(tx) : null,
+        status: status
     };
 
     try {
@@ -3598,6 +3671,7 @@ async function saveKilnSettings(e) {
         k.threshold_carbonizacao = payload.threshold_carbonizacao;
         k.threshold_resfriamento = payload.threshold_resfriamento;
         k.threshold_carga = payload.threshold_carga;
+        k.status = payload.status;
 
         hideModal('edit-kiln');
         showToast("Limites salvos!");

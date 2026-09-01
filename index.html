@@ -230,6 +230,7 @@
                             <div class="legend-item"><div class="legend-badge stage-x">X</div> <span>Carga</span></div>
                             <div class="legend-item"><div class="legend-badge stage-c">C</div> <span>Carbonização</span></div>
                             <div class="legend-item"><div class="legend-badge stage-e">E</div> <span>Resfriamento</span></div>
+                            <div class="legend-item"><div class="legend-badge stage-dx">DX</div> <span>Descarga e carga</span></div>
                             <div class="legend-item"><div class="legend-badge stage-v">V</div> <span>Vazio</span></div>
                         </div>
                     </div>
@@ -795,7 +796,9 @@
                 <button type="button" class="btn-stage btn-stage-x" onclick="selectPopoverStage('X')">X</button>
                 <button type="button" class="btn-stage btn-stage-c" onclick="selectPopoverStage('C')">C</button>
                 <button type="button" class="btn-stage btn-stage-e" onclick="selectPopoverStage('E')">E</button>
+                <button type="button" class="btn-stage btn-stage-dx" onclick="selectPopoverStage('DX')">DX</button>
                 <button type="button" class="btn-stage btn-stage-v" onclick="selectPopoverStage('V')">V</button>
+                <button type="button" class="btn-stage btn-stage-m" onclick="selectPopoverStage('M')">M</button>
             </div>
             <div class="form-field" style="margin-top: 12px; margin-bottom: 12px;">
                 <label style="font-size: 11px;">Observações / Ocorrências</label>
@@ -870,6 +873,13 @@
                     <div class="form-field">
                         <label>Carregamento</label>
                         <input type="number" name="threshold_carga" id="edit-threshold-x" min="1" placeholder="Padrão">
+                    </div>
+                    <div class="form-field">
+                        <label>Status operacional</label>
+                        <select name="status" id="edit-kiln-status">
+                            <option value="operacional">Operacional</option>
+                            <option value="manutencao">Em manutenção</option>
+                        </select>
                     </div>
                 </div>
 
