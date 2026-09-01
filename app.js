@@ -320,6 +320,11 @@ function switchTab(tabId) {
 
     if (targetSection === 'analise' || targetSection === 'dashboard') renderCharts();
     if (targetSection === 'fornos') initSpreadsheet();
+    if (targetSection === 'alertas') {
+        renderOperationalAlerts();
+        renderAverageCyclePanel();
+        if (window.lucide) window.lucide.createIcons();
+    }
     if (targetSection === 'relatorios') applyReportPermissions(role);
     if (targetSection === 'acesso-negado' && window.lucide) window.lucide.createIcons();
 }
@@ -3360,11 +3365,8 @@ function toggleSettingsForm() {
 }
 
 function toggleCarvoariaSettings() {
-    const panel = document.getElementById('carvoaria-settings-panel');
-    if (!panel) return;
-    const isOpen = panel.style.display !== 'none';
-    panel.style.display = isOpen ? 'none' : 'block';
-    if (!isOpen) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    switchTab('alertas');
+    toggleCycleEditMode(true);
 }
 
 async function saveUserSettings(e) {
@@ -3393,6 +3395,7 @@ async function saveUserSettings(e) {
         calculateNotifications();
         isSettingsExpanded = false;
         renderNotifications();
+        renderAverageCyclePanel();
     } catch (err) {
         console.error("Erro ao salvar limites:", err);
         alert("Erro ao salvar configurações: " + err.message);
@@ -3524,10 +3527,14 @@ document.addEventListener('click', (e) => {
     }
 });
 
-function getAverageCycleStats() {
-    const stages = { C: [], E: [], V: [] };
+// State for Average Cycle Indicator
+let cycleFilterKiln = 'all';
+let isCycleEditing = false;
+
+function getAverageCycleStats(filterPraca = cycleFilterKiln) {
+    const stages = { C: [], E: [], X: [], V: [] };
     const orderedHistory = [...history]
-        .filter(h => h && h.praca && h.data)
+        .filter(h => h && h.praca && h.data && (filterPraca === 'all' || h.praca === filterPraca))
         .sort((a, b) => a.praca.localeCompare(b.praca) || a.data.localeCompare(b.data));
 
     let currentBlock = null;
@@ -3546,52 +3553,499 @@ function getAverageCycleStats() {
     });
     registerBlock(currentBlock);
 
-    const average = values => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+    const average = values => values && values.length ? (values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
     const carbonizacao = average(stages.C);
     const resfriamento = average(stages.E);
+    const carga = average(stages.X);
     const vazio = average(stages.V);
-    const cargas = orderedHistory.filter(record => getStageCode(record) === 'X').length;
-    const descargas = orderedHistory.filter(record => getStageCode(record) === 'V').length;
+    const countCargas = orderedHistory.filter(record => getStageCode(record) === 'X').length;
+    const countDescargas = orderedHistory.filter(record => getStageCode(record) === 'V').length;
 
-    return { carbonizacao, resfriamento, vazio, cargas, descargas, total: carbonizacao + resfriamento + vazio };
+    // Total do ciclo operacional
+    const total = carbonizacao + resfriamento + carga + (stages.V.length ? vazio : 0);
+
+    // Metas/Limites Operacionais
+    let targetC = (userSettings && userSettings.threshold_carbonizacao) ? Number(userSettings.threshold_carbonizacao) : 2;
+    let targetE = (userSettings && userSettings.threshold_resfriamento) ? Number(userSettings.threshold_resfriamento) : 2;
+    let targetX = (userSettings && userSettings.threshold_carga) ? Number(userSettings.threshold_carga) : 1;
+
+    if (filterPraca !== 'all') {
+        const specificKiln = kilns.find(k => k.praca === filterPraca);
+        if (specificKiln) {
+            if (specificKiln.threshold_carbonizacao) targetC = Number(specificKiln.threshold_carbonizacao);
+            if (specificKiln.threshold_resfriamento) targetE = Number(specificKiln.threshold_resfriamento);
+            if (specificKiln.threshold_carga) targetX = Number(specificKiln.threshold_carga);
+        }
+    }
+
+    const targetTotal = targetC + targetE + targetX;
+
+    return {
+        carbonizacao,
+        resfriamento,
+        carga,
+        vazio,
+        countCargas,
+        countDescargas,
+        total,
+        targetC,
+        targetE,
+        targetX,
+        targetTotal,
+        cyclesC: stages.C.length,
+        cyclesE: stages.E.length,
+        cyclesX: stages.X.length,
+        cyclesV: stages.V.length
+    };
 }
 
 function formatCycleDays(value) {
-    return value ? value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-';
+    if (value === null || value === undefined || isNaN(value)) return '0,0';
+    return Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+function toggleCycleEditMode(forceState) {
+    if (typeof forceState === 'boolean') {
+        isCycleEditing = forceState;
+    } else {
+        isCycleEditing = !isCycleEditing;
+    }
+    renderAverageCyclePanel();
+    if (isCycleEditing) {
+        setTimeout(() => {
+            const editorEl = document.querySelector('.cycle-editor-box');
+            if (editorEl) editorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 50);
+    }
+}
+
+function cancelCycleEdit() {
+    isCycleEditing = false;
+    renderAverageCyclePanel();
+}
+
+function stepCycleInput(id, delta) {
+    const input = document.getElementById(id);
+    if (!input) return;
+    let val = parseInt(input.value) || 1;
+    val = Math.max(1, Math.min(60, val + delta));
+    input.value = val;
+    updateCycleTargetsPreview();
+}
+
+function updateCycleTargetsPreview() {
+    const c = parseInt(document.getElementById('cycle-target-c')?.value) || 2;
+    const e = parseInt(document.getElementById('cycle-target-e')?.value) || 2;
+    const x = parseInt(document.getElementById('cycle-target-x')?.value) || 1;
+    const previewEl = document.getElementById('cycle-target-total-preview');
+    if (previewEl) previewEl.innerText = `${c + e + x} dias`;
+}
+
+function setCycleKilnFilter(praca) {
+    cycleFilterKiln = praca || 'all';
+    renderAverageCyclePanel();
+}
+
+async function saveCycleTargets(e) {
+    if (e) e.preventDefault();
+    if (!currentUser) {
+        showToast("É necessário estar autenticado para salvar metas.");
+        return;
+    }
+
+    const tc = parseInt(document.getElementById('cycle-target-c')?.value) || 2;
+    const te = parseInt(document.getElementById('cycle-target-e')?.value) || 2;
+    const tx = parseInt(document.getElementById('cycle-target-x')?.value) || 1;
+
+    const payload = {
+        threshold_carbonizacao: tc,
+        threshold_resfriamento: te,
+        threshold_carga: tx,
+        user_id: currentUser.id,
+        updated_at: new Date().toISOString()
+    };
+
+    try {
+        const { error } = await supabase.from('user_settings')
+            .upsert(payload, { onConflict: 'user_id' });
+        if (error) throw error;
+
+        userSettings = { ...userSettings, ...payload };
+
+        // Sincronizar os inputs legados no painel de configurações gerais se existirem
+        const inputC = document.getElementById('setting-threshold-c');
+        const inputE = document.getElementById('setting-threshold-e');
+        const inputX = document.getElementById('setting-threshold-x');
+        if (inputC) inputC.value = tc;
+        if (inputE) inputE.value = te;
+        if (inputX) inputX.value = tx;
+
+        isCycleEditing = false;
+        calculateNotifications();
+        renderAverageCyclePanel();
+        renderNotifications();
+        showToast("Metas operacionais atualizadas com sucesso!");
+    } catch (err) {
+        console.error("Erro ao salvar metas do ciclo:", err);
+        showToast("Erro ao salvar metas: " + err.message);
+    }
 }
 
 function renderAverageCyclePanel() {
     const panel = document.getElementById('average-cycle-panel');
     if (!panel) return;
 
-    const stats = getAverageCycleStats();
-    const hasData = stats.carbonizacao || stats.resfriamento || stats.vazio;
+    const stats = getAverageCycleStats(cycleFilterKiln);
+    const hasData = stats.carbonizacao > 0 || stats.resfriamento > 0 || stats.carga > 0 || stats.vazio > 0;
+
+    // Proporções percentuais das etapas
+    let percentC = 0, percentE = 0, percentX = 0;
+    if (stats.total > 0) {
+        percentC = Math.round((stats.carbonizacao / stats.total) * 100) || 0;
+        percentE = Math.round((stats.resfriamento / stats.total) * 100) || 0;
+        percentX = Math.max(0, 100 - percentC - percentE);
+    } else {
+        percentC = Math.round((stats.targetC / stats.targetTotal) * 100) || 40;
+        percentE = Math.round((stats.targetE / stats.targetTotal) * 100) || 40;
+        percentX = Math.max(0, 100 - percentC - percentE);
+    }
+
+    // Health badges das etapas
+    let healthC = { text: 'Sem registros', class: 'neutral', icon: 'info' };
+    if (stats.carbonizacao > 0) {
+        if (stats.carbonizacao <= stats.targetC) {
+            healthC = { text: '✓ No Prazo', class: 'good', icon: 'check-circle-2' };
+        } else if (stats.carbonizacao <= stats.targetC + 0.5) {
+            healthC = { text: `+${(stats.carbonizacao - stats.targetC).toFixed(1)}d Atenção`, class: 'warn', icon: 'alert-triangle' };
+        } else {
+            healthC = { text: `+${(stats.carbonizacao - stats.targetC).toFixed(1)}d Crítico`, class: 'danger', icon: 'alert-octagon' };
+        }
+    }
+
+    let healthE = { text: 'Sem registros', class: 'neutral', icon: 'info' };
+    if (stats.resfriamento > 0) {
+        if (stats.resfriamento <= stats.targetE) {
+            healthE = { text: '✓ No Prazo', class: 'good', icon: 'check-circle-2' };
+        } else if (stats.resfriamento <= stats.targetE + 0.5) {
+            healthE = { text: `+${(stats.resfriamento - stats.targetE).toFixed(1)}d Atenção`, class: 'warn', icon: 'alert-triangle' };
+        } else {
+            healthE = { text: `+${(stats.resfriamento - stats.targetE).toFixed(1)}d Crítico`, class: 'danger', icon: 'alert-octagon' };
+        }
+    }
+
+    const cargaVal = stats.carga || stats.vazio;
+    let healthX = { text: 'Sem registros', class: 'neutral', icon: 'info' };
+    if (cargaVal > 0) {
+        if (cargaVal <= stats.targetX) {
+            healthX = { text: '✓ No Prazo', class: 'good', icon: 'check-circle-2' };
+        } else {
+            healthX = { text: `+${(cargaVal - stats.targetX).toFixed(1)}d Atenção`, class: 'warn', icon: 'alert-triangle' };
+        }
+    }
+
+    // Status do Ciclo Médio Total
+    let statusClass = 'status-neutral', statusIcon = 'info', statusLabel = 'Aguardando Lançamentos';
+    if (hasData) {
+        const diff = stats.total - stats.targetTotal;
+        if (diff <= 0) {
+            statusClass = 'status-good';
+            statusIcon = 'check-circle-2';
+            statusLabel = diff === 0 ? '✓ No Prazo da Meta' : `✓ Otimizado (-${Math.abs(diff).toFixed(1)}d)`;
+        } else if (diff <= 1) {
+            statusClass = 'status-warn';
+            statusIcon = 'alert-triangle';
+            statusLabel = `Leve Variação (+${diff.toFixed(1)}d)`;
+        } else {
+            statusClass = 'status-danger';
+            statusIcon = 'alert-octagon';
+            statusLabel = `Ciclo Estendido (+${diff.toFixed(1)}d)`;
+        }
+    }
+
+    // Estimativa de giro mensal
+    const estimatedGiro = stats.total > 0 ? (30 / stats.total).toFixed(1) : (30 / stats.targetTotal).toFixed(1);
+
     panel.innerHTML = `
-        <div class="average-cycle-heading">
-            <div>
-                <span class="average-cycle-eyebrow"><i data-lucide="calculator"></i> Indicador operacional</span>
-                <h3>Cálculo do ciclo médio</h3>
-                <p>Tempo apurado a partir dos lançamentos registrados por forno.</p>
+        <div class="average-cycle-container">
+            <!-- Header & Controles Superiores -->
+            <div class="average-cycle-header">
+                <div class="average-cycle-title-group">
+                    <div class="average-cycle-badge">
+                        <span class="cycle-pulse-dot"></span>
+                        <i data-lucide="gauge"></i> Indicador Operacional
+                    </div>
+                    <div class="average-cycle-main-heading">
+                        <h3>Ciclo Médio & Eficiência dos Fornos</h3>
+                        <p>Tempo de giro apurado a partir dos lançamentos diários comparado com as metas parametrizadas.</p>
+                    </div>
+                </div>
+
+                <div class="average-cycle-actions">
+                    <!-- Filtro por Forno -->
+                    <div class="cycle-filter-wrapper">
+                        <i data-lucide="filter" class="filter-icon"></i>
+                        <select id="cycle-kiln-selector" onchange="setCycleKilnFilter(this.value)" class="cycle-select" title="Filtrar por forno">
+                            <option value="all" ${cycleFilterKiln === 'all' ? 'selected' : ''}>Todos os Fornos (${kilns.length})</option>
+                            ${kilns.map(k => `<option value="${k.praca}" ${cycleFilterKiln === k.praca ? 'selected' : ''}>Forno ${k.praca}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <!-- Botão Editar Metas -->
+                    <button type="button" class="btn-cycle-edit ${isCycleEditing ? 'active' : ''}" onclick="toggleCycleEditMode()" title="Editar parâmetros e metas de dias">
+                        <i data-lucide="${isCycleEditing ? 'x' : 'sliders-horizontal'}"></i>
+                        <span>${isCycleEditing ? 'Fechar Edição' : 'Editar Metas'}</span>
+                    </button>
+                </div>
             </div>
-            <div class="average-cycle-total">
-                <span>Ciclo médio total</span>
-                <strong>${hasData ? formatCycleDays(stats.total) : '-'}</strong>
-                <em>dias</em>
+
+            <!-- Caixa de Edição Rápida de Metas (Expansível) -->
+            ${isCycleEditing ? `
+            <div class="cycle-editor-box">
+                <div class="cycle-editor-header">
+                    <div>
+                        <h4><i data-lucide="settings-2"></i> Configurar Metas Operacionais de Giro</h4>
+                        <p>Ajuste os dias padrão para cada etapa. As alterações refletem instantaneamente no cálculo de eficiência e alertas.</p>
+                    </div>
+                    <div class="cycle-editor-total-badge">
+                        <span>Meta Total Calculada</span>
+                        <strong id="cycle-target-total-preview">${stats.targetTotal} dias</strong>
+                    </div>
+                </div>
+
+                <form onsubmit="saveCycleTargets(event)" class="cycle-editor-form">
+                    <div class="cycle-stepper-grid">
+                        <!-- Carbonização -->
+                        <div class="cycle-stepper-card carbonizacao">
+                            <div class="stepper-label">
+                                <i data-lucide="flame"></i>
+                                <span>Meta Carbonização</span>
+                            </div>
+                            <div class="stepper-input-group">
+                                <button type="button" class="btn-stepper" onclick="stepCycleInput('cycle-target-c', -1)">-</button>
+                                <input type="number" id="cycle-target-c" min="1" max="60" value="${userSettings.threshold_carbonizacao || 2}" oninput="updateCycleTargetsPreview()" required>
+                                <button type="button" class="btn-stepper" onclick="stepCycleInput('cycle-target-c', 1)">+</button>
+                                <span class="stepper-unit">dias</span>
+                            </div>
+                        </div>
+
+                        <!-- Resfriamento -->
+                        <div class="cycle-stepper-card resfriamento">
+                            <div class="stepper-label">
+                                <i data-lucide="snowflake"></i>
+                                <span>Meta Resfriamento</span>
+                            </div>
+                            <div class="stepper-input-group">
+                                <button type="button" class="btn-stepper" onclick="stepCycleInput('cycle-target-e', -1)">-</button>
+                                <input type="number" id="cycle-target-e" min="1" max="60" value="${userSettings.threshold_resfriamento || 2}" oninput="updateCycleTargetsPreview()" required>
+                                <button type="button" class="btn-stepper" onclick="stepCycleInput('cycle-target-e', 1)">+</button>
+                                <span class="stepper-unit">dias</span>
+                            </div>
+                        </div>
+
+                        <!-- Carregamento -->
+                        <div class="cycle-stepper-card carregamento">
+                            <div class="stepper-label">
+                                <i data-lucide="package-plus"></i>
+                                <span>Meta Carregamento</span>
+                            </div>
+                            <div class="stepper-input-group">
+                                <button type="button" class="btn-stepper" onclick="stepCycleInput('cycle-target-x', -1)">-</button>
+                                <input type="number" id="cycle-target-x" min="1" max="60" value="${userSettings.threshold_carga || 1}" oninput="updateCycleTargetsPreview()" required>
+                                <button type="button" class="btn-stepper" onclick="stepCycleInput('cycle-target-x', 1)">+</button>
+                                <span class="stepper-unit">dias</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cycle-editor-actions">
+                        <button type="button" class="btn-cycle-cancel" onclick="cancelCycleEdit()">Cancelar</button>
+                        <button type="submit" class="btn-cycle-save">
+                            <i data-lucide="check"></i> Salvar Metas Operacionais
+                        </button>
+                    </div>
+                </form>
+            </div>
+            ` : ''}
+
+            <!-- Layout Principal: Hero Card Total + Cards das Etapas -->
+            <div class="cycle-dashboard-layout">
+                <!-- Card Destaque: Ciclo Total -->
+                <div class="cycle-hero-card">
+                    <div class="hero-top">
+                        <span class="hero-title"><i data-lucide="timer"></i> Ciclo Médio Total</span>
+                        <span class="hero-status-badge ${statusClass}">
+                            <i data-lucide="${statusIcon}"></i> ${statusLabel}
+                        </span>
+                    </div>
+
+                    <div class="hero-number-wrap">
+                        <div class="hero-main-value">
+                            <span class="hero-number">${hasData ? formatCycleDays(stats.total) : '0,0'}</span>
+                            <span class="hero-unit">dias / giro</span>
+                        </div>
+                        <div class="hero-target-pill" onclick="toggleCycleEditMode(true)" title="Clique para editar meta">
+                            <span class="target-label">Meta Atual:</span>
+                            <strong>${stats.targetTotal} dias</strong>
+                            <i data-lucide="edit-3" class="pill-edit-icon"></i>
+                        </div>
+                    </div>
+
+                    <!-- Barra de Composição Proporcional -->
+                    <div class="cycle-stacked-bar-wrapper">
+                        <div class="cycle-stacked-bar-header">
+                            <span>Composição da Queima</span>
+                            <span>${hasData ? (stats.total <= stats.targetTotal ? '✓ No Prazo' : `+${(stats.total - stats.targetTotal).toFixed(1)}d vs Meta`) : 'Meta: ' + stats.targetTotal + ' dias'}</span>
+                        </div>
+                        <div class="cycle-stacked-bar">
+                            <div class="bar-segment carbonizacao" style="width: ${percentC}%;" title="Carbonização: ${formatCycleDays(stats.carbonizacao)}d (${percentC}%)"></div>
+                            <div class="bar-segment resfriamento" style="width: ${percentE}%;" title="Resfriamento: ${formatCycleDays(stats.resfriamento)}d (${percentE}%)"></div>
+                            <div class="bar-segment carregamento" style="width: ${percentX}%;" title="Carregamento: ${formatCycleDays(cargaVal)}d (${percentX}%)"></div>
+                        </div>
+                        <div class="cycle-stacked-legend">
+                            <span class="legend-item"><i class="dot carbonizacao"></i> Carbonização (${percentC}%)</span>
+                            <span class="legend-item"><i class="dot resfriamento"></i> Resfriamento (${percentE}%)</span>
+                            <span class="legend-item"><i class="dot carregamento"></i> Carga/Vazio (${percentX}%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid com as 3 Etapas Operacionais -->
+                <div class="cycle-stages-grid">
+                    <!-- Etapa: Carbonização -->
+                    <div class="stage-card carbonizacao">
+                        <div class="stage-card-header">
+                            <div class="stage-icon-box"><i data-lucide="flame"></i></div>
+                            <div class="stage-meta-info">
+                                <h4>Carbonização</h4>
+                                <span class="stage-sub">Processo Térmico</span>
+                            </div>
+                            <span class="stage-health-badge ${healthC.class}">${healthC.text}</span>
+                        </div>
+
+                        <div class="stage-metric-row">
+                            <div class="stage-real-value">
+                                <span class="metric-label">Média Apurada</span>
+                                <div class="metric-val-group">
+                                    <strong>${formatCycleDays(stats.carbonizacao)}</strong>
+                                    <em>dias</em>
+                                </div>
+                            </div>
+                            <div class="stage-target-box" onclick="toggleCycleEditMode(true)" title="Clique para editar meta">
+                                <span class="target-title">Meta</span>
+                                <strong>${stats.targetC}d</strong>
+                                <i data-lucide="pencil"></i>
+                            </div>
+                        </div>
+
+                        <div class="stage-card-footer">
+                            <span><i data-lucide="history"></i> ${stats.cyclesC} ciclo(s)</span>
+                            <span class="stage-percent">${percentC}% do giro</span>
+                        </div>
+                    </div>
+
+                    <!-- Etapa: Resfriamento -->
+                    <div class="stage-card resfriamento">
+                        <div class="stage-card-header">
+                            <div class="stage-icon-box"><i data-lucide="snowflake"></i></div>
+                            <div class="stage-meta-info">
+                                <h4>Resfriamento</h4>
+                                <span class="stage-sub">Tempo de Queda</span>
+                            </div>
+                            <span class="stage-health-badge ${healthE.class}">${healthE.text}</span>
+                        </div>
+
+                        <div class="stage-metric-row">
+                            <div class="stage-real-value">
+                                <span class="metric-label">Média Apurada</span>
+                                <div class="metric-val-group">
+                                    <strong>${formatCycleDays(stats.resfriamento)}</strong>
+                                    <em>dias</em>
+                                </div>
+                            </div>
+                            <div class="stage-target-box" onclick="toggleCycleEditMode(true)" title="Clique para editar meta">
+                                <span class="target-title">Meta</span>
+                                <strong>${stats.targetE}d</strong>
+                                <i data-lucide="pencil"></i>
+                            </div>
+                        </div>
+
+                        <div class="stage-card-footer">
+                            <span><i data-lucide="history"></i> ${stats.cyclesE} ciclo(s)</span>
+                            <span class="stage-percent">${percentE}% do giro</span>
+                        </div>
+                    </div>
+
+                    <!-- Etapa: Carregamento / Vazio -->
+                    <div class="stage-card carregamento">
+                        <div class="stage-card-header">
+                            <div class="stage-icon-box"><i data-lucide="package-plus"></i></div>
+                            <div class="stage-meta-info">
+                                <h4>Carregamento</h4>
+                                <span class="stage-sub">Carga / Vazio</span>
+                            </div>
+                            <span class="stage-health-badge ${healthX.class}">${healthX.text}</span>
+                        </div>
+
+                        <div class="stage-metric-row">
+                            <div class="stage-real-value">
+                                <span class="metric-label">Média Apurada</span>
+                                <div class="metric-val-group">
+                                    <strong>${formatCycleDays(cargaVal)}</strong>
+                                    <em>dias</em>
+                                </div>
+                            </div>
+                            <div class="stage-target-box" onclick="toggleCycleEditMode(true)" title="Clique para editar meta">
+                                <span class="target-title">Meta</span>
+                                <strong>${stats.targetX}d</strong>
+                                <i data-lucide="pencil"></i>
+                            </div>
+                        </div>
+
+                        <div class="stage-card-footer">
+                            <span><i data-lucide="history"></i> ${stats.cyclesX || stats.cyclesV || 0} ciclo(s)</span>
+                            <span class="stage-percent">${percentX}% do giro</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Faixa de Resumo Operacional na Base -->
+            <div class="cycle-summary-strip">
+                <div class="summary-item">
+                    <i data-lucide="truck" class="summary-icon green"></i>
+                    <div>
+                        <span>Cargas Registradas</span>
+                        <strong>${stats.countCargas} romaneio(s)</strong>
+                    </div>
+                </div>
+                <div class="summary-item">
+                    <i data-lucide="arrow-down-circle" class="summary-icon blue"></i>
+                    <div>
+                        <span>Descargas Realizadas</span>
+                        <strong>${stats.countDescargas} descarga(s)</strong>
+                    </div>
+                </div>
+                <div class="summary-item">
+                    <i data-lucide="container" class="summary-icon purple"></i>
+                    <div>
+                        <span>Fornos Monitorados</span>
+                        <strong>${cycleFilterKiln === 'all' ? kilns.length + ' forno(s) total' : 'Forno ' + cycleFilterKiln}</strong>
+                    </div>
+                </div>
+                <div class="summary-item">
+                    <i data-lucide="repeat" class="summary-icon amber"></i>
+                    <div>
+                        <span>Giro Estimado</span>
+                        <strong>~${estimatedGiro} ciclos/mês</strong>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="average-cycle-content">
-            <div class="average-cycle-counts">
-                <div><span>Cargas registradas</span><strong>${stats.cargas}</strong></div>
-                <div><span>Descargas registradas</span><strong>${stats.descargas}</strong></div>
-            </div>
-            <div class="average-cycle-stages">
-                <div class="cycle-stage carbonizacao"><span>Carbonização</span><strong>${formatCycleDays(stats.carbonizacao)}</strong><small>dias</small></div>
-                <div class="cycle-stage resfriamento"><span>Resfriamento</span><strong>${formatCycleDays(stats.resfriamento)}</strong><small>dias</small></div>
-                <div class="cycle-stage vazio"><span>Vazio</span><strong>${formatCycleDays(stats.vazio)}</strong><small>dias</small></div>
-            </div>
-        </div>
-        ${hasData ? '' : '<p class="average-cycle-empty">Registre os estágios dos fornos para começar a acompanhar o ciclo médio.</p>'}
     `;
+
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
 }
 
 function renderOperationalAlerts() {
@@ -3846,6 +4300,13 @@ window.saveKilnSettings = saveKilnSettings;
 window.deleteKilnFromModal = deleteKilnFromModal;
 window.deleteAllKilns = deleteAllKilns;
 window.renderOperationalAlerts = renderOperationalAlerts;
+window.renderAverageCyclePanel = renderAverageCyclePanel;
+window.toggleCycleEditMode = toggleCycleEditMode;
+window.cancelCycleEdit = cancelCycleEdit;
+window.saveCycleTargets = saveCycleTargets;
+window.stepCycleInput = stepCycleInput;
+window.updateCycleTargetsPreview = updateCycleTargetsPreview;
+window.setCycleKilnFilter = setCycleKilnFilter;
 
 function initRealtimeSync() {
     if (!currentUser) return;
