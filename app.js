@@ -2944,18 +2944,9 @@ function validateKilnStageTransition(praca, date, nextStage, currentRecord) {
         return { valid: true };
     }
 
-    if (nextStage === 'E' && previousStage !== 'C') {
-        return { valid: false, message: 'O resfriamento só pode começar após a carbonização (C).' };
-    }
-    if (nextStage === 'DX' && previousStage !== 'E') {
-        return { valid: false, message: 'A descarga e carga no mesmo dia só pode ocorrer após o resfriamento (E).' };
-    }
-    if (nextStage === 'C' && previousStage !== 'X' && previousStage !== 'DX') {
-        return { valid: false, message: 'O forno só pode iniciar a carbonização após estar cheio (X).' };
-    }
-    if (nextStage === 'V' && previousStage !== 'E') {
-        return { valid: false, message: 'O forno deve passar pelo resfriamento (E) antes de ser descarregado (V).' };
-    }
+    // Sequência livre: o operador define o estágio do dia.
+    // Um forno pode permanecer carbonizando (C) ou resfriando (E) por vários dias,
+    // e descarga (D), descarga e carga (DX), etc. podem ser lançados sem bloqueio.
     return { valid: true };
 }
 
@@ -2999,7 +2990,7 @@ async function savePopoverData() {
         responsavel: (currentUser && currentUser.user_metadata && currentUser.user_metadata.operator_name)
             || (currentUser && currentUser.email)
             || "Sistema",
-        vazios: stage === 'V' ? 1 : 0,
+        vazios: (stage === 'V' || stage === 'D') ? 1 : 0,
         cheios: (stage === 'X' || stage === 'DX') ? 1 : 0,
         carbonizando: stage === 'C' ? 1 : 0,
         esfriando: stage === 'E' ? 1 : 0,
