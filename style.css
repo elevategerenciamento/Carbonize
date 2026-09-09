@@ -1097,6 +1097,38 @@ td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
 .btn-stage-e { background-color: var(--success); color: #050507; }
 .btn-stage-d { background-color: #f97316; color: #050507; }
 .btn-stage-dx { background-color: #38bdf8; color: #050507; }
+
+/* ── Modo Pintura Rápida ── */
+.quick-paint-bar {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    padding: 8px 12px; border-radius: 10px; width: 100%; margin-bottom: 10px;
+}
+.quick-paint-bar .qp-btn {
+    min-width: 34px; height: 30px; padding: 0 10px; border: 1px solid transparent;
+    border-radius: 7px; font-weight: 800; font-size: 12px; cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.quick-paint-bar .qp-btn:hover { transform: translateY(-1px); }
+.quick-paint-bar .qp-btn.selected {
+    border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,0.35), 0 0 12px rgba(255,255,255,0.2);
+}
+.qp-x { background-color: #212121; color: #fff; }
+.qp-c { background-color: var(--primary); color: #fff; }
+.qp-e { background-color: var(--success); color: #050507; }
+.qp-d { background-color: #f97316; color: #050507; }
+.qp-dx { background-color: #38bdf8; color: #050507; }
+.qp-v { background-color: var(--warning); color: #050507; }
+.qp-m { background-color: #a855f7; color: #fff; }
+.qp-erase { background-color: rgba(255,255,255,0.12); color: #fff; }
+
+body.quick-paint-active .spreadsheet-cell-clickable { cursor: crosshair; }
+body.quick-paint-active .spreadsheet-cell-clickable:hover {
+    outline: 2px solid #fff; outline-offset: -2px; filter: brightness(1.15);
+}
+
+.stage-d { background-color: #f97316 !important; color: #050507 !important; }
 .btn-stage-v { background-color: var(--warning); color: #050507; }
 .btn-stage-m { background-color: #6b7280; color: #ffffff; }
 

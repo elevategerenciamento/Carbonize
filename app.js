@@ -2896,6 +2896,14 @@ function openSpreadsheetPopover(praca, dateStr, element, currentStage, currentOb
         btn.classList.remove('selected');
     });
 
+    const obsWrap = document.getElementById('popover-obs-wrap');
+    const saveObsBtn = document.getElementById('btn-save-obs');
+    const toggleObsBtn = document.getElementById('btn-toggle-obs');
+    const hasObs = !!(currentObs && currentObs.trim());
+    obsWrap.style.display = hasObs ? 'block' : 'none';
+    saveObsBtn.style.display = hasObs ? 'block' : 'none';
+    toggleObsBtn.style.display = hasObs ? 'none' : 'block';
+
     if (selectedPopoverStageCode) {
         const selectedBtn = document.querySelector(`.btn-stage-${selectedPopoverStageCode.toLowerCase()}`);
         if (selectedBtn) selectedBtn.classList.add('selected');
@@ -2921,9 +2929,12 @@ function openSpreadsheetPopover(praca, dateStr, element, currentStage, currentOb
     popover.style.left = `${left}px`;
     popover.style.top = `${top}px`;
 
-    setTimeout(() => {
-        document.getElementById('popover-obs').focus();
-    }, 50);
+    if (!hasObs) {
+        setTimeout(() => {
+            const firstBtn = document.querySelector('.btn-stage');
+            if (firstBtn) firstBtn.focus();
+        }, 50);
+    }
 }
 
 function getKilnStageOnOrBefore(praca, date, excludeRecordId) {
@@ -2958,6 +2969,53 @@ function selectPopoverStage(stageCode) {
     const selectedBtn = document.querySelector(`.btn-stage-${stageCode.toLowerCase()}`);
     if (selectedBtn) selectedBtn.classList.add('selected');
 }
+
+// Fluxo rápido: 1 clique no estágio já salva e fecha o popover.
+// Se o usuário abriu o campo de observação e digitou algo, salva com a observação.
+function applyStageQuick(stageCode) {
+    const obsWrap = document.getElementById('popover-obs-wrap');
+    const obsInput = document.getElementById('popover-obs');
+    const obsVisible = obsWrap && obsWrap.style.display !== 'none';
+    if (!obsVisible || !(obsInput && obsInput.value.trim())) {
+        selectedPopoverStageCode = stageCode;
+        const obsField = document.getElementById('popover-obs');
+        if (obsField) obsField.value = "";
+        savePopoverData();
+        return;
+    }
+    selectPopoverStage(stageCode);
+    savePopoverData();
+}
+
+function togglePopoverObs() {
+    const wrap = document.getElementById('popover-obs-wrap');
+    const saveBtn = document.getElementById('btn-save-obs');
+    const toggleBtn = document.getElementById('btn-toggle-obs');
+    const showing = wrap.style.display === 'none';
+    wrap.style.display = showing ? 'block' : 'none';
+    saveBtn.style.display = showing ? 'block' : 'none';
+    toggleBtn.style.display = showing ? 'none' : 'block';
+    if (showing) setTimeout(() => document.getElementById('popover-obs').focus(), 50);
+}
+
+// Atalhos de teclado com o popover aberto: X C E D F(DX) V M salvam direto, 0 limpa.
+document.addEventListener('keydown', (e) => {
+    const popover = document.getElementById('spreadsheet-popover');
+    if (!popover || popover.style.display !== 'block') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    const map = { 'x': 'X', 'c': 'C', 'e': 'E', 'd': 'D', 'f': 'DX', 'v': 'V', 'm': 'M' };
+    const key = e.key.toLowerCase();
+    if (map[key]) {
+        e.preventDefault();
+        applyStageQuick(map[key]);
+    } else if (key === '0') {
+        e.preventDefault();
+        clearPopoverData();
+    } else if (key === 'escape') {
+        e.preventDefault();
+        closeSpreadsheetPopover();
+    }
+});
 
 function closeSpreadsheetPopover() {
     const popover = document.getElementById('spreadsheet-popover');

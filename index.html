@@ -227,6 +227,17 @@
                             </div>
                         </div>
                         <div class="legend-container" style="margin: 0;">
+                            <div class="quick-paint-bar" id="quick-paint-bar">
+                                <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px;"><i data-lucide="paintbrush" style="width: 14px;"></i> Modo Rápido:</span>
+                                <button type="button" class="qp-btn qp-x" onclick="toggleQuickPaint('X')" title="Pintar Carga">X</button>
+                                <button type="button" class="qp-btn qp-c" onclick="toggleQuickPaint('C')" title="Pintar Carbonização">C</button>
+                                <button type="button" class="qp-btn qp-e" onclick="toggleQuickPaint('E')" title="Pintar Resfriamento">E</button>
+                                <button type="button" class="qp-btn qp-d" onclick="toggleQuickPaint('D')" title="Pintar Descarga">D</button>
+                                <button type="button" class="qp-btn qp-dx" onclick="toggleQuickPaint('DX')" title="Pintar Descarga e carga">DX</button>
+                                <button type="button" class="qp-btn qp-v" onclick="toggleQuickPaint('V')" title="Pintar Vazio">V</button>
+                                <button type="button" class="qp-btn qp-m" onclick="toggleQuickPaint('M')" title="Pintar Manutenção">M</button>
+                                <button type="button" class="qp-btn qp-erase" onclick="toggleQuickPaint('ERASE')" title="Limpar células"><i data-lucide="eraser" style="width: 12px;"></i></button>
+                            </div>
                             <div class="legend-item"><div class="legend-badge stage-x">X</div> <span>Carga</span></div>
                             <div class="legend-item"><div class="legend-badge stage-c">C</div> <span>Carbonização</span></div>
                             <div class="legend-item"><div class="legend-badge stage-e">E</div> <span>Resfriamento</span></div>
@@ -797,22 +808,24 @@
         <div class="popover-body">
             <div style="margin-bottom: 8px; font-size: 11px; color: var(--text-dim);">Estágio do Processo:</div>
             <div class="stage-buttons-grid">
-                <button type="button" class="btn-stage btn-stage-x" onclick="selectPopoverStage('X')">X</button>
-                <button type="button" class="btn-stage btn-stage-c" onclick="selectPopoverStage('C')">C</button>
-                <button type="button" class="btn-stage btn-stage-e" onclick="selectPopoverStage('E')">E</button>
-                <button type="button" class="btn-stage btn-stage-d" onclick="selectPopoverStage('D')">D</button>
-                <button type="button" class="btn-stage btn-stage-dx" onclick="selectPopoverStage('DX')">DX</button>
-                <button type="button" class="btn-stage btn-stage-v" onclick="selectPopoverStage('V')">V</button>
-                <button type="button" class="btn-stage btn-stage-m" onclick="selectPopoverStage('M')">M</button>
+                <button type="button" class="btn-stage btn-stage-x" onclick="applyStageQuick('X')" title="Salvar direto (tecla X)">X</button>
+                <button type="button" class="btn-stage btn-stage-c" onclick="applyStageQuick('C')" title="Salvar direto (tecla C)">C</button>
+                <button type="button" class="btn-stage btn-stage-e" onclick="applyStageQuick('E')" title="Salvar direto (tecla E)">E</button>
+                <button type="button" class="btn-stage btn-stage-d" onclick="applyStageQuick('D')" title="Salvar direto (tecla D)">D</button>
+                <button type="button" class="btn-stage btn-stage-dx" onclick="applyStageQuick('DX')" title="Salvar direto (tecla F)">DX</button>
+                <button type="button" class="btn-stage btn-stage-v" onclick="applyStageQuick('V')" title="Salvar direto (tecla V)">V</button>
+                <button type="button" class="btn-stage btn-stage-m" onclick="applyStageQuick('M')" title="Salvar direto (tecla M)">M</button>
             </div>
-            <div class="form-field" style="margin-top: 12px; margin-bottom: 12px;">
+            <div id="popover-obs-wrap" class="form-field" style="margin-top: 12px; margin-bottom: 12px; display: none;">
                 <label style="font-size: 11px;">Observações / Ocorrências</label>
                 <input type="text" id="popover-obs" placeholder="Ex: Vazamento, exaustor..." style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color:#fff; padding:8px 10px; border-radius:6px; font-size:12px; outline:none;">
             </div>
             <div style="display: flex; gap: 8px;">
-                <button type="button" class="btn-save-popover" onclick="savePopoverData()">Salvar</button>
+                <button type="button" class="btn-save-popover" id="btn-toggle-obs" onclick="togglePopoverObs()" style="background: rgba(255,255,255,0.08);">＋ Obs</button>
+                <button type="button" class="btn-save-popover" id="btn-save-obs" onclick="savePopoverData()" style="display:none;">Salvar</button>
                 <button type="button" class="btn-clear-popover" onclick="clearPopoverData()">Limpar</button>
             </div>
+            <div style="margin-top: 8px; font-size: 10px; color: var(--text-dim); text-align: center;">1 clique no estágio já salva · Atalhos: X C E D F V M · 0 = limpar</div>
         </div>
     </div>
 
