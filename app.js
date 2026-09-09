@@ -184,10 +184,9 @@ async function loadAllData() {
         if (inputX) inputX.value = userSettings.threshold_carga || 1;
 
         console.log("Data loaded:", { kilns, loads, history, maintenance, expenses, fiscalDocs, closedMonths, userSettings });
-        renderAll();
-
-        // Calcular e renderizar notificações
+        // Calcular antes da renderização para a grade e os alertas usarem o mesmo estado.
         calculateNotifications();
+        renderAll();
         renderNotifications();
     } catch (err) {
         console.error("Sync Error:", err);
@@ -2714,6 +2713,16 @@ window.editSpreadsheetExpense = editSpreadsheetExpense;
 let selectedSpreadsheetMonth = new Date().toISOString().substring(0, 7);
 let activePopoverCell = null;
 let selectedPopoverStageCode = null;
+let quickPaintStage = null;
+const pendingCellSaves = new Map();
+
+function getHistoryByCell() {
+    const index = new Map();
+    history.forEach(record => {
+        if (record && record.praca && record.data) index.set(`${record.praca}|${record.data}`, record);
+    });
+    return index;
+}
 
 function initSpreadsheet() {
     const picker = document.getElementById('spreadsheet-month-picker');
@@ -2761,6 +2770,7 @@ function renderSpreadsheetGrid() {
     if (!bodyRows) return;
 
     const sortedKilns = naturalSortKilns(kilns);
+    const historyByCell = getHistoryByCell();
     let bodyHtml = "";
 
     const dailyCargas = new Array(totalDays + 1).fill(0);
@@ -2790,7 +2800,7 @@ function renderSpreadsheetGrid() {
             const dayStr = String(d).padStart(2, '0');
             const dateStr = `${selectedSpreadsheetMonth}-${dayStr}`;
 
-            const hRecord = history.find(h => h && h.praca === k.praca && h.data === dateStr);
+            const hRecord = historyByCell.get(`${k.praca}|${dateStr}`);
 
             let stageCode = "";
             let cellClass = "";
@@ -2964,32 +2974,21 @@ function validateKilnStageTransition(praca, date, nextStage, currentRecord) {
 function selectPopoverStage(stageCode) {
     selectedPopoverStageCode = stageCode;
     document.querySelectorAll('.btn-stage').forEach(btn => {
-        btn.classList.remove('selected');
+        btn.classList.toggle('selected', btn.classList.contains(`btn-stage-${stageCode.toLowerCase()}`));
     });
-    const selectedBtn = document.querySelector(`.btn-stage-${stageCode.toLowerCase()}`);
-    if (selectedBtn) selectedBtn.classList.add('selected');
 }
 
 // Fluxo rápido: 1 clique no estágio já salva e fecha o popover.
 // Se o usuário abriu o campo de observação e digitou algo, salva com a observação.
 function applyStageQuick(stageCode) {
-    const obsWrap = document.getElementById('popover-obs-wrap');
-    const obsInput = document.getElementById('popover-obs');
-    const obsVisible = obsWrap && obsWrap.style.display !== 'none';
-    if (!obsVisible || !(obsInput && obsInput.value.trim())) {
-        selectedPopoverStageCode = stageCode;
-        const obsField = document.getElementById('popover-obs');
-        if (obsField) obsField.value = "";
-        savePopoverData();
-        return;
-    }
+    if (!activePopoverCell) return;
     selectPopoverStage(stageCode);
     savePopoverData();
 }
 
 function togglePopoverObs() {
     const wrap = document.getElementById('popover-obs-wrap');
-    const saveBtn = document.getElementById('btn-save-obs');
+ const saveBtn = document.getElementById('btn-save-obs');
     const toggleBtn = document.getElementById('btn-toggle-obs');
     const showing = wrap.style.display === 'none';
     wrap.style.display = showing ? 'block' : 'none';
@@ -2997,6 +2996,32 @@ function togglePopoverObs() {
     toggleBtn.style.display = showing ? 'none' : 'block';
     if (showing) setTimeout(() => document.getElementById('popover-obs').focus(), 50);
 }
+
+function toggleQuickPaint(stageCode) {
+    quickPaintStage = quickPaintStage === stageCode ? null : stageCode;
+    document.querySelectorAll('.quick-paint-bar .qp-btn').forEach(button => button.classList.remove('selected'));
+    if (quickPaintStage) {
+        const button = document.querySelector(`.quick-paint-bar .qp-${quickPaintStage.toLowerCase()}`) ||
+            (quickPaintStage === 'ERASE' && document.querySelector('.quick-paint-bar .qp-erase'));
+        if (button) button.classList.add('selected');
+        document.body.classList.add('quick-paint-active');
+    } else {
+        document.body.classList.remove('quick-paint-active');
+    }
+}
+
+// No modo rápido, um clique na célula grava imediatamente sem abrir o popover.
+document.addEventListener('click', (event) => {
+    const cell = event.target.closest('.spreadsheet-cell-clickable');
+    if (!cell || !quickPaintStage) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const match = cell.getAttribute('onclick')?.match(/openSpreadsheetPopover\('([^']+)',\s*'([^']+)'/);
+    if (!match) return;
+    openSpreadsheetPopover(match[1], match[2], cell, '', '');
+    if (quickPaintStage === 'ERASE') clearPopoverData();
+    else applyStageQuick(quickPaintStage);
+}, true);
 
 // Atalhos de teclado com o popover aberto: X C E D F(DX) V M salvam direto, 0 limpa.
 document.addEventListener('keydown', (e) => {
@@ -3024,10 +3049,11 @@ function closeSpreadsheetPopover() {
 }
 
 async function savePopoverData() {
-    if (!activePopoverCell) return;
+    if (!activePopoverCell || !currentUser) return;
     const { praca, data } = activePopoverCell;
     const obs = document.getElementById('popover-obs').value.trim();
     const stage = selectedPopoverStageCode;
+    const cellKey = `${praca}|${data}`;
 
     if (!stage && !obs) {
         await clearPopoverData();
@@ -3035,6 +3061,7 @@ async function savePopoverData() {
     }
 
     const hRecord = history.find(h => h && h.praca === praca && h.data === data);
+    const previousObs = hRecord?.obs || '';
     const kiln = kilns.find(k => k.praca === praca);
     const validation = validateKilnStageTransition(praca, data, stage, hRecord);
     if (!validation.valid) {
@@ -3043,71 +3070,63 @@ async function savePopoverData() {
     }
 
     const payload = {
-        data: data,
-        praca: praca,
-        responsavel: (currentUser && currentUser.user_metadata && currentUser.user_metadata.operator_name)
-            || (currentUser && currentUser.email)
-            || "Sistema",
+        data, praca,
+        responsavel: currentUser.user_metadata?.operator_name || currentUser.email || "Sistema",
         vazios: (stage === 'V' || stage === 'D') ? 1 : 0,
         cheios: (stage === 'X' || stage === 'DX') ? 1 : 0,
         carbonizando: stage === 'C' ? 1 : 0,
         esfriando: stage === 'E' ? 1 : 0,
-        estagio: stage,
-        obs: obs
+        estagio: stage, obs
     };
 
-    try {
-        if (hRecord) {
-            const { error } = await supabase.from('production_history')
-                .update(payload)
-                .eq('id', hRecord.id)
-                .eq('user_id', currentUser.id);
-            if (error) throw error;
-        } else {
-            const { error } = await supabase.from('production_history')
-                .insert([{ ...payload, user_id: currentUser.id }]);
-            if (error) throw error;
-        }
-
-        if (obs && (!hRecord || hRecord.obs !== obs)) {
-            const existingIssue = maintenance.find(m => m && m.forno === praca && !m.resolved);
-            if (!existingIssue) {
-                await saveItem('maintenance', { forno: praca, problema: obs, data: data, resolved: false });
-            }
-        }
-
-        // V ou X encerram a manutenção e deixam o forno disponível para produção.
-        if (kiln && kiln.status === 'manutencao' && (stage === 'V' || stage === 'X')) {
-            const { error: kilnStatusError } = await supabase.from('kilns')
-                .update({ status: 'operacional' })
-                .eq('praca', praca)
-                .eq('user_id', currentUser.id);
-            if (kilnStatusError) throw kilnStatusError;
-            kiln.status = 'operacional';
-        }
-
-        showToast("Dados salvos!");
-        await loadAllData();
-    } catch (err) {
-        console.error("Erro ao salvar célula:", err);
-        showToast("Erro ao salvar! Armazenando localmente...");
-        const offlinePayload = { ...payload, user_id: currentUser.id };
-        if (hRecord) {
-            offlinePayload.id = hRecord.id;
-            const idx = history.findIndex(h => h.id === hRecord.id);
-            if (idx !== -1) history[idx] = offlinePayload;
-        } else {
-            offlinePayload.id = 'temp-' + Date.now();
-            history.unshift(offlinePayload);
-        }
-        saveOffline('production_history', offlinePayload);
-        renderAll();
-        updateUI();
-        calculateNotifications();
-        renderNotifications();
-    }
-
+    // Atualização otimista: a próxima célula pode ser selecionada sem esperar a rede.
+    const localRecord = { ...(hRecord || {}), ...payload, user_id: currentUser.id, id: hRecord?.id || `temp-${Date.now()}` };
+    if (hRecord) Object.assign(hRecord, localRecord);
+    else history.unshift(localRecord);
+    calculateNotifications();
+    renderSpreadsheetGrid();
+    renderOperationalAlerts();
+    renderNotifications();
     closeSpreadsheetPopover();
+
+    const previousSave = pendingCellSaves.get(cellKey);
+    const savePromise = (async () => {
+        if (previousSave) await previousSave;
+        try {
+            if (hRecord) {
+                const { error } = await supabase.from('production_history').update(payload).eq('id', hRecord.id).eq('user_id', currentUser.id);
+                if (error) throw error;
+            } else {
+                const { data: inserted, error } = await supabase.from('production_history').insert([{ ...payload, user_id: currentUser.id }]).select().single();
+                if (error) throw error;
+                if (inserted) Object.assign(localRecord, inserted);
+            }
+
+            if (obs && previousObs !== obs) {
+                const existingIssue = maintenance.find(m => m && m.forno === praca && !m.resolved);
+                if (!existingIssue) {
+                    const { data: issue, error } = await supabase.from('maintenance').insert([{ forno: praca, problema: obs, data, resolved: false, user_id: currentUser.id }]).select().single();
+                    if (error) throw error;
+                    if (issue) maintenance.unshift(issue);
+                }
+            }
+
+            if (kiln && kiln.status === 'manutencao' && (stage === 'V' || stage === 'X')) {
+                const { error } = await supabase.from('kilns').update({ status: 'operacional' }).eq('praca', praca).eq('user_id', currentUser.id);
+                if (error) throw error;
+                kiln.status = 'operacional';
+            }
+            showToast("Dados salvos!");
+        } catch (err) {
+            console.error("Erro ao salvar célula:", err);
+            saveOffline('production_history', localRecord);
+            showToast("Salvo localmente; sincronização pendente");
+        } finally {
+            pendingCellSaves.delete(cellKey);
+        }
+    })();
+    pendingCellSaves.set(cellKey, savePromise);
+    await savePromise;
 }
 
 async function clearPopoverData() {
@@ -3260,6 +3279,8 @@ async function toggleMonthStatus(monthRef, shouldClose) {
 window.initSpreadsheet = initSpreadsheet;
 window.renderSpreadsheetGrid = renderSpreadsheetGrid;
 window.openSpreadsheetPopover = openSpreadsheetPopover;
+window.toggleQuickPaint = toggleQuickPaint;
+window.applyStageQuick = applyStageQuick;
 window.selectPopoverStage = selectPopoverStage;
 window.closeSpreadsheetPopover = closeSpreadsheetPopover;
 window.savePopoverData = savePopoverData;
@@ -3290,16 +3311,26 @@ function calculateNotifications() {
     const te = userSettings.threshold_resfriamento || 2;
     const tx = userSettings.threshold_carga || 1;
 
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    const todayIso = todayDate.toISOString().substring(0, 10);
+    const maxAlertAgeDays = 30;
+
     kilns.forEach(k => {
-        // Obter histórico do forno
+        // Obter histórico do forno; o índice evita buscas repetidas na grade.
         const kHistory = history
-            .filter(h => h && h.praca === k.praca)
+            .filter(h => h && h.praca === k.praca && h.data <= todayIso)
             .sort((a, b) => b.data.localeCompare(a.data));
 
         if (kHistory.length === 0) return;
 
-        // Último estado
+        // Um lançamento muito antigo não representa um processo ativo: evita
+        // alertas absurdos de centenas ou milhares de dias sem atualização.
         const latest = kHistory[0];
+        const latestDate = new Date(`${latest.data}T00:00:00`);
+        const latestAgeDays = Math.floor((todayDate - latestDate) / 86400000);
+        if (latestAgeDays > maxAlertAgeDays) return;
+
         const currentStage = getStageCode(latest);
 
         // Apenas avaliamos processos operacionais que podem atrasar
@@ -3310,8 +3341,12 @@ function calculateNotifications() {
         let consecutiveDays = 0;
         const activeStageHistory = [];
         for (let i = 0; i < kHistory.length; i++) {
-            if (getStageCode(kHistory[i]) === currentStage) {
-                activeStageHistory.push(kHistory[i]);
+            const record = kHistory[i];
+            const previousRecord = kHistory[i - 1];
+            const hasContinuousDate = !previousRecord ||
+                Math.round((new Date(`${previousRecord.data}T00:00:00`) - new Date(`${record.data}T00:00:00`)) / 86400000) <= 1;
+            if (getStageCode(record) === currentStage && hasContinuousDate) {
+                activeStageHistory.push(record);
             } else {
                 break;
             }
@@ -3320,8 +3355,6 @@ function calculateNotifications() {
             return !oldest || item.data < oldest ? item.data : oldest;
         }, latest.data);
         const oldestDate = new Date(`${oldestStageDate}T00:00:00`);
-        const todayDate = new Date();
-        todayDate.setHours(0, 0, 0, 0);
         consecutiveDays = Math.max(1, Math.floor((todayDate - oldestDate) / 86400000) + 1);
 
         // Limiar correspondente com fallback para o global do usuário
