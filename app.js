@@ -3311,51 +3311,48 @@ function calculateNotifications() {
     const te = userSettings.threshold_resfriamento || 2;
     const tx = userSettings.threshold_carga || 1;
 
-    const todayDate = new Date();
-    todayDate.setHours(0, 0, 0, 0);
-    const todayIso = todayDate.toISOString().substring(0, 10);
-    const maxAlertAgeDays = 30;
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const yesterdayIso = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
 
     kilns.forEach(k => {
-        // Obter histórico do forno; o índice evita buscas repetidas na grade.
+        // Um alerta só pode nascer de um apontamento real deste forno.
+        // Não inferimos operação apenas porque o forno foi cadastrado.
+        const kilnId = String(k.praca || '').trim();
+        if (!kilnId || k.status === 'manutencao') return;
+
         const kHistory = history
-            .filter(h => h && h.praca === k.praca && h.data <= todayIso)
+            .filter(h => h && String(h.praca || '').trim() === kilnId && /^\d{4}-\d{2}-\d{2}$/.test(h.data) && h.data <= todayIso)
             .sort((a, b) => b.data.localeCompare(a.data));
 
         if (kHistory.length === 0) return;
 
-        // Um lançamento muito antigo não representa um processo ativo: evita
-        // alertas absurdos de centenas ou milhares de dias sem atualização.
         const latest = kHistory[0];
-        const latestDate = new Date(`${latest.data}T00:00:00`);
-        const latestAgeDays = Math.floor((todayDate - latestDate) / 86400000);
-        if (latestAgeDays > maxAlertAgeDays) return;
-
         const currentStage = getStageCode(latest);
 
-        // Apenas avaliamos processos operacionais que podem atrasar
-        if (!['C', 'E', 'X'].includes(currentStage)) return;
+        // Se o forno não foi apontado nem hoje nem ontem, o processo não está ativo
+        // no período corrente. Isso evita alertas fantasmas de meses ou semanas passadas.
+        if ((latest.data !== todayIso && latest.data !== yesterdayIso) || !['C', 'E', 'X'].includes(currentStage)) return;
 
-        // Calcular os dias reais no estágio: usa o primeiro registro contínuo
-        // e compara com hoje, mesmo quando não houve lançamento diário.
-        let consecutiveDays = 0;
+        // O processo só acumula dias quando há apontamentos consecutivos do
+        // mesmo estágio. Uma lacuna de dias ou mudança de estágio encerra o bloco.
         const activeStageHistory = [];
         for (let i = 0; i < kHistory.length; i++) {
             const record = kHistory[i];
             const previousRecord = kHistory[i - 1];
             const hasContinuousDate = !previousRecord ||
-                Math.round((new Date(`${previousRecord.data}T00:00:00`) - new Date(`${record.data}T00:00:00`)) / 86400000) <= 1;
+                Math.round((new Date(`${previousRecord.data}T00:00:00`) - new Date(`${record.data}T00:00:00`)) / 86400000) === 1;
             if (getStageCode(record) === currentStage && hasContinuousDate) {
                 activeStageHistory.push(record);
             } else {
                 break;
             }
         }
-        const oldestStageDate = activeStageHistory.reduce((oldest, item) => {
-            return !oldest || item.data < oldest ? item.data : oldest;
-        }, latest.data);
-        const oldestDate = new Date(`${oldestStageDate}T00:00:00`);
-        consecutiveDays = Math.max(1, Math.floor((todayDate - oldestDate) / 86400000) + 1);
+
+        // A contagem de dias é rigorosamente a quantidade de apontamentos consecutivos reais preenchidos
+        const consecutiveDays = activeStageHistory.length;
+        if (consecutiveDays <= 0) return;
 
         // Limiar correspondente com fallback para o global do usuário
         let threshold = 1;
