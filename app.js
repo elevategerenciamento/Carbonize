@@ -495,14 +495,16 @@ function renderLoads() {
     if (tbody) {
         tbody.innerHTML = loads.map(l => `
             <tr>
-                <td>#${l.identificador}</td>
-                <td>${l.data ? formatDateBR(l.data) : ''} ${l.hora || ''}</td>
-                <td>${l.destino || '-'}</td>
-                <td>${l.data_descarregamento ? formatDateBR(l.data_descarregamento) : '-'}</td>
-                <td>${l.metragem ? l.metragem + ' m³' : '-'}</td>
-                <td>${l.peso ? Number(l.peso).toLocaleString('pt-BR') + ' kg' : '-'}</td>
-                <td>${l.motorista || '-'}</td>
+                <td>${l.identificador || l.produto || '-'}</td>
                 <td>${l.placa || '-'}</td>
+                <td>${l.motorista || '-'}</td>
+                <td>${l.transportador || '-'}</td>
+                <td>${l.observacao || '-'}</td>
+                <td>${l.data ? formatDateBR(l.data) : '-'}</td>
+                <td>${l.metragem ? l.metragem + ' m³' : '-'}</td>
+                <td>${l.tara ? Number(l.tara).toLocaleString('pt-BR') : '-'}</td>
+                <td>${l.liquido ? Number(l.liquido).toLocaleString('pt-BR') : '-'}</td>
+                <td>${l.bruto ? Number(l.bruto).toLocaleString('pt-BR') : '-'}</td>
             </tr>
         `).join('');
     }
@@ -534,7 +536,7 @@ async function resolveMaint(id) {
 }
 
 function renderStock() {
-    const bal = history.reduce((acc, h) => acc + (Number(h.carbonizando || 0) * 1.5), 0) - (loads.reduce((acc, l) => acc + Number(l.peso || 0), 0) / 1000);
+    const bal = history.reduce((acc, h) => acc + (Number(h.carbonizando || 0) * 1.5), 0) - (loads.reduce((acc, l) => acc + Number(l.liquido || l.peso || 0), 0) / 1000);
     const balanceEl = document.getElementById('kpi-stock-balance');
     if (balanceEl) balanceEl.innerText = `${bal.toFixed(1)} t`;
 }
@@ -754,16 +756,17 @@ async function processForm(id, fd) {
         if (item.obs) await saveItem('maintenance', { forno: item.praca, problema: item.obs, data: item.data, resolved: false });
     }
     if (id === 'load') await saveItem('loads', {
-        identificador: fd.get('identificador'),
-        data: fd.get('data_carga'),
-        hora: fd.get('hora_carga'),
+        produto: fd.get('produto'),
+        identificador: fd.get('produto'),
         placa: fd.get('placa'),
         motorista: fd.get('motorista'),
-        tipo_carvao: fd.get('tipo_carvao'),
+        transportador: fd.get('transportador'),
+        observacao: fd.get('observacao'),
+        data: fd.get('data_carga'),
         metragem: fd.get('metragem'),
-        peso: fd.get('peso'),
-        destino: fd.get('destino'),
-        data_descarregamento: fd.get('data_descarregamento')
+        tara: fd.get('tara'),
+        liquido: fd.get('liquido'),
+        bruto: fd.get('bruto')
     });
     if (id === 'expense') {
         const expenseId = fd.get('expense_id');
@@ -878,7 +881,7 @@ function buildCashFlowConfig(last7, despesasPorDia, receitasPorDia) {
                 legend: { display: true, labels: { color: '#94949e', font: { size: 11 } } },
                 tooltip: {
                     callbacks: {
-                        label: function(c) {
+                        label: function (c) {
                             return c.dataset.label + ': R$ ' + c.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
                         }
                     }
@@ -890,7 +893,7 @@ function buildCashFlowConfig(last7, despesasPorDia, receitasPorDia) {
                     grid: { color: 'rgba(255,255,255,0.05)' },
                     ticks: {
                         color: '#94949e',
-                        callback: function(v) {
+                        callback: function (v) {
                             return 'R$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : Number(v).toFixed(0));
                         }
                     },
@@ -919,15 +922,15 @@ function renderCharts() {
     // ── 1. PRODUÇÃO REAL — últimas 4 semanas ─────────────────
     if (ctx1) {
         var weeks = getLastNWeeksRanges(4);
-        var prodData = weeks.map(function(w) {
+        var prodData = weeks.map(function (w) {
             return history
-                .filter(function(h) { return h && h.data && h.data >= w.start && h.data <= w.end; })
-                .reduce(function(acc, h) { return acc + Number(h.carbonizando || 0) * 1.5; }, 0);
+                .filter(function (h) { return h && h.data && h.data >= w.start && h.data <= w.end; })
+                .reduce(function (acc, h) { return acc + Number(h.carbonizando || 0) * 1.5; }, 0);
         });
         prodChartInstance = new Chart(ctx1, {
             type: 'line',
             data: {
-                labels: weeks.map(function(w) { return w.label; }),
+                labels: weeks.map(function (w) { return w.label; }),
                 datasets: [{
                     label: 'Produção (t)',
                     data: prodData,
@@ -942,11 +945,11 @@ function renderCharts() {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: function(c) { return c.parsed.y.toFixed(2) + ' t'; } } }
+                    tooltip: { callbacks: { label: function (c) { return c.parsed.y.toFixed(2) + ' t'; } } }
                 },
                 scales: {
                     x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94949e' } },
-                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94949e', callback: function(v) { return Number(v).toFixed(0) + 't'; } }, beginAtZero: true }
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94949e', callback: function (v) { return Number(v).toFixed(0) + 't'; } }, beginAtZero: true }
                 }
             }
         });
@@ -955,8 +958,8 @@ function renderCharts() {
     // ── 2. CARGAS REAIS — últimos 7 dias ────────────────────
     if (ctx2) {
         var last7 = getLastNDaysISO(7);
-        var loadsData = last7.map(function(day) {
-            return loads.filter(function(l) { return l && l.data === day; }).length;
+        var loadsData = last7.map(function (day) {
+            return loads.filter(function (l) { return l && l.data === day; }).length;
         });
         loadsChartInstance = new Chart(ctx2, {
             type: 'bar',
@@ -974,7 +977,7 @@ function renderCharts() {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: function(c) { return c.parsed.y + (c.parsed.y !== 1 ? ' cargas' : ' carga'); } } }
+                    tooltip: { callbacks: { label: function (c) { return c.parsed.y + (c.parsed.y !== 1 ? ' cargas' : ' carga'); } } }
                 },
                 scales: {
                     x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94949e' } },
@@ -986,27 +989,27 @@ function renderCharts() {
 
     // ── 3. RADAR DE EFICIÊNCIA REAL ──────────────────────────
     if (ctx3) {
-        var totalDays = Math.max(1, history.map(function(h) { return h.data; }).filter(Boolean).filter(function(v, i, a) { return a.indexOf(v) === i; }).length);
-        var totalCarb = history.reduce(function(a, h) { return a + Number(h.carbonizando || 0); }, 0);
+        var totalDays = Math.max(1, history.map(function (h) { return h.data; }).filter(Boolean).filter(function (v, i, a) { return a.indexOf(v) === i; }).length);
+        var totalCarb = history.reduce(function (a, h) { return a + Number(h.carbonizando || 0); }, 0);
         var avgCarb = totalCarb / totalDays;
         var velocidade = Math.min(100, Math.round((avgCarb / 20) * 100));
 
-        var totalStatus = history.reduce(function(a, h) {
+        var totalStatus = history.reduce(function (a, h) {
             return a + Number(h.vazios || 0) + Number(h.cheios || 0) + Number(h.carbonizando || 0) + Number(h.esfriando || 0);
         }, 0);
         var qualidade = totalStatus > 0 ? Math.min(100, Math.round((totalCarb / totalStatus) * 200)) : 0;
 
-        var totalExp = expenses.filter(function(e) { return !(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha'); })
-            .reduce(function(a, e) { return a + Number(e.expense_value || 0); }, 0);
-        var totalProd = history.reduce(function(a, h) { return a + Number(h.carbonizando || 0) * 1.5; }, 0);
+        var totalExp = expenses.filter(function (e) { return !(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha'); })
+            .reduce(function (a, e) { return a + Number(e.expense_value || 0); }, 0);
+        var totalProd = history.reduce(function (a, h) { return a + Number(h.carbonizando || 0) * 1.5; }, 0);
         var custoPorTon = totalProd > 0 ? totalExp / totalProd : 0;
         var custoScore = Math.min(100, Math.max(0, Math.round(100 - (custoPorTon / 300) * 100)));
 
         var totalMaint = maintenance.length;
-        var resolved = maintenance.filter(function(m) { return m.resolved; }).length;
+        var resolved = maintenance.filter(function (m) { return m.resolved; }).length;
         var manutScore = totalMaint > 0 ? Math.round((resolved / totalMaint) * 100) : 100;
 
-        var pendentes = maintenance.filter(function(m) { return !m.resolved; }).length;
+        var pendentes = maintenance.filter(function (m) { return !m.resolved; }).length;
         var segScore = Math.min(100, Math.max(0, Math.round(100 - (pendentes / 10) * 100)));
 
         efficiencyChartInstance = new Chart(ctx3, {
@@ -1034,7 +1037,7 @@ function renderCharts() {
                 },
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: function(c) { return c.label + ': ' + c.parsed.r + '%'; } } }
+                    tooltip: { callbacks: { label: function (c) { return c.label + ': ' + c.parsed.r + '%'; } } }
                 }
             }
         });
@@ -1043,16 +1046,16 @@ function renderCharts() {
     // ── 4. DISTRIBUIÇÃO DE CUSTOS REAL por categoria ─────────
     if (ctx4) {
         var catMap = { 'Lenha': 0, 'Mão de Obra': 0, 'Logística': 0, 'Manutenção': 0, 'Outros': 0 };
-        expenses.forEach(function(e) {
+        expenses.forEach(function (e) {
             if (e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha') return;
             var cat = e.expense_category || 'Outros';
             if (!catMap.hasOwnProperty(cat)) cat = 'Outros';
             catMap[cat] += Number(e.expense_value || 0);
         });
-        maintenance.forEach(function(m) { catMap['Manutenção'] += Number(m.cost || 0); });
+        maintenance.forEach(function (m) { catMap['Manutenção'] += Number(m.cost || 0); });
 
-        var catLabels = Object.keys(catMap).filter(function(k) { return catMap[k] > 0; });
-        var catData = catLabels.map(function(k) { return catMap[k]; });
+        var catLabels = Object.keys(catMap).filter(function (k) { return catMap[k] > 0; });
+        var catData = catLabels.map(function (k) { return catMap[k]; });
         var catColors = ['#e6002e', '#00d2ff', '#00e676', '#ffea00', '#ff6b35'];
 
         costsDistChartInstance = new Chart(ctx4, {
@@ -1072,9 +1075,9 @@ function renderCharts() {
                         position: 'right',
                         labels: {
                             color: '#94949e', font: { size: 10 },
-                            generateLabels: function(chart) {
+                            generateLabels: function (chart) {
                                 var ds = chart.data.datasets[0];
-                                return chart.data.labels.map(function(lbl, i) {
+                                return chart.data.labels.map(function (lbl, i) {
                                     return {
                                         text: catData.length > 0
                                             ? lbl + ': R$' + ds.data[i].toLocaleString('pt-BR', { minimumFractionDigits: 2 })
@@ -1089,8 +1092,8 @@ function renderCharts() {
                     tooltip: {
                         enabled: catData.length > 0,
                         callbacks: {
-                            label: function(c) {
-                                var total = c.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                            label: function (c) {
+                                var total = c.dataset.data.reduce(function (a, b) { return a + b; }, 0);
                                 var pct = total > 0 ? ((c.parsed / total) * 100).toFixed(1) : 0;
                                 return ' R$ ' + c.parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' (' + pct + '%)';
                             }
@@ -1103,15 +1106,15 @@ function renderCharts() {
 
     // ── 5 & 6. FLUXO DE CAIXA REAL — últimos 7 dias ─────────
     var last7cf = getLastNDaysISO(7);
-    var despesasPorDia = last7cf.map(function(day) {
+    var despesasPorDia = last7cf.map(function (day) {
         return expenses
-            .filter(function(e) { return e && e.expense_date === day && !(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha'); })
-            .reduce(function(a, e) { return a + Number(e.expense_value || 0); }, 0);
+            .filter(function (e) { return e && e.expense_date === day && !(e.expense_value == 0 && e.expense_desc === 'Inicialização da Planilha'); })
+            .reduce(function (a, e) { return a + Number(e.expense_value || 0); }, 0);
     });
-    var receitasPorDia = last7cf.map(function(day) {
+    var receitasPorDia = last7cf.map(function (day) {
         return loads
-            .filter(function(l) { return l && l.data === day; })
-            .reduce(function(a, l) { return a + (Number(l.peso || 0) / 1000) * 500; }, 0);
+            .filter(function (l) { return l && l.data === day; })
+            .reduce(function (a, l) { return a + (Number(l.liquido || l.peso || 0) / 1000) * 500; }, 0);
     });
 
     if (ctxCash) {
@@ -1199,49 +1202,62 @@ window.generateReport = async (type, format = 'pdf') => {
 
     const farmName = currentUser?.user_metadata?.farm_name || "Fazenda";
     const now = new Date();
-    const generatedAt = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}`;
+    const generatedAt = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 
     let reportConfig = {};
 
     // ─── EXPEDIÇÃO ───
     if (type === 'loads') {
-        const filtered = filterByDateRange(loads, 'data', start, end);
-        const totalPeso = filtered.reduce((a, l) => a + Number(l.peso || 0), 0);
-        const totalMetragem = filtered.reduce((a, l) => a + Number(l.metragem || 0), 0);
+        const filtered = filterByDateRange(loads, 'data', start, end)
+            .sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
+        const num = (v) => Number(v || 0);
+        const fmtKg = (v) => `${num(v).toLocaleString('pt-BR')} kg`;
+        const fmtM3 = (v) => `${num(v).toFixed(1)} m³`;
+        const totalTara = filtered.reduce((a, l) => a + num(l.tara), 0);
+        const totalLiquido = filtered.reduce((a, l) => a + num(l.liquido), 0);
+        const totalBruto = filtered.reduce((a, l) => a + num(l.bruto), 0);
+        const totalMetragem = filtered.reduce((a, l) => a + num(l.metragem), 0);
+        const produtosUnicos = [...new Set(filtered.map(l => l.produto || l.identificador).filter(Boolean))];
+        const mediaLiquido = filtered.length ? totalLiquido / filtered.length : 0;
 
         reportConfig = {
             title: "RELATÓRIO DE EXPEDIÇÃO E LOGÍSTICA",
-            subtitle: "Controle de Saídas e Romaneios",
+            subtitle: "Controle de Saídas, Romaneios e Pesagem",
             summaryItems: [
-                { label: "Total de Cargas", value: filtered.length },
-                { label: "Peso Total", value: `${totalPeso.toLocaleString('pt-BR')} kg` },
-                { label: "Metragem Total", value: `${totalMetragem.toFixed(1)} m³` },
-                { label: "Destinos Únicos", value: [...new Set(filtered.map(l => l.destino))].length }
+                { label: "Romaneios Emitidos", value: filtered.length },
+                { label: "Peso Bruto Total", value: fmtKg(totalBruto) },
+                { label: "Peso Líquido Total", value: fmtKg(totalLiquido) },
+                { label: "Tara Total", value: fmtKg(totalTara) },
+                { label: "Metragem Total", value: fmtM3(totalMetragem) },
+                { label: "Peso Líquido Médio", value: fmtKg(mediaLiquido) },
+                { label: "Produtos Distintos", value: produtosUnicos.length },
+                { label: "Período Analisado", value: `${formatDateBR(start)} a ${formatDateBR(end)}` }
             ],
-            headers: ["Nº ID", "Data", "Hora", "Veículo / Placa", "Motorista", "Tipo de Carvão", "Metragem (m³)", "Peso (kg)", "Destino", "Descarregamento"],
+            headers: ["Data da Saída", "Produto", "Placa", "Motorista", "Transportador", "Tara (kg)", "Líquido (kg)", "Bruto (kg)", "Metragem (m³)", "Observação"],
+            numericColumns: [5, 6, 7, 8],
             rows: filtered.map(l => [
-                l.identificador || '-',
                 formatDateBR(l.data),
-                l.hora || '-',
+                l.produto || l.identificador || '-',
                 l.placa || '-',
                 l.motorista || '-',
-                l.tipo_carvao || 'Eucalipto',
-                l.metragem || '0',
-                Number(l.peso || 0).toLocaleString('pt-BR'),
-                l.destino || '-',
-                l.data_descarregamento ? formatDateBR(l.data_descarregamento) : '-'
+                l.transportador || '-',
+                num(l.tara).toLocaleString('pt-BR'),
+                num(l.liquido).toLocaleString('pt-BR'),
+                num(l.bruto).toLocaleString('pt-BR'),
+                num(l.metragem).toFixed(1),
+                l.observacao || '-'
             ]),
-            footer: `Peso Total Expedido: ${totalPeso.toLocaleString('pt-BR')} kg | Metragem Total: ${totalMetragem.toFixed(1)} m³`,
+            footer: `Bruto Total: ${fmtKg(totalBruto)}  |  Líquido Total: ${fmtKg(totalLiquido)}  |  Tara Total: ${fmtKg(totalTara)}  |  Metragem Total: ${fmtM3(totalMetragem)}`,
             totalRow: [
                 "TOTAL",
                 "",
                 "",
                 "",
                 "",
-                "",
+                totalTara.toLocaleString('pt-BR'),
+                totalLiquido.toLocaleString('pt-BR'),
+                totalBruto.toLocaleString('pt-BR'),
                 totalMetragem.toFixed(1),
-                totalPeso.toLocaleString('pt-BR'),
-                "",
                 ""
             ]
         };
@@ -1314,12 +1330,12 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Alertas Ativos", value: alertas.length },
                 { label: "Manutenções no Período", value: filteredMaint.length },
                 { label: "Pendências", value: pendentes },
-                { label: "Custo de Manutenção", value: `R$ ${custoManutencao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
+                { label: "Custo de Manutenção", value: `R$ ${custoManutencao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` }
             ],
             headers: ["Data", "Forno", "Ocorrência / Serviço", "Status", "Custo (R$)"],
-            rows: filteredMaint.map(m => [formatDateBR(m.data), m.forno || '-', m.problema || '-', m.resolved ? 'Resolvido' : 'Pendente', `R$ ${Number(m.cost || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`]),
+            rows: filteredMaint.map(m => [formatDateBR(m.data), m.forno || '-', m.problema || '-', m.resolved ? 'Resolvido' : 'Pendente', `R$ ${Number(m.cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]),
             footer: `Gestão operacional: ${alertas.length} alertas ativos | ${pendentes} pendências | ${resolvidos} serviços concluídos`,
-            totalRow: ["TOTAL", "", "", `${resolvidos} resolvidos / ${pendentes} pendentes`, `R$ ${custoManutencao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`]
+            totalRow: ["TOTAL", "", "", `${resolvidos} resolvidos / ${pendentes} pendentes`, `R$ ${custoManutencao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]
         };
     }
 
@@ -1381,7 +1397,7 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Total de Ocorrências", value: filtered.length },
                 { label: "Pendentes", value: pendentes },
                 { label: "Resolvidos", value: resolvidos },
-                { label: "Custo Total", value: `R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
+                { label: "Custo Total", value: `R$ ${custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` }
             ],
             headers: ["Data", "Forno", "Problema", "Custo (R$)", "Status"],
             rows: filtered.map(m => [
@@ -1391,12 +1407,12 @@ window.generateReport = async (type, format = 'pdf') => {
                 `R$ ${Number(m.cost || 0).toFixed(2)}`,
                 m.resolved ? '✓ Resolvido' : '⚠ Pendente'
             ]),
-            footer: `Custo Total de Manutenção: R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            footer: `Custo Total de Manutenção: R$ ${custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             totalRow: [
                 "TOTAL",
                 "",
                 "",
-                `R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+                `R$ ${custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 ""
             ]
         };
@@ -1446,9 +1462,9 @@ window.generateReport = async (type, format = 'pdf') => {
             subtitle: reportSubtitle,
             summaryItems: [
                 { label: "Total de Lançamentos", value: filtered.length },
-                { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` },
-                { label: "Total Quitado", value: `R$ ${totalQuitados.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` },
-                { label: "Total Pendente", value: `R$ ${totalPendentes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` }
+                { label: "Custo Total", value: `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+                { label: "Total Quitado", value: `R$ ${totalQuitados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+                { label: "Total Pendente", value: `R$ ${totalPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` }
             ],
             headers: ["Data", "Descrição", "Pagamento", "Status", "Qtd", "Valor (R$)"],
             rows: filtered.map(e => [
@@ -1457,18 +1473,18 @@ window.generateReport = async (type, format = 'pdf') => {
                 e.payment_method === 'Cartão' && e.installments && Number(e.installments) > 1 ? `${e.payment_method} (${e.installments}x)` : (e.payment_method || '-'),
                 e.expense_status || 'Quitado',
                 Number(e.expense_quantity || 1).toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
-                `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                `R$ ${Number(e.expense_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             ]),
-            footer: `Total: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})} | Quitados: R$ ${totalQuitados.toLocaleString('pt-BR', {minimumFractionDigits: 2})} | Pendentes: R$ ${totalPendentes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            footer: `Total: R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | Quitados: R$ ${totalQuitados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | Pendentes: R$ ${totalPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             totalRows: [
                 [
-                    "TOTAL GERAL", "", "", "", totalQtd.toLocaleString('pt-BR', { maximumFractionDigits: 2 }), `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                    "TOTAL GERAL", "", "", "", totalQtd.toLocaleString('pt-BR', { maximumFractionDigits: 2 }), `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
                 ],
                 [
-                    "SUBTOTAL QUITADOS", "", "", "", "", `R$ ${totalQuitados.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                    "SUBTOTAL QUITADOS", "", "", "", "", `R$ ${totalQuitados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
                 ],
                 [
-                    "SUBTOTAL PENDENTES", "", "", "", "", `R$ ${totalPendentes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                    "SUBTOTAL PENDENTES", "", "", "", "", `R$ ${totalPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
                 ]
             ]
         };
@@ -1485,7 +1501,7 @@ window.generateReport = async (type, format = 'pdf') => {
             subtitle: "Nuvem Fiscal e Controle de Recebimentos",
             summaryItems: [
                 { label: "Total de Documentos", value: filtered.length },
-                { label: "Valor Total", value: `R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` },
+                { label: "Valor Total", value: `R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
                 { label: "Clientes / Fornecedores", value: [...new Set(filtered.map(d => d.client))].length },
                 { label: "Documentos em Aberto", value: filtered.filter(d => d.status === 'aberto').length }
             ],
@@ -1496,17 +1512,17 @@ window.generateReport = async (type, format = 'pdf') => {
                 d.client || '-',
                 d.doc_number || '-',
                 d.description || '-',
-                `R$ ${Number(d.value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+                `R$ ${Number(d.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 statusLabels[d.status] || 'Em Aberto'
             ]),
-            footer: `Valor Total no Período: R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            footer: `Valor Total no Período: R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             totalRow: [
                 "TOTAL",
                 "",
                 "",
                 "",
                 "",
-                `R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+                `R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 ""
             ]
         };
@@ -1530,7 +1546,7 @@ window.generateReport = async (type, format = 'pdf') => {
     //  EXPORTAÇÃO XLS (SpreadsheetML com estilo)
     // ════════════════════════════════════
     if (format === 'excel') {
-        const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
         // Estilos: 0=normal, 1=cabeçalho (azul/branco/negrito), 2=zebra clara, 3=total (negrito, bordas e fundo cinza claro)
         const styles = `
@@ -1550,7 +1566,7 @@ window.generateReport = async (type, format = 'pdf') => {
                     <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FFFFFF"/>
                 </Borders>
                 <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
-                <Interior ss:Color="#1E3A5F" ss:Pattern="Solid"/>
+                <Interior ss:Color="#E6002E" ss:Pattern="Solid"/>
             </Style>
             <Style ss:ID="s2">
                 <Alignment ss:Vertical="Center" ss:WrapText="0"/>
@@ -1570,7 +1586,24 @@ window.generateReport = async (type, format = 'pdf') => {
                     <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
                 </Borders>
                 <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>
-                <Interior ss:Color="#EAEAEA" ss:Pattern="Solid"/>
+                <Interior ss:Color="#F3F4F6" ss:Pattern="Solid"/>
+            </Style>
+            <Style ss:ID="s4">
+                <Alignment ss:Vertical="Center" ss:Horizontal="Right" ss:WrapText="0"/>
+                <Borders>
+                    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
+                    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
+                </Borders>
+                <Font ss:FontName="Calibri" ss:Size="11"/>
+            </Style>
+            <Style ss:ID="s5">
+                <Alignment ss:Vertical="Center" ss:Horizontal="Right" ss:WrapText="0"/>
+                <Borders>
+                    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
+                    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
+                </Borders>
+                <Font ss:FontName="Calibri" ss:Size="11"/>
+                <Interior ss:Color="#EEF3F8" ss:Pattern="Solid"/>
             </Style>
         </Styles>`;
 
@@ -1579,11 +1612,16 @@ window.generateReport = async (type, format = 'pdf') => {
             ${reportConfig.headers.map(h => `<Cell ss:StyleID="s1"><Data ss:Type="String">${esc(h)}</Data></Cell>`).join('')}
         </Row>`;
 
-        // Linhas de dados (alternadas)
+        // Linhas de dados (alternadas) com números alinhados à direita
+        const numericCols = reportConfig.numericColumns || [];
         const dataRows = reportConfig.rows.map((row, i) => {
-            const style = i % 2 === 1 ? 's2' : 's0';
+            const zebra = i % 2 === 1;
             return `<Row ss:Height="18">
-                ${row.map(cell => `<Cell ss:StyleID="${style}"><Data ss:Type="String">${esc(cell)}</Data></Cell>`).join('')}
+                ${row.map((cell, c) => {
+                    const isNum = numericCols.includes(c);
+                    const style = isNum ? (zebra ? 's5' : 's4') : (zebra ? 's2' : 's0');
+                    return `<Cell ss:StyleID="${style}"><Data ss:Type="String">${esc(cell)}</Data></Cell>`;
+                }).join('')}
             </Row>`;
         }).join('');
 
@@ -1599,18 +1637,34 @@ window.generateReport = async (type, format = 'pdf') => {
             </Row>`;
         }
 
+        // Larguras de coluna por tipo de conteúdo (números mais estreitos, textos mais largos)
+        const columnWidths = reportConfig.headers.map((h, i) => {
+            const header = String(h).toLowerCase();
+            if (reportConfig.numericColumns && reportConfig.numericColumns.includes(i)) return 96;
+            if (/observ|transport|motorist|produto|descri|destino|respons/.test(header)) return 170;
+            if (/data|placa|tipo|hora/.test(header)) return 110;
+            return 132;
+        });
+
         const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
           xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
     ${styles}
-    <Worksheet ss:Name="${esc(reportConfig.title.slice(0,31))}">
+    <Worksheet ss:Name="${esc(reportConfig.title.slice(0, 31))}">
         <Table>
-            ${reportConfig.headers.map(() => '<Column ss:Width="120"/>').join('')}
+            ${columnWidths.map(w => `<Column ss:Width="${w}"/>`).join('')}
             ${headerRow}
             ${dataRows}
             ${totalRowXml}
         </Table>
+        <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+            <FreezePanes/>
+            <FrozenNoSplit/>
+            <SplitHorizontal>1</SplitHorizontal>
+            <TopRowBottomPane>1</TopRowBottomPane>
+            <ActivePane>2</ActivePane>
+        </WorksheetOptions>
     </Worksheet>
 </Workbook>`;
 
@@ -1674,33 +1728,43 @@ window.generateReport = async (type, format = 'pdf') => {
     doc.text(reportConfig.subtitle, 14, yPos);
     yPos += 10;
 
-    // ── CARDS DE RESUMO ──
-    const cardWidth = (pageWidth - 28 - 18) / 4;
+    // ── CARDS DE RESUMO (grade adaptativa de 4 colunas) ──
+    const gridCols = 4;
+    const gridGap = 6;
+    const cardWidth = (pageWidth - 28 - gridGap * (gridCols - 1)) / gridCols;
+    const cardHeight = 20;
+    const cardRowGap = 6;
     reportConfig.summaryItems.forEach((item, i) => {
-        const x = 14 + i * (cardWidth + 6);
+        const col = i % gridCols;
+        const row = Math.floor(i / gridCols);
+        const x = 14 + col * (cardWidth + gridGap);
+        const y = yPos + row * (cardHeight + cardRowGap);
 
         // Card background
         doc.setFillColor(245, 245, 248);
-        doc.roundedRect(x, yPos, cardWidth, 20, 3, 3, 'F');
+        doc.setDrawColor(230, 232, 236);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(x, y, cardWidth, cardHeight, 2.5, 2.5, 'FD');
 
         // Barra lateral vermelha
         doc.setFillColor(230, 0, 46);
-        doc.rect(x, yPos, 2, 20, 'F');
+        doc.rect(x, y, 2, cardHeight, 'F');
 
         // Label
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
         doc.setTextColor(120, 120, 120);
-        doc.text(item.label.toUpperCase(), x + 8, yPos + 7);
+        doc.text(item.label.toUpperCase(), x + 8, y + 7);
 
         // Value
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
+        doc.setFontSize(10.5);
         doc.setTextColor(30, 30, 30);
-        doc.text(String(item.value), x + 8, yPos + 15);
+        doc.text(String(item.value), x + 8, y + 15);
     });
 
-    yPos += 30;
+    const cardRows = Math.ceil(reportConfig.summaryItems.length / gridCols);
+    yPos += cardRows * cardHeight + (cardRows - 1) * cardRowGap + 10;
 
     // ── LINHA SEPARADORA ──
     doc.setDrawColor(230, 0, 46);
@@ -1717,27 +1781,35 @@ window.generateReport = async (type, format = 'pdf') => {
         styles: {
             fontSize: 8,
             cellPadding: 4,
-            lineColor: [220, 220, 220],
-            lineWidth: 0.3,
-            font: 'helvetica'
+            lineColor: [222, 226, 230],
+            lineWidth: 0.2,
+            font: 'helvetica',
+            overflow: 'linebreak',
+            valign: 'middle'
         },
         headStyles: {
-            fillColor: [30, 30, 35],
+            fillColor: [230, 0, 46],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
-            fontSize: 7,
+            fontSize: 7.5,
             halign: 'center',
-            cellPadding: 5
+            cellPadding: 5,
+            valign: 'middle'
         },
         alternateRowStyles: {
-            fillColor: [248, 248, 252]
+            fillColor: [250, 250, 252]
         },
-        columnStyles: reportConfig.headers.reduce((acc, _, i) => {
-            acc[i] = { halign: i === 0 ? 'center' : 'left' };
+        columnStyles: reportConfig.headers.reduce((acc, header, i) => {
+            const isNum = (reportConfig.numericColumns || []).includes(i);
+            const isShort = /data|placa|hora|tipo|id/i.test(String(header));
+            acc[i] = {
+                halign: isNum ? 'right' : 'left',
+                cellWidth: isNum ? 24 : (isShort ? 30 : 'auto')
+            };
             return acc;
         }, {}),
         margin: { left: 14, right: 14 },
-        didDrawPage: function(data) {
+        didDrawPage: function (data) {
             // Rodapé em cada página
             doc.setFillColor(245, 245, 248);
             doc.rect(0, pageHeight - 18, pageWidth, 18, 'F');
@@ -2343,16 +2415,16 @@ function initPinLogic() {
     // Auto-focus next input
     inputs.forEach((input, idx) => {
         input.addEventListener('input', (e) => {
-            if(e.target.value.length > 1) {
-                e.target.value = e.target.value.slice(0,1);
+            if (e.target.value.length > 1) {
+                e.target.value = e.target.value.slice(0, 1);
             }
-            if(e.target.value.length === 1 && idx < inputs.length - 1) {
+            if (e.target.value.length === 1 && idx < inputs.length - 1) {
                 inputs[idx + 1].focus();
             }
             checkPinSubmit();
         });
         input.addEventListener('keydown', (e) => {
-            if(e.key === 'Backspace' && e.target.value === '' && idx > 0) {
+            if (e.key === 'Backspace' && e.target.value === '' && idx > 0) {
                 inputs[idx - 1].focus();
                 inputs[idx - 1].value = '';
             }
@@ -2361,20 +2433,20 @@ function initPinLogic() {
 
     async function checkPinSubmit() {
         const val = Array.from(inputs).map(i => i.value).join('');
-        if(val.length === 6) {
+        if (val.length === 6) {
             const role = select.value;
-            if(!role) {
+            if (!role) {
                 showPinError('Selecione um perfil primeiro!');
                 return;
             }
             const hash = await sha256(val);
-            if(hash === PIN_HASHES[role]) {
+            if (hash === PIN_HASHES[role]) {
                 // Success - Unlock
                 document.getElementById('modal-pin-unlock').style.display = 'none';
                 document.querySelector('.app-container').classList.remove('blur-background');
 
                 // Override currentUser role for this session
-                if(!currentUser.user_metadata) currentUser.user_metadata = {};
+                if (!currentUser.user_metadata) currentUser.user_metadata = {};
                 currentUser.user_metadata.role = role;
 
                 // Apply permissions
@@ -2844,7 +2916,7 @@ function renderSpreadsheetGrid() {
                 cellClass = "stage-m";
             }
 
-                bodyHtml += `
+            bodyHtml += `
                     <td class="spreadsheet-cell-clickable ${cellClass}"
                     title="${obs ? 'Obs: ' + obs : ''}"
                     onclick="openSpreadsheetPopover('${k.praca}', '${dateStr}', this, '${stageCode}', '${obs.replace(/'/g, "\\'")}')">
@@ -2988,7 +3060,7 @@ function applyStageQuick(stageCode) {
 
 function togglePopoverObs() {
     const wrap = document.getElementById('popover-obs-wrap');
- const saveBtn = document.getElementById('btn-save-obs');
+    const saveBtn = document.getElementById('btn-save-obs');
     const toggleBtn = document.getElementById('btn-toggle-obs');
     const showing = wrap.style.display === 'none';
     wrap.style.display = showing ? 'block' : 'none';
@@ -3365,12 +3437,12 @@ function calculateNotifications() {
                 ? k.threshold_resfriamento
                 : te;
         } else if (currentStage === 'X') {
-                threshold = (k.threshold_carga !== null && k.threshold_carga !== undefined && k.threshold_carga > 0)
-                    ? k.threshold_carga
-                    : tx;
-            }
+            threshold = (k.threshold_carga !== null && k.threshold_carga !== undefined && k.threshold_carga > 0)
+                ? k.threshold_carga
+                : tx;
+        }
 
-            if (consecutiveDays > threshold) {
+        if (consecutiveDays > threshold) {
             const delayDays = consecutiveDays - threshold;
 
             // Analisar se houve recorrência de atrasos (ciclos passados)

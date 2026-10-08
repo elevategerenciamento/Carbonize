@@ -273,7 +273,7 @@
                 <div class="glass">
                     <div class="table-wrapper">
                         <table class="modern-table">
-                            <thead><tr><th>ID</th><th>EMBARQUE</th><th>SIDERÚRGICA (DESTINO)</th><th>DESCARREGAMENTO</th><th>METRAGEM (m³)</th><th>PESO (KG)</th><th>MOTORISTA</th><th>PLACA</th></tr></thead>
+                            <thead><tr><th>PRODUTO</th><th>PLACA</th><th>MOTORISTA</th><th>TRANSPORTADOR</th><th>OBSERVAÇÃO</th><th>DATA DA SAÍDA</th><th>METRAGEM (m³)</th><th>TARA (KG)</th><th>LÍQUIDO (KG)</th><th>BRUTO (KG)</th></tr></thead>
                             <tbody id="loads-table-body"></tbody>
                         </table>
                     </div>
@@ -915,35 +915,27 @@
         <div class="modal-glass" style="max-width: 600px;">
             <div class="modal-header"><h3>Novo Romaneio</h3><button class="close-modal-btn" onclick="hideModal('load')">✕</button></div>
             <form id="form-load" style="margin-top:24px;">
+                <div class="form-field"><label>Produto</label><input type="text" name="produto" id="load-id-auto" placeholder="Ex: Carvão Eucalipto" required></div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                    <div class="form-field"><label>Nº ID</label><input type="text" name="identificador" id="load-id-auto" required></div>
-                    <div class="form-field"><label>Veículo / Placa</label><input type="text" name="placa" required></div>
+                    <div class="form-field"><label>Placa do Veículo</label><input type="text" name="placa" placeholder="Ex: ABC-1D23" required></div>
+                    <div class="form-field"><label>Motorista</label><input type="text" name="motorista" required></div>
                 </div>
+                <div class="form-field"><label>Transportador</label><input type="text" name="transportador" placeholder="Ex: Transportadora X" required></div>
+                <div class="form-field"><label>Observação</label><input type="text" name="observacao" placeholder="Observações adicionais"></div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="form-field">
-                        <label>Data de Embarque</label>
+                        <label>Data da Saída</label>
                         <div class="date-input-wrapper">
                             <i data-lucide="calendar"></i>
                             <input type="text" name="data_carga" id="load-date-manual" class="date-picker" placeholder="Selecionar data" required>
                         </div>
                     </div>
-                    <div class="form-field"><label>Hora de Embarque</label><input type="time" name="hora_carga" id="load-time-manual" required></div>
-                </div>
-                <div class="form-field"><label>Motorista</label><input type="text" name="motorista" required></div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                    <div class="form-field"><label>Tipo de Carvão</label><select name="tipo_carvao"><option value="Eucalipto">Eucalipto</option><option value="Cerrado">Cerrado</option><option value="Reflorestamento">Reflorestamento</option><option value="Misto">Misto</option></select></div>
                     <div class="form-field"><label>Metragem (m³)</label><input type="number" step="0.1" name="metragem" placeholder="Ex: 45"></div>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                    <div class="form-field"><label>Peso (kg)</label><input type="number" name="peso" required></div>
-                    <div class="form-field"><label>Siderúrgica (Destino)</label><input type="text" name="destino" placeholder="Ex: Siderúrgica X" required></div>
-                </div>
-                <div class="form-field">
-                    <label>Data do Descarregamento</label>
-                    <div class="date-input-wrapper">
-                        <i data-lucide="calendar"></i>
-                        <input type="text" name="data_descarregamento" class="date-picker" placeholder="Selecionar data do descarregamento">
-                    </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+                    <div class="form-field"><label>Tara (kg)</label><input type="number" name="tara" placeholder="Ex: 12000"></div>
+                    <div class="form-field"><label>Líquido (kg)</label><input type="number" name="liquido" placeholder="Ex: 18000"></div>
+                    <div class="form-field"><label>Bruto (kg)</label><input type="number" name="bruto" placeholder="Ex: 30000"></div>
                 </div>
                 <button type="submit" class="btn-save">Emitir Romaneio</button>
             </form>
