@@ -641,7 +641,50 @@ function editExpense(id) {
 }
 
 // 8. FORMS & CHARTS
+
+// Formata um número digitado com separador de milhar (padrão pt-BR): 1000 -> 1.000
+function formatThousandValue(raw) {
+    if (raw === null || raw === undefined) return '';
+    let s = String(raw).replace(/\./g, '').replace(/,/g, '.').replace(/[^\d.]/g, '');
+    const parts = s.split('.');
+    let intPart = parts.shift() || '';
+    const decPart = parts.join('').slice(0, 3);
+    intPart = intPart.replace(/^0+(?=\d)/, '');
+    const intFormatted = intPart ? intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : (decPart ? '0' : '');
+    return decPart ? `${intFormatted},${decPart}` : intFormatted;
+}
+
+// Converte o valor formatado (1.000,5) de volta para número (1000.5)
+function parseThousandValue(formatted) {
+    if (formatted === null || formatted === undefined || formatted === '') return '';
+    const clean = String(formatted).replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '');
+    return clean;
+}
+
+// Aplica a máscara de milhar a um input enquanto o usuário digita
+function attachThousandMask(input) {
+    if (!input) return;
+    const apply = () => {
+        const start = input.selectionStart;
+        const before = input.value.length;
+        input.value = formatThousandValue(input.value);
+        const after = input.value.length;
+        if (input.setSelectionRange) {
+            const pos = Math.max(0, (start || 0) + (after - before));
+            input.setSelectionRange(pos, pos);
+        }
+    };
+    input.addEventListener('input', apply);
+    input.addEventListener('blur', apply);
+}
+
+function initThousandInputs() {
+    document.querySelectorAll('.thousand-input').forEach(attachThousandMask);
+}
+
 function setupEventListeners() {
+    initThousandInputs();
+
     const loginForm = document.getElementById('form-login');
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
 
@@ -763,10 +806,10 @@ async function processForm(id, fd) {
         transportador: fd.get('transportador'),
         observacao: fd.get('observacao'),
         data: fd.get('data_carga'),
-        metragem: fd.get('metragem'),
-        tara: fd.get('tara'),
-        liquido: fd.get('liquido'),
-        bruto: fd.get('bruto')
+        metragem: parseThousandValue(fd.get('metragem')),
+        tara: parseThousandValue(fd.get('tara')),
+        liquido: parseThousandValue(fd.get('liquido')),
+        bruto: parseThousandValue(fd.get('bruto'))
     });
     if (id === 'expense') {
         const expenseId = fd.get('expense_id');
