@@ -1314,8 +1314,27 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Produtos Distintos", value: produtosUnicos.length },
                 { label: "Período Analisado", value: `${formatDateBR(start)} a ${formatDateBR(end)}` }
             ],
-            headers: ["Saída da Carvoaria", "Entrada no Destino", "Produto", "Placa", "Motorista", "Transportador", "Empreiteiro", "Tara (kg)", "Líquido (kg)", "Bruto (kg)", "Metragem (m³)", "Observação"],
+            headers: ["Saída da\nCarvoaria", "Entrada no\nDestino", "Produto", "Placa", "Motorista", "Transportador", "Empreiteiro", "Tara\n(kg)", "Líquido\n(kg)", "Bruto\n(kg)", "Metragem\n(m³)", "Obs."],
             numericColumns: [7, 8, 9, 10],
+            /* Larguras das colunas (mm) — somam a largura útil da página
+               (A4 retrato, margens 14+14). Colunas de texto curto ficam
+               estreitas; as numéricas, o suficiente para 5-6 dígitos;
+               os cabeçalhos longos ganham espaço e quebram em 2 linhas
+               por \n em vez de partir as palavras ao meio. */
+            columnWidths: {
+                0: 25,  /* Saída da Carvoaria */
+                1: 25,  /* Entrada no Destino */
+                2: 21,  /* Produto */
+                3: 21,  /* Placa */
+                4: 27,  /* Motorista */
+                5: 27,  /* Transportador */
+                6: 24,  /* Empreiteiro */
+                7: 19,  /* Tara */
+                8: 20,  /* Líquido */
+                9: 20,  /* Bruto */
+                10: 24, /* Metragem */
+                11: 16  /* Obs. */
+            },
             rows: filtered.map(l => [
                 /* "Deixar em branco no relatório": quando marcado, a data sai
                    VAZIA no PDF para ser preenchida à mão. */
@@ -1881,18 +1900,25 @@ window.generateReport = async (type, format = 'pdf') => {
             fontStyle: 'bold',
             fontSize: 7.5,
             halign: 'center',
-            cellPadding: 5,
-            valign: 'middle'
+            valign: 'middle',
+            cellPadding: { top: 5, bottom: 5, left: 2, right: 2 },
+            lineHeight: 1.15,
+            overflow: 'linebreak',
+            minCellHeight: 14
         },
         alternateRowStyles: {
             fillColor: [250, 250, 252]
         },
         columnStyles: reportConfig.headers.reduce((acc, header, i) => {
             const isNum = (reportConfig.numericColumns || []).includes(i);
-            const isShort = /data|placa|hora|tipo|id/i.test(String(header));
+            /* Largura fixa quando definida no reportConfig (colunas de
+               Expedição); senão, mantém o comportamento antigo. */
+            const larguraFixa = reportConfig.columnWidths && reportConfig.columnWidths[i];
             acc[i] = {
                 halign: isNum ? 'right' : 'left',
-                cellWidth: isNum ? 24 : (isShort ? 30 : 'auto')
+                valign: 'middle',
+                cellWidth: larguraFixa ? larguraFixa : (isNum ? 24 : 'auto'),
+                overflow: 'linebreak'
             };
             return acc;
         }, {}),
