@@ -822,23 +822,33 @@ async function processForm(id, fd) {
         await saveItem('production_history', item);
         if (item.obs) await saveItem('maintenance', { forno: item.praca, problema: item.obs, data: item.data, resolved: false });
     }
-    if (id === 'load') await saveItem('loads', {
-        produto: fd.get('produto'),
-        identificador: fd.get('produto'),
-        placa: fd.get('placa'),
-        motorista: fd.get('motorista'),
-        transportador: fd.get('transportador'),
-        empreiteiro: fd.get('empreiteiro') || null,
-        observacao: fd.get('observacao'),
-        data: fd.get('data_carga'),
-        data_saida_carvoaria: fd.get('data_saida_carvoaria') || null,
-        saida_em_branco: fd.get('saida_em_branco') === 'on',
-        entrada_em_branco: fd.get('entrada_em_branco') === 'on',
-        metragem: parseThousandValue(fd.get('metragem')),
-        tara: parseThousandValue(fd.get('tara')),
-        liquido: parseThousandValue(fd.get('liquido')),
-        bruto: parseThousandValue(fd.get('bruto'))
-    });
+    if (id === 'load') {
+        /* As duas datas passaram a ser opcionais (podem sair em branco no
+           relatório). O banco exige uma `data` para o registro poder ser
+           filtrado por período: usamos a Entrada no Destino; se vazia, a
+           Saída da Carvoaria; e, se as duas faltarem, a data de hoje —
+           assim a carga NUNCA desaparece do relatório. */
+        const dataEntrada = fd.get('data_carga');
+        const dataSaida = fd.get('data_saida_carvoaria');
+        const dataReferencia = dataEntrada || dataSaida || new Date().toISOString().slice(0, 10);
+        await saveItem('loads', {
+            produto: fd.get('produto'),
+            identificador: fd.get('produto'),
+            placa: fd.get('placa'),
+            motorista: fd.get('motorista'),
+            transportador: fd.get('transportador'),
+            empreiteiro: fd.get('empreiteiro') || null,
+            observacao: fd.get('observacao'),
+            data: dataReferencia,
+            data_saida_carvoaria: dataSaida || null,
+            saida_em_branco: fd.get('saida_em_branco') === 'on',
+            entrada_em_branco: fd.get('entrada_em_branco') === 'on',
+            metragem: parseThousandValue(fd.get('metragem')),
+            tara: parseThousandValue(fd.get('tara')),
+            liquido: parseThousandValue(fd.get('liquido')),
+            bruto: parseThousandValue(fd.get('bruto'))
+        });
+    }
     if (id === 'expense') {
         const expenseId = fd.get('expense_id');
         const item = {
@@ -1309,13 +1319,14 @@ window.generateReport = async (type, format = 'pdf') => {
             rows: filtered.map(l => [
                 /* "Deixar em branco no relatório": quando marcado, a data sai
                    VAZIA no PDF para ser preenchida à mão. */
-                l.saida_em_branco ? '' : (l.data_saida_carvoaria ? formatDateBR(l.data_saida_carvoaria) : '-'),
-                l.entrada_em_branco ? '' : formatDateBR(l.data),
+                l.saida_em_branco ? '' : (l.data_saida_carvoaria ? formatDateBR(l.data_saida_carvoaria) : ''),
+                l.entrada_em_branco ? '' : (l.data ? formatDateBR(l.data) : ''),
                 l.produto || l.identificador || '-',
                 l.placa || '-',
                 l.motorista || '-',
                 l.transportador || '-',
-                l.empreiteiro || '-',
+                /* Empreiteiro em branco: sai vazio para receber o carimbo/assinatura. */
+                l.empreiteiro || '',
                 num(l.tara).toLocaleString('pt-BR'),
                 num(l.liquido).toLocaleString('pt-BR'),
                 num(l.bruto).toLocaleString('pt-BR'),
