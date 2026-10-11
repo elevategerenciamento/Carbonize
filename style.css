@@ -657,23 +657,79 @@ td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
 /* Caixa "deixar em branco no relatório" (logo abaixo da data) */
 .blank-toggle {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 10px;
     font-size: 11px;
+    line-height: 1.35;
     color: var(--text-dim);
-    text-transform: none;
-    letter-spacing: 0;
-    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
     cursor: pointer;
+    user-select: none;
 }
 
+.blank-toggle:hover {
+    color: #fff;
+}
+
+.blank-toggle__txt {
+    display: block;
+    padding-top: 1px;
+}
+
+.blank-toggle__txt small {
+    display: block;
+    margin-top: 2px;
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+}
+
+/* Esconde o checkbox nativo e desenha a caixa + o X por CSS */
 .blank-toggle input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--primary);
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    margin: 0;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
     cursor: pointer;
+    position: relative;
+    transition: 0.2s;
     flex-shrink: 0;
+}
+
+.blank-toggle:hover input[type="checkbox"] {
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.blank-toggle input[type="checkbox"]:checked {
+    border-color: var(--primary);
+    background: rgba(230, 0, 46, 0.15);
+}
+
+/* O "X" dentro da caixa quando selecionada */
+.blank-toggle input[type="checkbox"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: 0.15s;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 12px 12px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff5c78' stroke-width='4' stroke-linecap='round'><line x1='5' y1='5' x2='19' y2='19'/><line x1='19' y1='5' x2='5' y2='19'/></svg>");
+}
+
+.blank-toggle input[type="checkbox"]:checked::after {
+    opacity: 1;
 }
 
 /* Flatpickr Customization */
