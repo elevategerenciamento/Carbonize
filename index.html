@@ -273,7 +273,7 @@
                 <div class="glass">
                     <div class="table-wrapper">
                         <table class="modern-table">
-                            <thead><tr><th>PRODUTO</th><th>PLACA</th><th>MOTORISTA</th><th>TRANSPORTADOR</th><th>OBSERVAÇÃO</th><th>DATA DA SAÍDA</th><th>METRAGEM (m³)</th><th>TARA (KG)</th><th>LÍQUIDO (KG)</th><th>BRUTO (KG)</th></tr></thead>
+                            <thead><tr><th>PRODUTO</th><th>PLACA</th><th>MOTORISTA</th><th>TRANSPORTADOR</th><th>EMPREITEIRO</th><th>OBSERVAÇÃO</th><th>SAÍDA DA CARVOARIA</th><th>ENTRADA NO DESTINO</th><th>METRAGEM (m³)</th><th>TARA (KG)</th><th>LÍQUIDO (KG)</th><th>BRUTO (KG)</th></tr></thead>
                             <tbody id="loads-table-body"></tbody>
                         </table>
                     </div>
@@ -920,18 +920,28 @@
                     <div class="form-field"><label>Placa do Veículo</label><input type="text" name="placa" placeholder="Ex: ABC-1D23" required></div>
                     <div class="form-field"><label>Motorista</label><input type="text" name="motorista" required></div>
                 </div>
-                <div class="form-field"><label>Transportador</label><input type="text" name="transportador" placeholder="Ex: Transportadora X" required></div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-field"><label>Transportador</label><input type="text" name="transportador" placeholder="Ex: Transportadora X" required></div>
+                    <div class="form-field"><label>Empreiteiro</label><input type="text" name="empreiteiro" placeholder="Opcional"></div>
+                </div>
                 <div class="form-field"><label>Observação</label><input type="text" name="observacao" placeholder="Observações adicionais"></div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="form-field">
-                        <label>Data da Saída</label>
+                        <label>Entrada no Destino</label>
                         <div class="date-input-wrapper">
                             <i data-lucide="calendar"></i>
                             <input type="text" name="data_carga" id="load-date-manual" class="date-picker" placeholder="Selecionar data" required>
                         </div>
                     </div>
-                    <div class="form-field"><label>Metragem (m³)</label><input type="text" inputmode="decimal" name="metragem" class="thousand-input" placeholder="Ex: 45"></div>
+                    <div class="form-field">
+                        <label>Saída da Carvoaria</label>
+                        <div class="date-input-wrapper">
+                            <i data-lucide="calendar"></i>
+                            <input type="text" name="data_saida_carvoaria" id="load-data-saida-carvoaria" class="date-picker" placeholder="Opcional">
+                        </div>
+                    </div>
                 </div>
+                <div class="form-field"><label>Metragem (m³)</label><input type="text" inputmode="decimal" name="metragem" class="thousand-input" placeholder="Ex: 45"></div>
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
                     <div class="form-field"><label>Tara (kg)</label><input type="text" inputmode="numeric" name="tara" class="thousand-input" placeholder="Ex: 1.000"></div>
                     <div class="form-field"><label>Líquido (kg)</label><input type="text" inputmode="numeric" name="liquido" class="thousand-input" placeholder="Ex: 18.000"></div>

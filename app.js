@@ -198,46 +198,41 @@ async function saveItem(table, item) {
     if (!currentUser) return;
     const payload = { ...item, user_id: currentUser.id };
 
-    try {
-        const { error } = await supabase.from(table).insert([payload]);
-        if (error) throw error;
-        await loadAllData();
-    } catch (err) {
-        console.warn("Modo Offline: Salvando localmente...", err);
+    const { error } = await supabase.from(table).insert([payload]);
+    if (error) {
+        // Erro do servidor/banco (ex.: coluna inexistente, RLS, tipo inválido).
+        // NÃO finge sucesso: avisa e propaga para a fila offline não perder o dado.
+        console.error(`Erro ao salvar em '${table}':`, error);
         saveOffline(table, payload);
-        showToast("Salvo localmente (Modo Offline)");
-
-        // Atualiza estado local para feedback imediato
         if (table === 'production_history') history.unshift({ ...payload, id: 'temp-' + Date.now() });
         if (table === 'loads') loads.unshift({ ...payload, id: 'temp-' + Date.now() });
         if (table === 'expenses') expenses.unshift({ ...payload, id: 'temp-' + Date.now() });
         if (table === 'maintenance') maintenance.unshift({ ...payload, id: 'temp-' + Date.now() });
         renderAll();
         updateUI();
+        throw new Error(`Não foi possível gravar em '${table}': ${error.message}. O dado ficou pendente e será reenviado automaticamente.`);
     }
+    await loadAllData();
 }
 
 async function saveItems(table, itemsList) {
     if (!currentUser) return;
     const payloads = itemsList.map(item => ({ ...item, user_id: currentUser.id }));
 
-    try {
-        const { error } = await supabase.from(table).insert(payloads);
-        if (error) throw error;
-        await loadAllData();
-    } catch (err) {
-        console.warn("Modo Offline: Salvando localmente...", err);
+    const { error } = await supabase.from(table).insert(payloads);
+    if (error) {
+        console.error(`Erro ao salvar em '${table}':`, error);
         for (const payload of payloads) {
             saveOffline(table, payload);
         }
-        showToast("Salvo localmente (Modo Offline)");
-
         if (table === 'kilns') {
             kilns.push(...payloads.map(p => ({ ...p, id: 'temp-' + Date.now() + Math.random() })));
         }
         renderAll();
         updateUI();
+        throw new Error(`Não foi possível gravar em '${table}': ${error.message}. Os dados ficaram pendentes e serão reenviados automaticamente.`);
     }
+    await loadAllData();
 }
 
 function saveOffline(table, data) {
@@ -251,15 +246,33 @@ async function syncOfflineData() {
     if (queue.length === 0) return;
 
     console.log(`Carbonize: Sincronizando ${queue.length} itens offline...`);
+    const remaining = [];
+
     for (const item of queue) {
-        try {
-            await supabase.from(item.table).insert([item.data]);
-        } catch (err) {
-            console.error("Erro na sincronização:", err);
+        // Ignora operações especiais de exclusão (não são inserts simples).
+        if (item.table === 'production_history_delete') {
+            const { error } = await supabase.from('production_history').delete().eq('id', item.data.id);
+            if (error) remaining.push(item);
+            continue;
+        }
+
+        const { error } = await supabase.from(item.table).insert([item.data]);
+        if (error) {
+            // O insert do Supabase NÃO lança exceção: retorna { error }.
+            // Preserva o item na fila para tentar novamente em vez de perdê-lo.
+            console.error(`Erro ao sincronizar item de '${item.table}':`, error);
+            remaining.push(item);
         }
     }
-    localStorage.removeItem('carbonize_offline_queue');
-    showToast("Dados sincronizados com o servidor!");
+
+    if (remaining.length > 0) {
+        // Só remove o que foi enviado com sucesso; o resto permanece pendente.
+        localStorage.setItem('carbonize_offline_queue', JSON.stringify(remaining));
+        showToast(`${remaining.length} item(ns) pendente(s) de sincronização`);
+    } else {
+        localStorage.removeItem('carbonize_offline_queue');
+        showToast("Dados sincronizados com o servidor!");
+    }
     await loadAllData();
 }
 
@@ -499,7 +512,9 @@ function renderLoads() {
                 <td>${l.placa || '-'}</td>
                 <td>${l.motorista || '-'}</td>
                 <td>${l.transportador || '-'}</td>
+                <td>${l.empreiteiro || '-'}</td>
                 <td>${l.observacao || '-'}</td>
+                <td>${l.data_saida_carvoaria ? formatDateBR(l.data_saida_carvoaria) : '-'}</td>
                 <td>${l.data ? formatDateBR(l.data) : '-'}</td>
                 <td>${l.metragem ? l.metragem + ' m³' : '-'}</td>
                 <td>${l.tara ? Number(l.tara).toLocaleString('pt-BR') : '-'}</td>
@@ -804,8 +819,10 @@ async function processForm(id, fd) {
         placa: fd.get('placa'),
         motorista: fd.get('motorista'),
         transportador: fd.get('transportador'),
+        empreiteiro: fd.get('empreiteiro') || null,
         observacao: fd.get('observacao'),
         data: fd.get('data_carga'),
+        data_saida_carvoaria: fd.get('data_saida_carvoaria') || null,
         metragem: parseThousandValue(fd.get('metragem')),
         tara: parseThousandValue(fd.get('tara')),
         liquido: parseThousandValue(fd.get('liquido')),
@@ -1276,14 +1293,16 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Produtos Distintos", value: produtosUnicos.length },
                 { label: "Período Analisado", value: `${formatDateBR(start)} a ${formatDateBR(end)}` }
             ],
-            headers: ["Data da Saída", "Produto", "Placa", "Motorista", "Transportador", "Tara (kg)", "Líquido (kg)", "Bruto (kg)", "Metragem (m³)", "Observação"],
-            numericColumns: [5, 6, 7, 8],
+            headers: ["Entrada no Destino", "Produto", "Placa", "Motorista", "Transportador", "Empreiteiro", "Saída da Carvoaria", "Tara (kg)", "Líquido (kg)", "Bruto (kg)", "Metragem (m³)", "Observação"],
+            numericColumns: [7, 8, 9, 10],
             rows: filtered.map(l => [
                 formatDateBR(l.data),
                 l.produto || l.identificador || '-',
                 l.placa || '-',
                 l.motorista || '-',
                 l.transportador || '-',
+                l.empreiteiro || '-',
+                l.data_saida_carvoaria ? formatDateBR(l.data_saida_carvoaria) : '-',
                 num(l.tara).toLocaleString('pt-BR'),
                 num(l.liquido).toLocaleString('pt-BR'),
                 num(l.bruto).toLocaleString('pt-BR'),
@@ -1293,6 +1312,8 @@ window.generateReport = async (type, format = 'pdf') => {
             footer: `Bruto Total: ${fmtKg(totalBruto)}  |  Líquido Total: ${fmtKg(totalLiquido)}  |  Tara Total: ${fmtKg(totalTara)}  |  Metragem Total: ${fmtM3(totalMetragem)}`,
             totalRow: [
                 "TOTAL",
+                "",
+                "",
                 "",
                 "",
                 "",
