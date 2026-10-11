@@ -654,6 +654,28 @@ td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); }
     outline: none;
 }
 
+/* Caixa "deixar em branco no relatório" (logo abaixo da data) */
+.blank-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.blank-toggle input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
 /* Flatpickr Customization */
 .flatpickr-calendar {
     background: #1a1a1d !important;

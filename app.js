@@ -352,6 +352,15 @@ function applyReportPermissions(role) {
 
 function showModal(id) {
     document.getElementById(`modal-${id}`).style.display = 'flex';
+    if (id === 'load') {
+        /* Garante que a caixa "deixar em branco" comece sempre desmarcada
+           ao abrir um novo romaneio. */
+        const formLoad = document.getElementById('form-load');
+        if (formLoad) {
+            formLoad.querySelectorAll('[name="saida_em_branco"], [name="entrada_em_branco"]')
+                .forEach(cb => { cb.checked = false; });
+        }
+    }
     if (id === 'settings') {
         document.getElementById('settings-enterprise').value = currentUser.user_metadata.farm_name || "";
         document.getElementById('settings-operator').value = currentUser.user_metadata.operator_name || "";
@@ -823,6 +832,8 @@ async function processForm(id, fd) {
         observacao: fd.get('observacao'),
         data: fd.get('data_carga'),
         data_saida_carvoaria: fd.get('data_saida_carvoaria') || null,
+        saida_em_branco: fd.get('saida_em_branco') === 'on',
+        entrada_em_branco: fd.get('entrada_em_branco') === 'on',
         metragem: parseThousandValue(fd.get('metragem')),
         tara: parseThousandValue(fd.get('tara')),
         liquido: parseThousandValue(fd.get('liquido')),
@@ -1293,16 +1304,18 @@ window.generateReport = async (type, format = 'pdf') => {
                 { label: "Produtos Distintos", value: produtosUnicos.length },
                 { label: "Período Analisado", value: `${formatDateBR(start)} a ${formatDateBR(end)}` }
             ],
-            headers: ["Entrada no Destino", "Produto", "Placa", "Motorista", "Transportador", "Empreiteiro", "Saída da Carvoaria", "Tara (kg)", "Líquido (kg)", "Bruto (kg)", "Metragem (m³)", "Observação"],
+            headers: ["Saída da Carvoaria", "Entrada no Destino", "Produto", "Placa", "Motorista", "Transportador", "Empreiteiro", "Tara (kg)", "Líquido (kg)", "Bruto (kg)", "Metragem (m³)", "Observação"],
             numericColumns: [7, 8, 9, 10],
             rows: filtered.map(l => [
-                formatDateBR(l.data),
+                /* "Deixar em branco no relatório": quando marcado, a data sai
+                   VAZIA no PDF para ser preenchida à mão. */
+                l.saida_em_branco ? '' : (l.data_saida_carvoaria ? formatDateBR(l.data_saida_carvoaria) : '-'),
+                l.entrada_em_branco ? '' : formatDateBR(l.data),
                 l.produto || l.identificador || '-',
                 l.placa || '-',
                 l.motorista || '-',
                 l.transportador || '-',
                 l.empreiteiro || '-',
-                l.data_saida_carvoaria ? formatDateBR(l.data_saida_carvoaria) : '-',
                 num(l.tara).toLocaleString('pt-BR'),
                 num(l.liquido).toLocaleString('pt-BR'),
                 num(l.bruto).toLocaleString('pt-BR'),
@@ -1318,11 +1331,11 @@ window.generateReport = async (type, format = 'pdf') => {
                 "",
                 "",
                 "",
+                "",
                 totalTara.toLocaleString('pt-BR'),
                 totalLiquido.toLocaleString('pt-BR'),
                 totalBruto.toLocaleString('pt-BR'),
-                totalMetragem.toFixed(1),
-                ""
+                totalMetragem.toFixed(1)
             ]
         };
     }
