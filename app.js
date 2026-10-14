@@ -1885,6 +1885,12 @@ window.generateReport = async (type, format = 'pdf') => {
         head: [reportConfig.headers],
         body: reportConfig.rows,
         theme: 'grid',
+        /* Cada linha é uma carga: nunca deixa uma linha ser cortada
+           ao meio entre duas páginas. Se não couber inteira, ela vai
+           toda para a página de baixo. */
+        rowPageBreak: 'avoid',
+        pageBreak: 'avoid',
+        showHead: 'everyPage',
         styles: {
             fontSize: 8,
             cellPadding: 4,
@@ -1922,7 +1928,9 @@ window.generateReport = async (type, format = 'pdf') => {
             };
             return acc;
         }, {}),
-        margin: { left: 14, right: 14 },
+        /* Margem inferior reservada para o rodapé, evitando que a última
+           linha fique encostada/ cortada na borda da página. */
+        margin: { left: 14, right: 14, bottom: 22 },
         didDrawPage: function (data) {
             // Rodapé em cada página
             doc.setFillColor(245, 245, 248);

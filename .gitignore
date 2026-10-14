@@ -5,3 +5,6 @@ dist/
 .vscode/
 vite.log
 *.log
+
+# Arquivos temporários de QA/teste
+.tmp-*
